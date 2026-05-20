@@ -18,6 +18,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { useToast } from '../../contexts/ToastContext';
 import { orderService } from '../../services/orderService';
+import { returnService, type ReturnRequest } from '../../services/returnService';
 import { reviewService, type EligibleReviewItem, type Review } from '../../services/reviewService';
 import ReviewModal from '../../components/ReviewModal/ReviewModal';
 import { formatPrice } from '../../utils/formatters';
@@ -129,7 +130,20 @@ const OrderDetail = () => {
   const [reviewProduct, setReviewProduct] = useState<ReviewProduct | null>(null);
   const [orderReviews, setOrderReviews] = useState<Review[]>([]);
   const [isLoadingOrderReviews, setIsLoadingOrderReviews] = useState(false);
+  const [returnRequests, setReturnRequests] = useState<ReturnRequest[]>([]);
   const pageOrderCode = order?.code || order?.id || id || '';
+
+  const loadReturnRequests = useCallback(
+    async (orderId: string) => {
+      try {
+        const data = await returnService.getByOrderId(orderId);
+        setReturnRequests(data);
+      } catch (error) {
+        console.error('Error fetching return requests:', error);
+      }
+    },
+    []
+  );
   usePageTitle(pageOrderCode ? `Đơn hàng #${toDisplayOrderCode(pageOrderCode)}` : 'Chi tiết đơn hàng');
 
   const loadOrderReviews = useCallback(
@@ -183,6 +197,9 @@ const OrderDetail = () => {
     };
 
     void loadOrder({ withLoading: true });
+    if (id) {
+      void loadReturnRequests(id);
+    }
 
     const refreshInterval = window.setInterval(() => {
       if (!mounted || !id || document.visibilityState !== 'visible') {
@@ -327,7 +344,40 @@ const OrderDetail = () => {
           <div className="od-header-info">
             <h1>Đơn hàng <span className="od-order-id">#{order.code || order.id}</span></h1>
           </div>
-          <span className={`od-status-badge ${statusColorMap[order.status]}`}>{t.status[order.status]}</span>
+          {(() => {
+            const activeReturn = returnRequests.find((req) => req.status !== 'CANCELLED');
+            if (activeReturn) {
+              const getReturnStatusBadgeLabel = (status: string) => {
+                switch (status) {
+                  case 'PENDING_VENDOR':
+                    return 'Đang đổi/trả';
+                  case 'ACCEPTED':
+                    return 'Chờ gửi hàng';
+                  case 'SHIPPING':
+                    return 'Đang vận chuyển';
+                  case 'RECEIVED':
+                    return 'Shop đã nhận';
+                  case 'COMPLETED':
+                    return 'Trả hàng thành công';
+                  case 'REJECTED':
+                    return 'Yêu cầu bị từ chối';
+                  case 'DISPUTED':
+                    return 'Tranh chấp';
+                  default:
+                    return 'Đang đổi/trả';
+                }
+              };
+              const displayStatusClass = activeReturn.status === 'COMPLETED' ? 'status-refunded' : 'status-returning';
+              return (
+                <span className={`od-status-badge ${displayStatusClass}`}>
+                  {getReturnStatusBadgeLabel(activeReturn.status)}
+                </span>
+              );
+            }
+            return (
+              <span className={`od-status-badge ${statusColorMap[order.status]}`}>{t.status[order.status]}</span>
+            );
+          })()}
         </div>
 
         {slaNotice ? (
@@ -539,9 +589,41 @@ const OrderDetail = () => {
                       {isResolvingReview ? 'Đang tải...' : 'Đánh giá sản phẩm'}
                     </button>
                   ) : null}
-                  <button className="od-action-btn od-btn-outline" onClick={() => setIsReturnDrawerOpen(true)}>
-                    <RotateCcw size={16} /> Đổi / trả hàng
-                  </button>
+                  {(() => {
+                    const activeReq = returnRequests.find((req) => req.status !== 'CANCELLED');
+                    if (activeReq) {
+                      const getReturnStatusLabel = (req: ReturnRequest) => {
+                        switch (req.status) {
+                          case 'PENDING_VENDOR':
+                            return 'Chờ shop duyệt';
+                          case 'ACCEPTED':
+                            return 'Gửi hàng về';
+                          case 'SHIPPING':
+                            return 'Đang vận chuyển';
+                          case 'RECEIVED':
+                            return 'Shop đã nhận';
+                          case 'COMPLETED':
+                            return 'Hoàn thành';
+                          case 'REJECTED':
+                            return 'Bị từ chối';
+                          case 'DISPUTED':
+                            return 'Tranh chấp';
+                          default:
+                            return 'Đang xử lý';
+                        }
+                      };
+                      return (
+                        <button className="od-action-btn od-btn-outline" disabled>
+                          <RotateCcw size={16} /> Đã yêu cầu ({getReturnStatusLabel(activeReq)})
+                        </button>
+                      );
+                    }
+                    return (
+                      <button className="od-action-btn od-btn-outline" onClick={() => setIsReturnDrawerOpen(true)}>
+                        <RotateCcw size={16} /> Đổi / trả hàng
+                      </button>
+                    );
+                  })()}
                 </>
               )}
               {order.status === 'shipping' && (
@@ -635,7 +717,12 @@ const OrderDetail = () => {
       <ReturnRequestDrawer
         isOpen={isReturnDrawerOpen}
         order={order}
-        onClose={() => setIsReturnDrawerOpen(false)}
+        onClose={() => {
+          setIsReturnDrawerOpen(false);
+          if (id) {
+            void loadReturnRequests(id);
+          }
+        }}
       />
     </div>
   );

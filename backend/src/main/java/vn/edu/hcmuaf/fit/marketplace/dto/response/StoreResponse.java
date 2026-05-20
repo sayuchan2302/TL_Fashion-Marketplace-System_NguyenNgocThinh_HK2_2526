@@ -71,6 +71,10 @@ public class StoreResponse {
 
     private BigDecimal commissionRate;
 
+    private Boolean usesDefaultCommissionRate;
+
+    private BigDecimal effectiveCommissionRate;
+
     private String status;
 
     private String approvalStatus;

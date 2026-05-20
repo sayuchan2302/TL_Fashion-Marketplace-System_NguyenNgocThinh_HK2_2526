@@ -53,8 +53,7 @@ public class ReturnRequestService {
             PublicCodeService publicCodeService,
             WalletService walletService,
             AdminAuditLogService adminAuditLogService,
-            NotificationDomainService notificationDomainService
-    ) {
+            NotificationDomainService notificationDomainService) {
         this.returnRequestRepository = returnRequestRepository;
         this.orderRepository = orderRepository;
         this.storeRepository = storeRepository;
@@ -69,8 +68,7 @@ public class ReturnRequestService {
             OrderRepository orderRepository,
             StoreRepository storeRepository,
             PublicCodeService publicCodeService,
-            WalletService walletService
-    ) {
+            WalletService walletService) {
         this(
                 returnRequestRepository,
                 orderRepository,
@@ -78,8 +76,7 @@ public class ReturnRequestService {
                 publicCodeService,
                 walletService,
                 null,
-                null
-        );
+                null);
     }
 
     @Transactional
@@ -117,7 +114,8 @@ public class ReturnRequestService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid order item");
             }
             if (matched.getStoreId() == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Return item does not belong to a vendor store");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Return item does not belong to a vendor store");
             }
 
             int requestedQty = itemPayload.getQuantity() == null ? matched.getQuantity() : itemPayload.getQuantity();
@@ -137,8 +135,7 @@ public class ReturnRequestService {
                     matched.getProductImage(),
                     evidenceUrl.isEmpty() ? null : evidenceUrl,
                     requestedQty,
-                    safeAmount(matched.getUnitPrice())
-            );
+                    safeAmount(matched.getUnitPrice()));
         }).toList();
 
         assertNoOpenReturnConflict(order.getId(), requestedOrderItemIds);
@@ -168,31 +165,28 @@ public class ReturnRequestService {
         return list(
                 status == null ? null : List.of(status),
                 null,
-                pageable
-        );
+                pageable);
     }
 
     @Transactional(readOnly = true)
     public Page<ReturnRequestResponse> list(
             List<ReturnRequest.ReturnStatus> statuses,
             String keyword,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         Page<ReturnRequest> page = returnRequestRepository.findAll(
                 buildListSpecification(null, statuses, keyword),
-                pageable
-        );
+                pageable);
         return page.map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
-    public Page<ReturnRequestResponse> listForVendor(UUID storeId, ReturnRequest.ReturnStatus status, Pageable pageable) {
+    public Page<ReturnRequestResponse> listForVendor(UUID storeId, ReturnRequest.ReturnStatus status,
+            Pageable pageable) {
         return listForVendor(
                 storeId,
                 status == null ? null : List.of(status),
                 null,
-                pageable
-        );
+                pageable);
     }
 
     @Transactional(readOnly = true)
@@ -200,15 +194,13 @@ public class ReturnRequestService {
             UUID storeId,
             List<ReturnRequest.ReturnStatus> statuses,
             String keyword,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         if (storeId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Store is required");
         }
         Page<ReturnRequest> page = returnRequestRepository.findAll(
                 buildListSpecification(storeId, statuses, keyword),
-                pageable
-        );
+                pageable);
         return page.map(this::toResponse);
     }
 
@@ -223,8 +215,7 @@ public class ReturnRequestService {
                 .stream()
                 .collect(Collectors.toMap(
                         ReturnRequestRepository.ReturnStatusCountProjection::getStatus,
-                        ReturnRequestRepository.ReturnStatusCountProjection::getTotal
-                ));
+                        ReturnRequestRepository.ReturnStatusCountProjection::getTotal));
 
         long total = countsByStatus.values().stream().mapToLong(Long::longValue).sum();
         long pendingVendor = countsByStatus.getOrDefault(ReturnRequest.ReturnStatus.PENDING_VENDOR, 0L);
@@ -276,8 +267,7 @@ public class ReturnRequestService {
                 && request.getStatus() != ReturnRequest.ReturnStatus.RECEIVED) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Reject action only allowed for pending or received requests"
-            );
+                    "Reject action only allowed for pending or received requests");
         }
 
         request.setStatus(ReturnRequest.ReturnStatus.REJECTED);
@@ -290,7 +280,8 @@ public class ReturnRequestService {
     }
 
     @Transactional
-    public ReturnRequestResponse markShipping(UUID returnId, UUID userId, String trackingNumber, String carrier, String actor) {
+    public ReturnRequestResponse markShipping(UUID returnId, UUID userId, String trackingNumber, String carrier,
+            String actor) {
         ReturnRequest request = findById(returnId);
         assertCustomerOwnership(request, userId);
         assertStatus(request, ReturnRequest.ReturnStatus.ACCEPTED);
@@ -337,14 +328,12 @@ public class ReturnRequestService {
                 saved.getId(),
                 saved.getOrder(),
                 refundAmount,
-                "Vendor debit for return " + resolveReturnCode(saved)
-        );
+                "Vendor debit for return " + resolveReturnCode(saved));
         walletService.refundToCustomerFromEscrow(
                 saved.getId(),
                 saved.getOrder(),
                 refundAmount,
-                "Refund for return " + resolveReturnCode(saved)
-        );
+                "Refund for return " + resolveReturnCode(saved));
         notifyCustomerReturnStatusChanged(saved);
         return toResponse(saved);
     }
@@ -390,8 +379,7 @@ public class ReturnRequestService {
             ReturnAdminVerdictRequest.VerdictAction action,
             String adminNote,
             UUID adminId,
-            String adminEmail
-    ) {
+            String adminEmail) {
         if (action == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Verdict action is required");
         }
@@ -404,7 +392,8 @@ public class ReturnRequestService {
             if (safeAction == ReturnAdminVerdictRequest.VerdictAction.REFUND_TO_CUSTOMER) {
                 BigDecimal refundAmount = calculateRefundAmount(request);
                 if (refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Refund amount must be greater than zero");
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Refund amount must be greater than zero");
                 }
                 request.setStatus(ReturnRequest.ReturnStatus.COMPLETED);
                 request.setCompletedAt(LocalDateTime.now());
@@ -417,14 +406,12 @@ public class ReturnRequestService {
                         saved.getId(),
                         saved.getOrder(),
                         refundAmount,
-                        "Admin verdict debit for return " + resolveReturnCode(saved)
-                );
+                        "Admin verdict debit for return " + resolveReturnCode(saved));
                 walletService.refundToCustomerFromEscrow(
                         saved.getId(),
                         saved.getOrder(),
                         refundAmount,
-                        "Dispute refund for return " + resolveReturnCode(saved)
-                );
+                        "Dispute refund for return " + resolveReturnCode(saved));
 
                 writeAdminAuditLog(
                         adminId,
@@ -433,8 +420,7 @@ public class ReturnRequestService {
                         "FINAL_VERDICT_REFUND_TO_CUSTOMER",
                         saved.getId(),
                         true,
-                        normalizeOptionalText(adminNote)
-                );
+                        normalizeOptionalText(adminNote));
                 notifyCustomerReturnStatusChanged(saved);
                 return toResponse(saved);
             }
@@ -455,8 +441,7 @@ public class ReturnRequestService {
                     "FINAL_VERDICT_RELEASE_TO_VENDOR",
                     saved.getId(),
                     true,
-                    normalizedAdminNote
-            );
+                    normalizedAdminNote);
             notifyCustomerReturnStatusChanged(saved);
             return toResponse(saved);
         } catch (RuntimeException ex) {
@@ -469,14 +454,14 @@ public class ReturnRequestService {
                             : "FINAL_VERDICT_RELEASE_TO_VENDOR",
                     returnId,
                     false,
-                    ex.getMessage()
-            );
+                    ex.getMessage());
             throw ex;
         }
     }
 
     private void notifyCustomerReturnCreated(ReturnRequest request) {
-        if (notificationDomainService == null || request == null || request.getUser() == null || request.getUser().getId() == null) {
+        if (notificationDomainService == null || request == null || request.getUser() == null
+                || request.getUser().getId() == null) {
             return;
         }
         String code = resolveReturnCode(request);
@@ -487,12 +472,12 @@ public class ReturnRequestService {
                 Notification.NotificationType.SYSTEM,
                 title,
                 message,
-                buildReturnDetailLink(request)
-        );
+                buildReturnDetailLink(request));
     }
 
     private void notifyCustomerReturnStatusChanged(ReturnRequest request) {
-        if (notificationDomainService == null || request == null || request.getUser() == null || request.getUser().getId() == null) {
+        if (notificationDomainService == null || request == null || request.getUser() == null
+                || request.getUser().getId() == null) {
             return;
         }
         ReturnRequest.ReturnStatus status = request.getStatus();
@@ -507,8 +492,7 @@ public class ReturnRequestService {
                 Notification.NotificationType.SYSTEM,
                 title,
                 message,
-                buildReturnDetailLink(request)
-        );
+                buildReturnDetailLink(request));
     }
 
     private String returnStatusTitle(ReturnRequest.ReturnStatus status) {
@@ -551,8 +535,7 @@ public class ReturnRequestService {
         if (request.getStatus() != expected) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Invalid status transition: " + request.getStatus() + " -> " + expected
-            );
+                    "Invalid status transition: " + request.getStatus() + " -> " + expected);
         }
     }
 
@@ -564,12 +547,14 @@ public class ReturnRequestService {
     }
 
     private void assertCustomerOwnership(ReturnRequest request, UUID userId) {
-        if (request.getUser() == null || request.getUser().getId() == null || !request.getUser().getId().equals(userId)) {
+        if (request.getUser() == null || request.getUser().getId() == null
+                || !request.getUser().getId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Return request does not belong to this customer");
         }
     }
 
-    private UUID resolveSingleStoreId(List<ReturnRequest.ReturnItemSnapshot> snapshots, Map<UUID, OrderItem> orderItemMap) {
+    private UUID resolveSingleStoreId(List<ReturnRequest.ReturnItemSnapshot> snapshots,
+            Map<UUID, OrderItem> orderItemMap) {
         UUID resolvedStoreId = null;
         for (ReturnRequest.ReturnItemSnapshot snapshot : snapshots) {
             OrderItem item = orderItemMap.get(snapshot.getOrderItemId());
@@ -584,8 +569,7 @@ public class ReturnRequestService {
             if (!resolvedStoreId.equals(itemStoreId)) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "A return request can only include items from one vendor store"
-                );
+                        "A return request can only include items from one vendor store");
             }
         }
         return resolvedStoreId;
@@ -618,8 +602,7 @@ public class ReturnRequestService {
             if (duplicatedItem) {
                 throw new ResponseStatusException(
                         HttpStatus.CONFLICT,
-                        "One or more items already have an active return request"
-                );
+                        "One or more items already have an active return request");
             }
         }
     }
@@ -635,8 +618,7 @@ public class ReturnRequestService {
     private Specification<ReturnRequest> buildListSpecification(
             UUID storeId,
             List<ReturnRequest.ReturnStatus> statuses,
-            String keyword
-    ) {
+            String keyword) {
         return (root, query, cb) -> {
             var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
             query.distinct(true);
@@ -660,8 +642,7 @@ public class ReturnRequestService {
                         cb.like(cb.lower(root.get("returnCode")), pattern),
                         cb.like(cb.lower(orderJoin.get("orderCode")), pattern),
                         cb.like(cb.lower(userJoin.get("name")), pattern),
-                        cb.like(cb.lower(userJoin.get("email")), pattern)
-                ));
+                        cb.like(cb.lower(userJoin.get("email")), pattern)));
             }
 
             return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
@@ -710,7 +691,8 @@ public class ReturnRequestService {
 
         BigDecimal totalDiscount = safeAmount(order == null ? BigDecimal.ZERO : order.getDiscount())
                 .min(totalGross);
-        Map<UUID, BigDecimal> allocatedDiscountByItem = allocateDiscountByOrderItem(orderItemMap, totalGross, totalDiscount);
+        Map<UUID, BigDecimal> allocatedDiscountByItem = allocateDiscountByOrderItem(orderItemMap, totalGross,
+                totalDiscount);
 
         BigDecimal refund = BigDecimal.ZERO;
         for (ReturnRequest.ReturnItemSnapshot snapshot : snapshots) {
@@ -727,8 +709,7 @@ public class ReturnRequestService {
             if (matchedItem == null) {
                 refund = refund.add(
                         safeAmount(snapshot.getUnitPrice())
-                                .multiply(BigDecimal.valueOf(returnQty))
-                );
+                                .multiply(BigDecimal.valueOf(returnQty)));
                 continue;
             }
 
@@ -737,8 +718,7 @@ public class ReturnRequestService {
             if (orderedQty <= 0 || lineGross.compareTo(BigDecimal.ZERO) <= 0) {
                 refund = refund.add(
                         safeAmount(snapshot.getUnitPrice())
-                                .multiply(BigDecimal.valueOf(returnQty))
-                );
+                                .multiply(BigDecimal.valueOf(returnQty)));
                 continue;
             }
 
@@ -759,10 +739,10 @@ public class ReturnRequestService {
     private Map<UUID, BigDecimal> allocateDiscountByOrderItem(
             Map<UUID, OrderItem> orderItemMap,
             BigDecimal totalGross,
-            BigDecimal totalDiscount
-    ) {
+            BigDecimal totalDiscount) {
         Map<UUID, BigDecimal> allocatedByItem = new LinkedHashMap<>();
-        if (orderItemMap.isEmpty() || totalDiscount.compareTo(BigDecimal.ZERO) <= 0 || totalGross.compareTo(BigDecimal.ZERO) <= 0) {
+        if (orderItemMap.isEmpty() || totalDiscount.compareTo(BigDecimal.ZERO) <= 0
+                || totalGross.compareTo(BigDecimal.ZERO) <= 0) {
             return allocatedByItem;
         }
 
@@ -839,17 +819,15 @@ public class ReturnRequestService {
                 .note(request.getNote())
                 .resolution(request.getResolution())
                 .status(request.getStatus())
-                .items(request.getItems().stream().map(item ->
-                        ReturnRequestResponse.ReturnItem.builder()
-                                .orderItemId(item.getOrderItemId())
-                                .productName(item.getProductName())
-                                .variantName(item.getVariantName())
-                                .imageUrl(item.getImageUrl())
-                                .evidenceUrl(item.getEvidenceUrl())
-                                .quantity(item.getQuantity())
-                                .unitPrice(item.getUnitPrice())
-                                .build()
-                ).toList())
+                .items(request.getItems().stream().map(item -> ReturnRequestResponse.ReturnItem.builder()
+                        .orderItemId(item.getOrderItemId())
+                        .productName(item.getProductName())
+                        .variantName(item.getVariantName())
+                        .imageUrl(item.getImageUrl())
+                        .evidenceUrl(item.getEvidenceUrl())
+                        .quantity(item.getQuantity())
+                        .unitPrice(item.getUnitPrice())
+                        .build()).toList())
                 .refundAmount(calculateRefundAmount(request))
                 .storeId(effectiveStoreId)
                 .storeName(storeName)
@@ -867,6 +845,26 @@ public class ReturnRequestService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public List<ReturnRequestResponse> getCustomerReturns(UUID userId) {
+        return returnRequestRepository.findByUserId(userId, org.springframework.data.domain.Pageable.unpaged())
+                .getContent().stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReturnRequestResponse> getCustomerReturnsByOrderId(UUID orderId, UUID userId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        if (order.getUser() == null || !order.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Order does not belong to user");
+        }
+        return returnRequestRepository.findByOrderId(orderId).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     private void writeAdminAuditLog(
             UUID actorId,
             String actorEmail,
@@ -874,9 +872,9 @@ public class ReturnRequestService {
             String action,
             UUID targetId,
             boolean success,
-            String note
-    ) {
-        if (adminAuditLogService == null) return;
+            String note) {
+        if (adminAuditLogService == null)
+            return;
         adminAuditLogService.logAction(actorId, actorEmail, domain, action, targetId, success, note);
     }
 }

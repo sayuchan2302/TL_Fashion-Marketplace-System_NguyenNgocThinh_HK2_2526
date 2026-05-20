@@ -23,6 +23,7 @@ import vn.edu.hcmuaf.fit.marketplace.entity.OrderStatusLog;
 import vn.edu.hcmuaf.fit.marketplace.entity.Product;
 import vn.edu.hcmuaf.fit.marketplace.entity.ProductImage;
 import vn.edu.hcmuaf.fit.marketplace.entity.ProductVariant;
+import vn.edu.hcmuaf.fit.marketplace.entity.PlatformSetting;
 import vn.edu.hcmuaf.fit.marketplace.entity.Store;
 import vn.edu.hcmuaf.fit.marketplace.entity.User;
 import vn.edu.hcmuaf.fit.marketplace.entity.Voucher;
@@ -33,6 +34,7 @@ import vn.edu.hcmuaf.fit.marketplace.repository.CustomerVoucherRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.FlashSaleItemRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.OrderRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.OrderStatusLogRepository;
+import vn.edu.hcmuaf.fit.marketplace.repository.PlatformSettingRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.ProductRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.ProductVariantRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.StoreRepository;
@@ -309,6 +311,112 @@ class OrderServiceTest {
         assertEquals(0, response.getVendorPayout().compareTo(new BigDecimal("174000.00")));
         assertEquals(3, variant.getStockQuantity());
         assertEquals(3, product.getStockQuantity());
+    }
+
+    @Test
+    void createSingleStoreOrderUsesPlatformDefaultCommissionWhenStoreUsesDefault() {
+        UUID userId = UUID.randomUUID();
+        UUID addressId = UUID.randomUUID();
+        UUID productId = UUID.randomUUID();
+        UUID variantId = UUID.randomUUID();
+
+        PlatformSettingRepository platformSettingRepository =
+                org.mockito.Mockito.mock(PlatformSettingRepository.class);
+        when(platformSettingRepository.findBySettingKey(any()))
+                .thenReturn(Optional.of(PlatformSetting.builder()
+                        .settingKey("defaultCommissionRate")
+                        .settingValue("7.5")
+                        .build()));
+        PlatformCommissionSettingsService commissionSettingsService = new PlatformCommissionSettingsService(
+                platformSettingRepository,
+                storeRepository,
+                null
+        );
+        OrderService serviceWithCommissionPolicy = new OrderService(
+                orderRepository,
+                userRepository,
+                addressRepository,
+                productRepository,
+                productVariantRepository,
+                flashSaleItemRepository,
+                walletService,
+                storeRepository,
+                couponRepository,
+                voucherRepository,
+                customerVoucherRepository,
+                publicCodeService,
+                eventPublisher,
+                null,
+                notificationDomainService,
+                orderStatusLogRepository,
+                commissionSettingsService
+        );
+
+        User user = User.builder()
+                .id(userId)
+                .email("buyer@example.com")
+                .password("secret")
+                .role(User.Role.CUSTOMER)
+                .build();
+        Address address = Address.builder()
+                .id(addressId)
+                .user(user)
+                .fullName("Buyer")
+                .phone("0900000000")
+                .province("HCM")
+                .district("Q1")
+                .ward("Ben Nghe")
+                .detail("1 Test Street")
+                .build();
+        Product product = Product.builder()
+                .id(productId)
+                .name("T-Shirt")
+                .storeId(storeId)
+                .basePrice(new BigDecimal("100000"))
+                .salePrice(new BigDecimal("80000"))
+                .stockQuantity(5)
+                .build();
+        ProductVariant variant = ProductVariant.builder()
+                .id(variantId)
+                .product(product)
+                .sku("TS-BLACK-M")
+                .isActive(true)
+                .stockQuantity(5)
+                .priceAdjustment(BigDecimal.ZERO)
+                .build();
+        Store store = Store.builder()
+                .id(storeId)
+                .name("Store A")
+                .commissionRate(new BigDecimal("5.0"))
+                .usesDefaultCommissionRate(true)
+                .build();
+        OrderRequest request = OrderRequest.builder()
+                .addressId(addressId)
+                .paymentMethod("COD")
+                .items(List.of(
+                        OrderRequest.OrderItemRequest.builder()
+                                .productId(productId)
+                                .variantId(variantId)
+                                .quantity(2)
+                                .unitPrice(BigDecimal.ONE)
+                                .build()
+                ))
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(addressRepository.findById(addressId)).thenReturn(Optional.of(address));
+        when(productRepository.findPublicByIdForUpdate(productId)).thenReturn(Optional.of(product));
+        when(productVariantRepository.findByIdForUpdate(variantId)).thenReturn(Optional.of(variant));
+        when(productVariantRepository.sumActiveStockByProductId(productId)).thenReturn(3L);
+        when(storeRepository.findById(storeId)).thenReturn(Optional.of(store));
+        publicCodeService.pushOrderCode("DH-260401-000002");
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AdminOrderResponse response = serviceWithCommissionPolicy.create(userId, request);
+
+        assertEquals(0, response.getCommissionRateApplied().compareTo(new BigDecimal("7.5000")));
+        assertEquals(0, response.getCommissionFee().compareTo(new BigDecimal("12000.00")));
+        assertEquals(0, response.getVendorPayout().compareTo(new BigDecimal("178000.00")));
     }
 
     @Test

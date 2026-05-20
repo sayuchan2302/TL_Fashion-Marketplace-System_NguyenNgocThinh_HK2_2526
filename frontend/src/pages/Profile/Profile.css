@@ -1190,6 +1190,16 @@ body.modal-open {
   color: #dc2626;
 }
 
+.status-returning {
+  background-color: #ffedd5;
+  color: #ea580c;
+}
+
+.status-refunded {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
 .order-card-items {
   padding: 16px 20px;
   display: flex;

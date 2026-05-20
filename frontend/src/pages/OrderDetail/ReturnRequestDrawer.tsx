@@ -5,7 +5,7 @@ import { returnService, type ReturnReason, type ReturnResolution } from '../../s
 import type { Order, OrderItem } from '../../types';
 import { formatPrice } from '../../utils/formatters';
 import { getOptimizedImageUrl } from '../../utils/getOptimizedImageUrl';
-import { toDisplayOrderCode, toDisplayReturnCode } from '../../utils/displayCode';
+import { toDisplayOrderCode } from '../../utils/displayCode';
 import { CLIENT_TEXT } from '../../utils/texts';
 
 const t = CLIENT_TEXT.returns;
@@ -60,6 +60,7 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const evidenceRef = useRef<EvidenceState | null>(null);
+  const lastInitializedOrderIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     evidenceRef.current = evidence;
@@ -70,6 +71,7 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
   useEffect(() => {
     if (isOpen) return;
 
+    lastInitializedOrderIdRef.current = null;
     setEvidence((prev) => {
       if (!prev) return prev;
       revokeEvidencePreview(prev);
@@ -78,7 +80,13 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen || !order) return;
+    if (!isOpen || !order) {
+      lastInitializedOrderIdRef.current = null;
+      return;
+    }
+
+    if (lastInitializedOrderIdRef.current === order.id) return;
+    lastInitializedOrderIdRef.current = order.id;
 
     setItems(order.items.map((item) => ({ ...item, selected: true })));
     setReason('SIZE');
@@ -204,7 +212,7 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
 
     setIsSubmitting(true);
     try {
-      const response = await returnService.submit({
+      await returnService.submit({
         orderId: order.id,
         reason,
         resolution,
@@ -216,7 +224,6 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
         })),
       });
 
-      addToast(`Đã gửi yêu cầu đổi/trả #${toDisplayReturnCode(response.code || response.id)}`, 'success');
       onClose();
     } catch (error: unknown) {
       const message = error instanceof Error && error.message.trim()

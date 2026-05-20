@@ -1,11 +1,12 @@
 ﻿import { Link } from 'react-router-dom';
-import { useEffect, useMemo } from 'react';
-import { Package } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Package, RotateCcw } from 'lucide-react';
 import EmptyState from '../../../../components/EmptyState/EmptyState';
 import ProfilePagination from '../ProfilePagination';
 import type { ProfileTabContentProps } from '../ProfileTabContent.types';
+import { returnService, type ReturnRequest } from '../../../../services/returnService';
 
-const orderFilterOptions = ['Tất cả', 'Chờ xác nhận', 'Đang giao', 'Đã giao', 'Đã hủy'];
+const orderFilterOptions = ['Tất cả', 'Chờ xác nhận', 'Đang giao', 'Đã giao', 'Đã hủy', 'Hoàn trả'];
 
 const statusMap: Record<string, string> = {
   'Tất cả': 'all',
@@ -13,6 +14,7 @@ const statusMap: Record<string, string> = {
   'Đang giao': 'shipping',
   'Đã giao': 'delivered',
   'Đã hủy': 'cancelled',
+  'Hoàn trả': 'refunded',
 };
 
 const formatVendorDeadlineNotice = (deadline?: string): string | null => {
@@ -47,6 +49,48 @@ const getOrderSlaNotice = (order: ProfileTabContentProps['orders'][number]): { t
   return null;
 };
 
+const getReturnStatusLabel = (req: ReturnRequest) => {
+  switch (req.status) {
+    case 'PENDING_VENDOR':
+      return 'Chờ shop duyệt';
+    case 'ACCEPTED':
+      return 'Gửi hàng về';
+    case 'SHIPPING':
+      return 'Đang vận chuyển';
+    case 'RECEIVED':
+      return 'Shop đã nhận';
+    case 'COMPLETED':
+      return 'Hoàn thành';
+    case 'REJECTED':
+      return 'Bị từ chối';
+    case 'DISPUTED':
+      return 'Tranh chấp';
+    default:
+      return 'Đang xử lý';
+  }
+};
+
+const getReturnStatusBadgeLabel = (status: string) => {
+  switch (status) {
+    case 'PENDING_VENDOR':
+      return 'Đang đổi/trả';
+    case 'ACCEPTED':
+      return 'Chờ gửi hàng';
+    case 'SHIPPING':
+      return 'Đang vận chuyển';
+    case 'RECEIVED':
+      return 'Shop đã nhận';
+    case 'COMPLETED':
+      return 'Trả hàng thành công';
+    case 'REJECTED':
+      return 'Yêu cầu bị từ chối';
+    case 'DISPUTED':
+      return 'Tranh chấp';
+    default:
+      return 'Đang đổi/trả';
+  }
+};
+
 const OrdersTab = ({
   orderFilter,
   onOrderFilterChange,
@@ -76,12 +120,40 @@ const OrdersTab = ({
   | 'onOpenReturnDrawer'
   | 'onOpenReviewForOrder'
 >) => {
+  const [customerReturns, setCustomerReturns] = useState<ReturnRequest[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchReturns = async () => {
+      try {
+        const data = await returnService.listCustomerReturns();
+        if (active) {
+          setCustomerReturns(data);
+        }
+      } catch (error) {
+        console.error('Error fetching customer returns:', error);
+      }
+    };
+    void fetchReturns();
+    return () => {
+      active = false;
+    };
+  }, [orders]);
+
   const filteredOrders = useMemo(
-    () => orderFilter === 'Tất cả'
-      ? orders
-      : orders.filter((order) => order.status === statusMap[orderFilter]),
-    [orderFilter, orders],
+    () => {
+      if (orderFilter === 'Tất cả') return orders;
+      if (orderFilter === 'Hoàn trả') {
+        return orders.filter((order) => {
+          const hasReturn = customerReturns.some((req) => req.orderId === order.id);
+          return order.status === 'refunded' || hasReturn;
+        });
+      }
+      return orders.filter((order) => order.status === statusMap[orderFilter]);
+    },
+    [orderFilter, orders, customerReturns],
   );
+
   const totalOrderPages = Math.max(1, Math.ceil(filteredOrders.length / ordersPerPage));
   const safeOrderPage = Math.min(orderPage, totalOrderPages);
   const pagedOrders = useMemo(() => {
@@ -133,70 +205,94 @@ const OrdersTab = ({
         ) : (
           pagedOrders.map((order) => {
             const slaNotice = getOrderSlaNotice(order);
+            const activeReturn = customerReturns.find(
+              (req) => req.orderId === order.id && req.status !== 'CANCELLED'
+            );
+            const displayStatusText = activeReturn
+              ? getReturnStatusBadgeLabel(activeReturn.status)
+              : (orderStatusLabelMap[order.status] ?? order.status);
+
+            const displayStatusClass = activeReturn
+              ? (activeReturn.status === 'COMPLETED' ? 'refunded' : 'returning')
+              : order.status;
 
             return (
               <div key={order.id} className="order-card">
-              <div className="order-card-header">
-                <div className="order-card-meta">
-                  <button className="order-id-link" onClick={() => onOpenOrderDetail(order)}>
-                    Mã đơn: #{order.code || order.id}
-                  </button>
-                  <span className="order-date">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</span>
-                </div>
-                <span className={`order-status-badge status-${order.status}`}>
-                  {orderStatusLabelMap[order.status] ?? order.status}
-                </span>
-              </div>
-              {slaNotice ? (
-                <div className={`order-sla-note ${slaNotice.tone}`}>
-                  {slaNotice.text}
-                </div>
-              ) : null}
-              <div className="order-card-items">
-                {order.items.slice(0, 2).map((item, idx) => (
-                  <div key={idx} className="order-item">
-                    <Link to={`/product/${encodeURIComponent(item.id)}`} className="order-item-img">
-                      <img src={item.image} alt={item.name} />
-                    </Link>
-                    <div className="order-item-info">
-                      <p className="order-item-name">{item.name}</p>
-                      {item.color && <p className="order-item-variant">Màu: {item.color}</p>}
-                      {item.size && <p className="order-item-variant">Size: {item.size}</p>}
-                      <p className="order-item-qty">x{item.quantity}</p>
-                    </div>
-                    <span className="order-item-price">{item.price.toLocaleString('vi-VN')}đ</span>
-                  </div>
-                ))}
-                {order.items.length > 2 && <p className="order-more-items">+{order.items.length - 2} sản phẩm khác</p>}
-              </div>
-              <div className="order-card-footer">
-                <div className="order-total">
-                  <span>Tổng cộng:</span>
-                  <span className="order-total-price">{order.total.toLocaleString('vi-VN')}đ</span>
-                </div>
-                <div className="order-actions">
-                  {order.status === 'pending' && (
-                    <button className="order-action-btn order-btn-danger" onClick={() => onRequestCancelOrder(order.id)}>
-                      Hủy đơn hàng
+                <div className="order-card-header">
+                  <div className="order-card-meta">
+                    <button className="order-id-link" onClick={() => onOpenOrderDetail(order)}>
+                      Mã đơn: #{order.code || order.id}
                     </button>
-                  )}
-                  <button className="order-action-btn order-btn-outline" onClick={() => onOpenOrderDetail(order)}>
-                    Xem chi tiết
-                  </button>
-                  {order.status === 'delivered' && (
-                    <>
-                      <button className="order-action-btn order-btn-outline" onClick={() => onOpenReturnDrawer(order)}>
-                        Đổi / trả hàng
-                      </button>
-                      <button className="order-action-btn order-btn-primary" onClick={() => onOpenReviewForOrder(order)}>
-                        Đánh giá
-                      </button>
-                    </>
-                  )}
-                  {order.status === 'shipping' && <button className="order-action-btn order-btn-primary">Theo dõi đơn</button>}
-                  {order.status === 'cancelled' && <button className="order-action-btn order-btn-outline">Mua lại</button>}
+                    <span className="order-date">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</span>
+                  </div>
+                  <span className={`order-status-badge status-${displayStatusClass}`}>
+                    {displayStatusText}
+                  </span>
                 </div>
-              </div>
+                {slaNotice ? (
+                  <div className={`order-sla-note ${slaNotice.tone}`}>
+                    {slaNotice.text}
+                  </div>
+                ) : null}
+                <div className="order-card-items">
+                  {order.items.slice(0, 2).map((item, idx) => (
+                    <div key={idx} className="order-item">
+                      <Link to={`/product/${encodeURIComponent(item.id)}`} className="order-item-img">
+                        <img src={item.image} alt={item.name} />
+                      </Link>
+                      <div className="order-item-info">
+                        <p className="order-item-name">{item.name}</p>
+                        {item.color && <p className="order-item-variant">Màu: {item.color}</p>}
+                        {item.size && <p className="order-item-variant">Size: {item.size}</p>}
+                        <p className="order-item-qty">x{item.quantity}</p>
+                      </div>
+                      <span className="order-item-price">{item.price.toLocaleString('vi-VN')}đ</span>
+                    </div>
+                  ))}
+                  {order.items.length > 2 && <p className="order-more-items">+{order.items.length - 2} sản phẩm khác</p>}
+                </div>
+                <div className="order-card-footer">
+                  <div className="order-total">
+                    <span>Tổng cộng:</span>
+                    <span className="order-total-price">{order.total.toLocaleString('vi-VN')}đ</span>
+                  </div>
+                  <div className="order-actions">
+                    {order.status === 'pending' && (
+                      <button className="order-action-btn order-btn-danger" onClick={() => onRequestCancelOrder(order.id)}>
+                        Hủy đơn hàng
+                      </button>
+                    )}
+                    <button className="order-action-btn order-btn-outline" onClick={() => onOpenOrderDetail(order)}>
+                      Xem chi tiết
+                    </button>
+                    {order.status === 'delivered' && (
+                      <>
+                        {(() => {
+                          const activeReq = customerReturns.find(
+                            (req) => req.orderId === order.id && req.status !== 'CANCELLED'
+                          );
+                          if (activeReq) {
+                            return (
+                              <button className="order-action-btn order-btn-outline" disabled>
+                                <RotateCcw size={16} /> Đã yêu cầu ({getReturnStatusLabel(activeReq)})
+                              </button>
+                            );
+                          }
+                          return (
+                            <button className="order-action-btn order-btn-outline" onClick={() => onOpenReturnDrawer(order)}>
+                              <RotateCcw size={16} /> Đổi / trả hàng
+                            </button>
+                          );
+                        })()}
+                        <button className="order-action-btn order-btn-primary" onClick={() => onOpenReviewForOrder(order)}>
+                          Đánh giá
+                        </button>
+                      </>
+                    )}
+                    {order.status === 'shipping' && <button className="order-action-btn order-btn-primary">Theo dõi đơn</button>}
+                    {order.status === 'cancelled' && <button className="order-action-btn order-btn-outline">Mua lại</button>}
+                  </div>
+                </div>
               </div>
             );
           })

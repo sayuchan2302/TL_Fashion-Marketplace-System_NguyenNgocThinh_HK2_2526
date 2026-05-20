@@ -12,6 +12,7 @@ import {
   PanelFilterSelect,
   PanelSearchField,
   PanelStatsGrid,
+  PanelTabs,
   PanelTableFooter,
 } from '../../components/Panel/PanelPrimitives';
 import { useToast } from '../../contexts/ToastContext';
@@ -30,6 +31,7 @@ interface ManagedStore extends StoreProfile {
 }
 
 type StoreFilter = 'all' | 'pending' | 'active' | 'suspended' | 'rejected';
+type StoreScope = 'activeStores' | 'sellerRequests';
 type StoreScaleFilter = 'all' | 'hasProducts' | 'live' | 'noLive';
 type ConfirmMode = 'approve' | 'suspend' | 'reactivate';
 type ConfirmState = { mode: ConfirmMode; ids: string[]; selectedItems: string[] };
@@ -40,6 +42,23 @@ const TABS: Array<{ key: StoreFilter; label: string }> = [
   { key: 'active', label: 'Đang hoạt động' },
   { key: 'suspended', label: 'Tạm khóa' },
   { key: 'rejected', label: 'Từ chối' },
+];
+
+const STORE_SCOPE_TABS: Array<{ key: StoreScope; label: string }> = [
+  { key: 'activeStores', label: 'Gian hàng đang hoạt động' },
+  { key: 'sellerRequests', label: 'Yêu cầu trở thành seller' },
+];
+
+const ACTIVE_STORE_TABS: Array<{ key: StoreFilter; label: string }> = [
+  { key: 'active', label: 'Đang hoạt động' },
+  { key: 'suspended', label: 'Tạm khóa' },
+  { key: 'all', label: 'Tất cả đã duyệt' },
+];
+
+const SELLER_REQUEST_TABS: Array<{ key: StoreFilter; label: string }> = [
+  { key: 'pending', label: 'Chờ duyệt' },
+  { key: 'rejected', label: 'Đã từ chối' },
+  { key: 'all', label: 'Tất cả yêu cầu' },
 ];
 
 const formatCurrency = (value: number) => `${value.toLocaleString('vi-VN')} ₫`;
@@ -115,6 +134,9 @@ const SCALE_FILTERS: Array<{ key: StoreScaleFilter; label: string }> = [
 
 const validScaleFilters = new Set<StoreScaleFilter>(SCALE_FILTERS.map((item) => item.key));
 
+const getStoreScopeFromStatus = (status: string): StoreScope =>
+  status === 'pending' || status === 'rejected' ? 'sellerRequests' : 'activeStores';
+
 const buildStoreSignalCards = (store: ManagedStore) => [
   {
     key: 'products',
@@ -168,20 +190,25 @@ const StoreApprovals = () => {
   const [commissionRateInput, setCommissionRateInput] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [savingCommissionRate, setSavingCommissionRate] = useState(false);
+  const [resettingCommissionRate, setResettingCommissionRate] = useState(false);
   const pageSize = 8;
   const view = useAdminViewState({
     storageKey: ADMIN_VIEW_KEYS.stores,
     path: '/admin/stores',
     validStatusKeys: TABS.map((tab) => tab.key),
-    defaultStatus: 'all',
+    defaultStatus: 'active',
     extraFilters: [
       { key: 'scale', defaultValue: 'all', validate: (value) => validScaleFilters.has(value as StoreScaleFilter) },
     ],
   });
-  const activeTab = (TABS.some((tab) => tab.key === view.status) ? view.status : 'all') as StoreFilter;
+  const [storeScope, setStoreScope] = useState<StoreScope>(() => getStoreScopeFromStatus(view.status));
+  const statusTabs = storeScope === 'sellerRequests' ? SELLER_REQUEST_TABS : ACTIVE_STORE_TABS;
+  const fallbackStatus: StoreFilter = storeScope === 'sellerRequests' ? 'pending' : 'active';
+  const activeTab = (statusTabs.some((tab) => tab.key === view.status) ? view.status : fallbackStatus) as StoreFilter;
   const scaleFilter = (validScaleFilters.has(view.extras.scale as StoreScaleFilter) ? view.extras.scale : 'all') as StoreScaleFilter;
   const search = view.search;
   const page = view.page;
+  const isSellerRequestScope = storeScope === 'sellerRequests';
 
   useEffect(() => {
     let active = true;
@@ -212,12 +239,19 @@ const StoreApprovals = () => {
 
   useEffect(() => {
     setCommissionRateInput(
-      detailStore?.commissionRate != null ? String(detailStore.commissionRate) : '',
+      detailStore?.effectiveCommissionRate != null
+        ? String(detailStore.effectiveCommissionRate)
+        : detailStore?.commissionRate != null
+          ? String(detailStore.commissionRate)
+          : '',
     );
-  }, [detailStore?.id, detailStore?.commissionRate]);
+  }, [detailStore?.id, detailStore?.commissionRate, detailStore?.effectiveCommissionRate]);
 
   const filteredStores = useMemo(() => {
-    let next = stores;
+    let next = stores.filter((store) =>
+      isSellerRequestScope ? store.approvalStatus !== 'APPROVED' : store.approvalStatus === 'APPROVED',
+    );
+
     if (activeTab !== 'all') {
       next = next.filter((store) => {
         if (activeTab === 'pending') return store.approvalStatus === 'PENDING';
@@ -226,7 +260,8 @@ const StoreApprovals = () => {
         return store.approvalStatus === 'REJECTED';
       });
     }
-    if (scaleFilter !== 'all') {
+
+    if (!isSellerRequestScope && scaleFilter !== 'all') {
       next = next.filter((store) => {
         if (scaleFilter === 'hasProducts') return store.productCount > 0;
         if (scaleFilter === 'live') return store.liveProductCount > 0;
@@ -242,22 +277,50 @@ const StoreApprovals = () => {
       );
     }
     return next;
-  }, [activeTab, scaleFilter, search, stores]);
+  }, [activeTab, isSellerRequestScope, scaleFilter, search, stores]);
 
   const counts = useMemo(() => ({
     all: stores.length,
+    approved: stores.filter((store) => store.approvalStatus === 'APPROVED').length,
+    requests: stores.filter((store) => store.approvalStatus !== 'APPROVED').length,
     pending: stores.filter((store) => store.approvalStatus === 'PENDING').length,
     active: stores.filter((store) => store.approvalStatus === 'APPROVED' && store.operatingStatus === 'ACTIVE').length,
     suspended: stores.filter((store) => store.approvalStatus === 'APPROVED' && store.operatingStatus === 'SUSPENDED').length,
     rejected: stores.filter((store) => store.approvalStatus === 'REJECTED').length,
   }), [stores]);
 
+  const approvedStores = useMemo(() => stores.filter((store) => store.approvalStatus === 'APPROVED'), [stores]);
   const scaleCounts: Record<StoreScaleFilter, number> = {
-    all: stores.length,
-    hasProducts: stores.filter((store) => store.productCount > 0).length,
-    live: stores.filter((store) => store.liveProductCount > 0).length,
-    noLive: stores.filter((store) => store.liveProductCount === 0).length,
+    all: approvedStores.length,
+    hasProducts: approvedStores.filter((store) => store.productCount > 0).length,
+    live: approvedStores.filter((store) => store.liveProductCount > 0).length,
+    noLive: approvedStores.filter((store) => store.liveProductCount === 0).length,
   };
+  const statusCounts: Record<StoreFilter, number> = {
+    all: isSellerRequestScope ? counts.requests : counts.approved,
+    pending: counts.pending,
+    active: counts.active,
+    suspended: counts.suspended,
+    rejected: counts.rejected,
+  };
+  const hasStoreViewContext = storeScope !== 'activeStores' || view.hasViewContext;
+  const activeStorePanelTitle =
+    activeTab === 'suspended' ? 'Gian hàng tạm khóa' : activeTab === 'all' ? 'Gian hàng đã duyệt' : 'Gian hàng đang hoạt động';
+  const sellerRequestPanelTitle =
+    activeTab === 'rejected'
+      ? 'Yêu cầu seller đã từ chối'
+      : activeTab === 'all'
+        ? 'Tất cả yêu cầu trở thành seller'
+        : 'Đơn yêu cầu trở thành seller';
+  const panelTitle = isSellerRequestScope ? sellerRequestPanelTitle : activeStorePanelTitle;
+  const searchPlaceholder = isSellerRequestScope
+    ? 'Tìm yêu cầu theo gian hàng, chủ sở hữu, email hoặc số điện thoại'
+    : 'Tìm gian hàng, chủ sở hữu, email hoặc số điện thoại';
+  const statusFilterLabel = isSellerRequestScope ? 'Tình trạng hồ sơ' : 'Trạng thái vận hành';
+  const emptyTitle = isSellerRequestScope ? 'Chưa có yêu cầu trở thành seller' : 'Chưa có gian hàng phù hợp';
+  const emptyDescription = isSellerRequestScope
+    ? 'Các hồ sơ đăng ký bán hàng mới sẽ hiển thị tại đây để admin phê duyệt.'
+    : 'Các gian hàng đã duyệt sẽ hiển thị tại đây để admin theo dõi và vận hành.';
 
   const totalPages = Math.max(Math.ceil(filteredStores.length / pageSize), 1);
   const safePage = Math.min(page, totalPages);
@@ -266,7 +329,20 @@ const StoreApprovals = () => {
   const resetCurrentView = () => {
     setSelected(new Set());
     setDetailStore(null);
+    setStoreScope('activeStores');
     view.resetCurrentView();
+  };
+
+  const changeStoreView = (scope: StoreScope, status: StoreFilter) => {
+    setStoreScope(scope);
+    setSelected(new Set());
+    setDetailStore(null);
+    view.setStatus(status);
+  };
+
+  const changeScope = (key: string) => {
+    const nextScope = key === 'sellerRequests' ? 'sellerRequests' : 'activeStores';
+    changeStoreView(nextScope, nextScope === 'sellerRequests' ? 'pending' : 'active');
   };
 
   const changeTab = (key: string) => {
@@ -393,49 +469,101 @@ const StoreApprovals = () => {
     }
   };
 
+  const resetCommissionRateToDefault = async () => {
+    if (!detailStore) return;
+
+    setResettingCommissionRate(true);
+    try {
+      const updatedStore = await storeService.resetStoreCommissionRateToDefault(detailStore.id);
+      const mappedStore = mapStore(updatedStore);
+      setStores((prev) =>
+        prev.map((store) =>
+          store.id === mappedStore.id
+            ? {
+                ...store,
+                ...mappedStore,
+                productCount: store.productCount,
+                liveProductCount: store.liveProductCount,
+                totalOrders: store.totalOrders,
+                totalSales: store.totalSales,
+                rating: store.rating,
+                responseRate: store.responseRate,
+              }
+            : store,
+        ),
+      );
+      setDetailStore((current) =>
+        current && current.id === mappedStore.id
+          ? {
+              ...current,
+              ...mappedStore,
+              productCount: current.productCount,
+              liveProductCount: current.liveProductCount,
+              totalOrders: current.totalOrders,
+              totalSales: current.totalSales,
+              rating: current.rating,
+              responseRate: current.responseRate,
+            }
+          : current,
+      );
+      addToast('Đã đưa gian hàng về phí hoa hồng mặc định toàn sàn.', 'success');
+    } catch (error: unknown) {
+      addToast(getUiErrorMessage(error, 'Không thể đưa gian hàng về phí mặc định.'), 'error');
+    } finally {
+      setResettingCommissionRate(false);
+    }
+  };
+
   return (
     <AdminLayout
       title="Gian hàng"
       breadcrumbs={['Gian hàng', 'Quản lý gian hàng']}
     >
+      <PanelTabs
+        items={STORE_SCOPE_TABS}
+        activeKey={storeScope}
+        onChange={changeScope}
+      />
       <PanelStatsGrid items={[
-        { key: 'all', label: 'Tổng gian hàng', value: counts.all, sub: 'Toàn bộ hồ sơ gian hàng trên sàn' },
-        { key: 'pending', label: 'Chờ duyệt', value: counts.pending, sub: 'Hồ sơ mới cần phê duyệt', tone: counts.pending > 0 ? 'warning' : '', onClick: () => changeTab('pending') },
-        { key: 'active', label: 'Đang hoạt động', value: counts.active, sub: 'Gian hàng đang bán trên sàn', tone: 'success', onClick: () => changeTab('active') },
-        { key: 'suspended', label: 'Tạm khóa', value: counts.suspended, sub: 'Gian hàng bị chặn vận hành tạm thời', tone: counts.suspended > 0 ? 'danger' : '', onClick: () => changeTab('suspended') },
+        { key: 'active', label: 'Đang hoạt động', value: counts.active, sub: 'Gian hàng đã duyệt và đang bán', tone: 'success', onClick: () => changeStoreView('activeStores', 'active') },
+        { key: 'pending', label: 'Yêu cầu seller', value: counts.pending, sub: 'Hồ sơ mới cần phê duyệt', tone: counts.pending > 0 ? 'warning' : '', onClick: () => changeStoreView('sellerRequests', 'pending') },
+        { key: 'suspended', label: 'Tạm khóa', value: counts.suspended, sub: 'Gian hàng bị chặn vận hành tạm thời', tone: counts.suspended > 0 ? 'danger' : '', onClick: () => changeStoreView('activeStores', 'suspended') },
+        { key: 'rejected', label: 'Đã từ chối', value: counts.rejected, sub: 'Yêu cầu seller không được duyệt', tone: counts.rejected > 0 ? 'danger' : '', onClick: () => changeStoreView('sellerRequests', 'rejected') },
       ]} />
       <section className="admin-panels single"><div className="admin-panel"><div className="admin-panel-head">
-        <h2>Danh sách gian hàng</h2>
+        <h2>{panelTitle}</h2>
       </div>
       <div className="admin-filter-toolbar">
         <PanelSearchField
-          placeholder="Tìm gian hàng, chủ sở hữu, email hoặc số điện thoại"
-          ariaLabel="Tìm gian hàng"
+          placeholder={searchPlaceholder}
+          ariaLabel={searchPlaceholder}
           value={search}
           onChange={changeSearch}
         />
         <PanelFilterSelect
-          label="Trạng thái"
-          ariaLabel="Lọc gian hàng theo trạng thái"
-          items={TABS.map((tab) => ({ key: tab.key, label: tab.label, count: counts[tab.key] }))}
+          label={statusFilterLabel}
+          ariaLabel={`Lọc ${panelTitle.toLowerCase()} theo trạng thái`}
+          items={statusTabs.map((tab) => ({ key: tab.key, label: tab.label, count: statusCounts[tab.key] }))}
           value={activeTab}
           onChange={changeTab}
         />
-        <PanelFilterSelect
-          label="Quy mô"
-          ariaLabel="Lọc gian hàng theo quy mô vận hành"
-          items={SCALE_FILTERS.map((item) => ({ key: item.key, label: item.label, count: scaleCounts[item.key] }))}
-          value={scaleFilter}
-          onChange={changeScale}
-        />
-        {view.hasViewContext ? (
+        {!isSellerRequestScope ? (
+          <PanelFilterSelect
+            label="Quy mô"
+            ariaLabel="Lọc gian hàng theo quy mô vận hành"
+            items={SCALE_FILTERS.map((item) => ({ key: item.key, label: item.label, count: scaleCounts[item.key] }))}
+            value={scaleFilter}
+            onChange={changeScale}
+          />
+        ) : null}
+        {hasStoreViewContext ? (
           <button type="button" className="admin-filter-reset" onClick={resetCurrentView}>
             Đặt lại
           </button>
         ) : null}
       </div>
       {!loading && loadError ? (<AdminStateBlock type="error" title="Không tải được danh sách gian hàng" description={loadError} actionLabel="Thử lại" onAction={() => setReloadKey((value) => value + 1)} />) : null}
-      {!loading && !loadError && filteredStores.length === 0 ? (<AdminStateBlock type={search.trim() ? 'search-empty' : 'empty'} title={search.trim() ? 'Không tìm thấy gian hàng phù hợp' : 'Chưa có hồ sơ gian hàng'} description={search.trim() ? 'Thử đổi từ khóa hoặc đặt lại bộ lọc để xem lại danh sách gian hàng.' : 'Danh sách gian hàng sẽ hiển thị tại đây để quản trị viên theo dõi và xử lý.'} actionLabel="Đặt lại bộ lọc" onAction={resetCurrentView} />) : null}
+      {!loading && !loadError && filteredStores.length === 0 ? (<AdminStateBlock type={search.trim() ? 'search-empty' : 'empty'} title={search.trim() ? 'Không tìm thấy dữ liệu phù hợp' : emptyTitle} description={search.trim() ? 'Thử đổi từ khóa hoặc đặt lại bộ lọc để xem lại danh sách.' : emptyDescription} actionLabel="Đặt lại bộ lọc" onAction={resetCurrentView} />) : null}
       {!loading && !loadError && filteredStores.length > 0 ? (<><div className="admin-table admin-responsive-table" role="table" aria-label="Bảng gian hàng"><div className="admin-table-row stores admin-table-head" role="row">
         <div role="columnheader"><input type="checkbox" checked={selected.size === filteredStores.length && filteredStores.length > 0} onChange={(event) => setSelected(event.target.checked ? new Set(filteredStores.map((i) => i.id)) : new Set())} /></div>
         <div role="columnheader">STT</div>
@@ -446,7 +574,11 @@ const StoreApprovals = () => {
         <div role="cell" className="store-cell"><div className="store-avatar">{store.logo ? <img src={store.logo} alt={store.name} /> : <Store size={18} />}</div><div className="store-copy"><div className="admin-bold">{store.name}</div><div className="admin-muted small">{store.slug}</div></div></div>
         <div role="cell"><div className="admin-bold">{store.applicantName || 'Chưa đăng ký chủ sở hữu'}</div><div className="admin-muted small">{store.applicantEmail || store.contactEmail || 'Chưa có email'}</div></div>
         <div role="cell" className="store-ops-cell"><div className="admin-bold">{store.productCount.toLocaleString('vi-VN')} SKU</div><div className="admin-muted small">{store.liveProductCount.toLocaleString('vi-VN')} Đang bán · {store.totalOrders.toLocaleString('vi-VN')} đơn</div></div>
-        <div role="cell"><span className={`admin-pill ${operatingTone(store.operatingStatus)}`}>{operatingLabel(store.operatingStatus)}</span></div>
+        <div role="cell">
+          <span className={`admin-pill ${isSellerRequestScope ? approvalTone(store.approvalStatus) : operatingTone(store.operatingStatus)}`}>
+            {isSellerRequestScope ? approvalLabel(store.approvalStatus) : operatingLabel(store.operatingStatus)}
+          </span>
+        </div>
         <div role="cell">{new Date(store.createdAt).toLocaleDateString('vi-VN')}</div>
         <div role="cell" className="admin-actions" onClick={(e) => e.stopPropagation()}>
           <button className="admin-icon-btn subtle" title="Xem hồ sơ gian hàng" aria-label="Xem hồ sơ gian hàng" onClick={() => { setDetailStore(store); setRejectReason(store.rejectionReason || ''); }}><Eye size={16} /></button>
@@ -465,7 +597,9 @@ const StoreApprovals = () => {
                     <p className="admin-mobile-card-sub">{store.slug}</p>
                   </div>
                 </div>
-                <span className={`admin-pill ${operatingTone(store.operatingStatus)}`}>{operatingLabel(store.operatingStatus)}</span>
+                <span className={`admin-pill ${isSellerRequestScope ? approvalTone(store.approvalStatus) : operatingTone(store.operatingStatus)}`}>
+                  {isSellerRequestScope ? approvalLabel(store.approvalStatus) : operatingLabel(store.operatingStatus)}
+                </span>
               </div>
               <div className="admin-mobile-card-grid">
                 <div className="admin-mobile-card-field">
@@ -511,7 +645,52 @@ const StoreApprovals = () => {
       <Drawer open={Boolean(detailStore)} onClose={() => { setDetailStore(null); setRejectReason(''); }} className="store-drawer" size="lg" ariaLabel="Hồ sơ gian hàng">{detailStore ? (<><PanelDrawerHeader eyebrow="Hồ sơ gian hàng" title={detailStore.name} onClose={() => { setDetailStore(null); setRejectReason(''); }} closeLabel="Đóng hồ sơ gian hàng" />
         <div className="drawer-body"><PanelDrawerSection title="Tổng quan gian hàng"><div className="store-drawer-hero"><div className="store-avatar large">{detailStore.logo ? <img src={detailStore.logo} alt={detailStore.name} /> : <Store size={22} />}</div><div><div className="admin-bold">{detailStore.name}</div><div className="admin-muted">{detailStore.slug}</div></div><div className="store-hero-pills"><span className={`admin-pill ${approvalTone(detailStore.approvalStatus)}`}>{approvalLabel(detailStore.approvalStatus)}</span><span className={`admin-pill ${operatingTone(detailStore.operatingStatus)}`}>{operatingLabel(detailStore.operatingStatus)}</span></div></div></PanelDrawerSection>
           <PanelDrawerSection title="Hồ sơ và chủ sở hữu"><div className="store-profile-grid">{buildStoreProfileFields(detailStore).map((field) => (<div key={field.key} className={`store-profile-card ${field.span === 'full' ? 'full' : ''}`}><span className="admin-muted small">{field.label}</span><strong>{field.value}</strong></div>))}</div></PanelDrawerSection>
-          <PanelDrawerSection title="Quản lý phí sàn"><div className="store-commission-panel"><div className="admin-bold store-commission-title">Tỷ lệ hoa hồng áp dụng</div><div className="store-commission-controls"><label className="store-commission-input"><span className="admin-muted small">Phần trăm (%)</span><input className="admin-input" type="number" min="0.01" max="100" step="0.01" value={commissionRateInput} onChange={(e) => setCommissionRateInput(e.target.value)} aria-label="Tỷ lệ hoa hồng" /></label><button type="button" className="admin-primary-btn" onClick={() => void saveCommissionRate()} disabled={savingCommissionRate || !commissionRateInput.trim()}>{savingCommissionRate ? 'Đang lưu...' : 'Lưu tỷ lệ'}</button></div></div></PanelDrawerSection>
+          <PanelDrawerSection title="Quản lý phí sàn">
+            <div className="store-commission-panel">
+              <div className="store-commission-summary">
+                <div className="admin-bold store-commission-title">Tỷ lệ hoa hồng áp dụng</div>
+                <span className={`store-commission-mode ${detailStore.usesDefaultCommissionRate ? 'default' : 'override'}`}>
+                  {detailStore.usesDefaultCommissionRate ? 'Dùng mặc định toàn sàn' : 'Override riêng'}
+                </span>
+                <p className="admin-muted small">
+                  Hiện tại: {detailStore.effectiveCommissionRate ?? detailStore.commissionRate ?? 5}%
+                </p>
+              </div>
+              <div className="store-commission-controls">
+                <label className="store-commission-input">
+                  <span className="admin-muted small">Phần trăm (%)</span>
+                  <input
+                    className="admin-input"
+                    type="number"
+                    min="0.01"
+                    max="100"
+                    step="0.01"
+                    value={commissionRateInput}
+                    onChange={(e) => setCommissionRateInput(e.target.value)}
+                    aria-label="Tỷ lệ hoa hồng riêng cho gian hàng"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="admin-primary-btn"
+                  onClick={() => void saveCommissionRate()}
+                  disabled={savingCommissionRate || !commissionRateInput.trim()}
+                >
+                  {savingCommissionRate ? 'Đang lưu...' : 'Lưu override'}
+                </button>
+                {!detailStore.usesDefaultCommissionRate ? (
+                  <button
+                    type="button"
+                    className="admin-ghost-btn store-commission-reset"
+                    onClick={() => void resetCommissionRateToDefault()}
+                    disabled={resettingCommissionRate}
+                  >
+                    {resettingCommissionRate ? 'Đang reset...' : 'Dùng mặc định'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </PanelDrawerSection>
           <PanelDrawerSection title="Tín hiệu kinh doanh"><div className="store-signal-grid">{buildStoreSignalCards(detailStore).map((card) => (<div key={card.key} className="store-signal-card"><span className="admin-muted small">{card.label}</span><strong>{card.value}</strong><span className="admin-muted small">{card.sub}</span></div>))}</div></PanelDrawerSection>
           <PanelDrawerSection title="Mô tả gian hàng"><p className="admin-muted store-description">{detailStore.description || 'Chưa có mô tả gian hàng.'}</p></PanelDrawerSection>
           <PanelDrawerSection title="Ghi chú kiểm duyệt">{detailStore.approvalStatus === 'PENDING' || detailStore.approvalStatus === 'REJECTED' ? (<textarea className="admin-textarea store-reject-note" rows={4} placeholder="Nhập ghi chú hoặc lý do từ chối hồ sơ gian hàng" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />) : (<div className="admin-card-list"><div className="admin-card-row"><span className="admin-bold">Ghi chú hiện tại</span><span className="admin-muted">{detailStore.rejectionReason || 'Chưa có ghi chú kiểm duyệt. Gian hàng đang hoạt động bình thường.'}</span></div></div>)}</PanelDrawerSection></div>

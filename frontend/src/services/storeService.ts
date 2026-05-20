@@ -22,6 +22,8 @@ export interface StoreProfile {
   applicantName?: string;
   applicantEmail?: string;
   commissionRate?: number;
+  usesDefaultCommissionRate?: boolean;
+  effectiveCommissionRate?: number;
   phone?: string;
   contactEmail?: string;
   address?: string;
@@ -186,6 +188,8 @@ interface BackendStoreResponse {
   warehouseContact?: string;
   warehousePhone?: string;
   commissionRate?: number;
+  usesDefaultCommissionRate?: boolean;
+  effectiveCommissionRate?: number;
   status: StoreProfile['status'];
   approvalStatus: StoreProfile['approvalStatus'];
   rejectionReason?: string;
@@ -290,6 +294,8 @@ const mapBackendStore = (store: BackendStoreResponse): StoreProfile => ({
   applicantName: store.ownerName,
   applicantEmail: store.ownerEmail,
   commissionRate: store.commissionRate != null ? Number(store.commissionRate) : undefined,
+  usesDefaultCommissionRate: store.usesDefaultCommissionRate ?? false,
+  effectiveCommissionRate: store.effectiveCommissionRate != null ? Number(store.effectiveCommissionRate) : undefined,
   phone: store.phone,
   contactEmail: store.contactEmail,
   address: store.address,
@@ -489,6 +495,14 @@ export const storeService = {
     const store = await apiRequest<BackendStoreResponse>(`/api/stores/${storeId}/commission-rate`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
+    }, { auth: true });
+    return mapBackendStore(store);
+  },
+
+  async resetStoreCommissionRateToDefault(storeId: string): Promise<StoreProfile> {
+    const store = await apiRequest<BackendStoreResponse>(`/api/stores/${storeId}/commission-rate/default`, {
+      method: 'PATCH',
+      body: JSON.stringify({}),
     }, { auth: true });
     return mapBackendStore(store);
   },

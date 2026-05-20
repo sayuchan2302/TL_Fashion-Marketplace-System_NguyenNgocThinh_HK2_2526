@@ -21,6 +21,7 @@ import vn.edu.hcmuaf.fit.marketplace.repository.StoreRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.UserRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.VoucherRepository;
 import vn.edu.hcmuaf.fit.marketplace.service.ContentKeywordUtils;
+import vn.edu.hcmuaf.fit.marketplace.service.PlatformCommissionSettingsService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -431,6 +432,10 @@ public class MarketplaceSeeder implements ApplicationRunner {
         store.setWarehouseContact(owner.getName());
         store.setWarehousePhone(owner.getPhone());
         store.setCommissionRate(commissionRate);
+        store.setUsesDefaultCommissionRate(
+                commissionRate == null
+                        || commissionRate.compareTo(PlatformCommissionSettingsService.DEFAULT_COMMISSION_RATE_PERCENT) == 0
+        );
         store.setStatus(status);
         store.setApprovalStatus(approvalStatus);
         store.setApprovedAt(approvedAt);

@@ -98,6 +98,14 @@ export const returnService = {
     }, { auth: true });
   },
 
+  async getByOrderId(orderId: string): Promise<ReturnRequest[]> {
+    return apiRequest<ReturnRequest[]>(`/api/returns/order/${orderId}`, {}, { auth: true });
+  },
+
+  async listCustomerReturns(): Promise<ReturnRequest[]> {
+    return apiRequest<ReturnRequest[]>('/api/returns/customer', {}, { auth: true });
+  },
+
   async listAdmin(params: ReturnListParams = {}): Promise<ReturnListResponse> {
     const query = new URLSearchParams();
     if (params.status) query.set('status', params.status);

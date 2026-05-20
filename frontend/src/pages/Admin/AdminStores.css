@@ -195,8 +195,8 @@
 
 .store-commission-panel {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) auto;
-  align-items: center;
+  grid-template-columns: 1fr;
+  align-items: stretch;
   gap: 16px;
   padding: 14px;
   border: 1px solid rgba(15, 23, 42, 0.08);
@@ -204,18 +204,56 @@
   background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
 }
 
+.store-commission-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+}
+
 .store-commission-title {
   margin: 0;
   line-height: 1.35;
+}
+
+.store-commission-summary p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.store-commission-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: #f8fafc;
+  color: var(--co-admin-text);
+  font-size: 12px;
+  font-weight: 800;
   white-space: nowrap;
+}
+
+.store-commission-mode.default {
+  border-color: rgba(22, 163, 74, 0.2);
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.store-commission-mode.override {
+  border-color: rgba(217, 119, 6, 0.22);
+  background: #fffbeb;
+  color: #92400e;
 }
 
 .store-commission-controls {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: nowrap;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  justify-content: flex-start;
 }
 
 .store-commission-input {
@@ -235,6 +273,11 @@
 }
 
 .store-commission-controls .admin-primary-btn {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.store-commission-reset {
   min-height: 44px;
   white-space: nowrap;
 }
@@ -303,15 +346,10 @@
     grid-template-columns: 1fr;
   }
 
-  .store-commission-panel {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-  }
-
   .store-commission-controls {
     width: 100%;
     margin-left: 0;
-    justify-content: space-between;
+    justify-content: flex-start;
   }
 
   .store-drawer .admin-card-row {
@@ -348,7 +386,8 @@
 
   .store-commission-input,
   .store-commission-input .admin-input,
-  .store-commission-controls .admin-primary-btn {
+  .store-commission-controls .admin-primary-btn,
+  .store-commission-reset {
     width: 100%;
   }
 }

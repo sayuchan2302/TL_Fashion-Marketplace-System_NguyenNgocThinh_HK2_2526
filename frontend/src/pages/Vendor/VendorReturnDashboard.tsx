@@ -424,6 +424,7 @@ const VendorReturnDashboard = () => {
                   <div role="columnheader">STT</div>
                   <div role="columnheader">Khách hàng</div>
                   <div role="columnheader">Sản phẩm</div>
+                  <div role="columnheader">Lý do</div>
                   <div role="columnheader">Trạng thái</div>
                   <div role="columnheader">Giá trị</div>
                   <div role="columnheader">Hành động</div>
@@ -436,7 +437,7 @@ const VendorReturnDashboard = () => {
                   const variantName = firstReturnItem?.variantName?.trim() || 'Chưa có biến thể';
                   const totalQuantity = item.items.reduce((sum, returnItem) => sum + returnItem.quantity, 0);
                   const reasonText = reasonLabel[item.reason] || item.reason;
-                  const productMeta = `${variantName} · ${totalQuantity} x ${reasonText}`;
+                  const productMeta = `${variantName} · Số lượng: ${totalQuantity}`;
                   const extraItemCount = Math.max(0, item.items.length - 1);
 
                   return (
@@ -478,6 +479,11 @@ const VendorReturnDashboard = () => {
                             <small className="returns-product-extra">+{extraItemCount} sản phẩm khác</small>
                           ) : null}
                         </div>
+                      </div>
+                      <div role="cell" className="returns-reason-cell">
+                        <span style={{ fontSize: '13.5px', color: 'var(--co-admin-text)', fontWeight: 500 }}>
+                          {reasonText}
+                        </span>
                       </div>
                       <div role="cell">
                         <span className={statusConfig[item.status].className}>{statusConfig[item.status].label}</span>

@@ -1,5 +1,6 @@
 package vn.edu.hcmuaf.fit.marketplace.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.hcmuaf.fit.marketplace.dto.response.VendorAnalyticsResponse;
@@ -25,10 +26,21 @@ public class VendorAnalyticsService {
 
     private final OrderRepository orderRepository;
     private final StoreRepository storeRepository;
+    private final PlatformCommissionSettingsService platformCommissionSettingsService;
 
-    public VendorAnalyticsService(OrderRepository orderRepository, StoreRepository storeRepository) {
+    @Autowired
+    public VendorAnalyticsService(
+            OrderRepository orderRepository,
+            StoreRepository storeRepository,
+            PlatformCommissionSettingsService platformCommissionSettingsService
+    ) {
         this.orderRepository = orderRepository;
         this.storeRepository = storeRepository;
+        this.platformCommissionSettingsService = platformCommissionSettingsService;
+    }
+
+    public VendorAnalyticsService(OrderRepository orderRepository, StoreRepository storeRepository) {
+        this(orderRepository, storeRepository, null);
     }
 
     @Transactional(readOnly = true)
@@ -67,9 +79,8 @@ public class VendorAnalyticsService {
         }
 
         BigDecimal currentCommissionRate = storeRepository.findById(storeId)
-                .map(Store::getCommissionRate)
-                .filter(rate -> rate.compareTo(BigDecimal.ZERO) > 0)
-                .orElse(new BigDecimal("5.0"));
+                .map(this::resolveEffectiveCommissionRate)
+                .orElse(PlatformCommissionSettingsService.DEFAULT_COMMISSION_RATE_PERCENT);
 
         return VendorAnalyticsResponse.builder()
                 .today(todayData)
@@ -79,6 +90,17 @@ public class VendorAnalyticsService {
                 .dailyData(dailyData)
                 .commissionRate(currentCommissionRate)
                 .build();
+    }
+
+    private BigDecimal resolveEffectiveCommissionRate(Store store) {
+        if (platformCommissionSettingsService != null) {
+            return platformCommissionSettingsService.resolveEffectiveCommissionRate(store);
+        }
+        BigDecimal rate = store.getCommissionRate();
+        if (rate == null || rate.compareTo(BigDecimal.ZERO) <= 0) {
+            return PlatformCommissionSettingsService.DEFAULT_COMMISSION_RATE_PERCENT;
+        }
+        return rate;
     }
 
     private PeriodData buildPeriodData(UUID storeId, LocalDateTime from, LocalDateTime to) {

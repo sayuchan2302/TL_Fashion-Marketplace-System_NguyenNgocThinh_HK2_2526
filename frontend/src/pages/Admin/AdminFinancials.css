@@ -98,6 +98,80 @@
   flex-wrap: wrap;
 }
 
+.financial-commission-policy {
+  margin-top: 18px;
+}
+
+.financial-commission-card {
+  border-color: rgba(15, 23, 42, 0.1);
+}
+
+.financial-commission-head .admin-muted {
+  max-width: 780px;
+  margin: 6px 0 0;
+  line-height: 1.6;
+}
+
+.financial-commission-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.1fr) minmax(320px, 1.4fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.financial-commission-input {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--co-admin-text);
+  font-weight: 800;
+}
+
+.financial-commission-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.financial-commission-field .admin-input {
+  width: 160px;
+  min-height: 44px;
+  font-weight: 800;
+}
+
+.financial-commission-field strong {
+  color: var(--co-admin-text);
+}
+
+.financial-commission-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.financial-commission-stats > div {
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.financial-commission-stats strong {
+  color: var(--co-admin-text);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.financial-commission-save {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
 .financial-drawer {
   width: min(680px, 100vw);
   max-width: 680px;
@@ -168,6 +242,15 @@
 }
 
 @media (max-width: 1080px) {
+  .financial-commission-layout {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .financial-commission-save {
+    justify-content: center;
+  }
+
   .financial-drawer {
     width: 100%;
     max-width: 100%;
@@ -175,5 +258,16 @@
 
   .financial-signal-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .financial-commission-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .financial-commission-field,
+  .financial-commission-field .admin-input {
+    width: 100%;
   }
 }

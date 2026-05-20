@@ -1012,7 +1012,10 @@ const Profile = () => {
       <ReturnRequestDrawer
         isOpen={isReturnDrawerOpen}
         order={returnOrder}
-        onClose={() => setIsReturnDrawerOpen(false)}
+        onClose={() => {
+          setIsReturnDrawerOpen(false);
+          void loadOrders();
+        }}
       />
       {/* Review Modal */}
       {reviewProduct && (

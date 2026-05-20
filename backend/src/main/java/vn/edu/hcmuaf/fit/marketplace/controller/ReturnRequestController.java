@@ -48,8 +48,7 @@ public class ReturnRequestController {
     public ReturnRequestController(
             ReturnRequestService returnRequestService,
             AuthContext authContext,
-            ReturnEvidenceStorageService returnEvidenceStorageService
-    ) {
+            ReturnEvidenceStorageService returnEvidenceStorageService) {
         this.returnRequestService = returnRequestService;
         this.authContext = authContext;
         this.returnEvidenceStorageService = returnEvidenceStorageService;
@@ -59,8 +58,7 @@ public class ReturnRequestController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ReturnRequestResponse> submit(
             @Valid @RequestBody ReturnSubmitRequest request,
-            @RequestHeader("Authorization") String authHeader
-    ) {
+            @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.fromAuthHeader(authHeader);
         return ResponseEntity.ok(returnRequestService.submit(ctx.getUserId(), request));
     }
@@ -69,8 +67,7 @@ public class ReturnRequestController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<Map<String, String>> uploadEvidence(
             @RequestHeader("Authorization") String authHeader,
-            @RequestParam("file") MultipartFile file
-    ) {
+            @RequestParam("file") MultipartFile file) {
         UserContext ctx = authContext.fromAuthHeader(authHeader);
         if (!ctx.isCustomer() && !ctx.isVendor()) {
             throw new ForbiddenException("Only customer or vendor accounts can upload return evidence");
@@ -84,16 +81,14 @@ public class ReturnRequestController {
     public ResponseEntity<ReturnRequestResponse> markShipping(
             @PathVariable UUID id,
             @Valid @RequestBody ReturnShippingUpdateRequest request,
-            @RequestHeader("Authorization") String authHeader
-    ) {
+            @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.fromAuthHeader(authHeader);
         return ResponseEntity.ok(returnRequestService.markShipping(
                 id,
                 ctx.getUserId(),
                 request.getTrackingNumber(),
                 request.getCarrier(),
-                ctx.getEmail()
-        ));
+                ctx.getEmail()));
     }
 
     @PatchMapping("/{id}/dispute")
@@ -101,10 +96,10 @@ public class ReturnRequestController {
     public ResponseEntity<ReturnRequestResponse> openDispute(
             @PathVariable UUID id,
             @Valid @RequestBody ReturnDisputeRequest request,
-            @RequestHeader("Authorization") String authHeader
-    ) {
+            @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.fromAuthHeader(authHeader);
-        return ResponseEntity.ok(returnRequestService.openDispute(id, ctx.getUserId(), request.getReason(), ctx.getEmail()));
+        return ResponseEntity
+                .ok(returnRequestService.openDispute(id, ctx.getUserId(), request.getReason(), ctx.getEmail()));
     }
 
     @PatchMapping("/{id}/cancel")
@@ -112,8 +107,7 @@ public class ReturnRequestController {
     public ResponseEntity<ReturnRequestResponse> cancelReturn(
             @PathVariable UUID id,
             @RequestBody(required = false) ReturnCancelRequest request,
-            @RequestHeader("Authorization") String authHeader
-    ) {
+            @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.fromAuthHeader(authHeader);
         String reason = request == null ? null : request.getReason();
         return ResponseEntity.ok(returnRequestService.cancelByCustomer(id, ctx.getUserId(), reason, ctx.getEmail()));
@@ -127,23 +121,21 @@ public class ReturnRequestController {
             @RequestParam(value = "q", required = false) String keyword,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "20") int size,
-            @RequestHeader("Authorization") String authHeader
-    ) {
+            @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.requireVendor(authHeader);
         PageRequest pageable = PageRequest.of(
                 Math.max(page, 0),
                 Math.min(size, 100),
-                Sort.by(Sort.Direction.DESC, "createdAt")
-        );
+                Sort.by(Sort.Direction.DESC, "createdAt"));
         List<ReturnRequest.ReturnStatus> effectiveStatuses = mergeStatuses(status, statuses);
-        return ResponseEntity.ok(returnRequestService.listForVendor(ctx.getStoreId(), effectiveStatuses, keyword, pageable));
+        return ResponseEntity
+                .ok(returnRequestService.listForVendor(ctx.getStoreId(), effectiveStatuses, keyword, pageable));
     }
 
     @GetMapping("/my-store/summary")
     @PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<VendorReturnSummaryResponse> getMyStoreSummary(
-            @RequestHeader("Authorization") String authHeader
-    ) {
+            @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.requireVendor(authHeader);
         return ResponseEntity.ok(returnRequestService.getVendorSummary(ctx.getStoreId()));
     }
@@ -152,8 +144,7 @@ public class ReturnRequestController {
     @PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<ReturnRequestResponse> acceptReturn(
             @PathVariable UUID id,
-            @RequestHeader("Authorization") String authHeader
-    ) {
+            @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.requireVendor(authHeader);
         return ResponseEntity.ok(returnRequestService.acceptReturn(id, ctx.getStoreId(), ctx.getEmail()));
     }
@@ -163,18 +154,17 @@ public class ReturnRequestController {
     public ResponseEntity<ReturnRequestResponse> rejectReturn(
             @PathVariable UUID id,
             @Valid @RequestBody ReturnRejectRequest request,
-            @RequestHeader("Authorization") String authHeader
-    ) {
+            @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.requireVendor(authHeader);
-        return ResponseEntity.ok(returnRequestService.rejectReturn(id, ctx.getStoreId(), request.getReason(), ctx.getEmail()));
+        return ResponseEntity
+                .ok(returnRequestService.rejectReturn(id, ctx.getStoreId(), request.getReason(), ctx.getEmail()));
     }
 
     @PatchMapping("/my-store/{id}/received")
     @PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<ReturnRequestResponse> markReceived(
             @PathVariable UUID id,
-            @RequestHeader("Authorization") String authHeader
-    ) {
+            @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.requireVendor(authHeader);
         return ResponseEntity.ok(returnRequestService.markReceived(id, ctx.getStoreId(), ctx.getEmail()));
     }
@@ -183,8 +173,7 @@ public class ReturnRequestController {
     @PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<ReturnRequestResponse> confirmReceipt(
             @PathVariable UUID id,
-            @RequestHeader("Authorization") String authHeader
-    ) {
+            @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.requireVendor(authHeader);
         return ResponseEntity.ok(returnRequestService.confirmReceipt(id, ctx.getStoreId(), ctx.getEmail()));
     }
@@ -196,13 +185,11 @@ public class ReturnRequestController {
             @RequestParam(value = "statuses", required = false) List<ReturnRequest.ReturnStatus> statuses,
             @RequestParam(value = "q", required = false) String keyword,
             @RequestParam(value = "page", defaultValue = "0") int page,
-            @RequestParam(value = "size", defaultValue = "20") int size
-    ) {
+            @RequestParam(value = "size", defaultValue = "20") int size) {
         PageRequest pageable = PageRequest.of(
                 Math.max(page, 0),
                 Math.min(size, 100),
-                Sort.by(Sort.Direction.DESC, "createdAt")
-        );
+                Sort.by(Sort.Direction.DESC, "createdAt"));
         List<ReturnRequest.ReturnStatus> effectiveStatuses = mergeStatuses(status, statuses);
         return ResponseEntity.ok(returnRequestService.list(effectiveStatuses, keyword, pageable));
     }
@@ -224,22 +211,36 @@ public class ReturnRequestController {
     public ResponseEntity<ReturnRequestResponse> finalVerdict(
             @PathVariable UUID id,
             @Valid @RequestBody ReturnAdminVerdictRequest request,
-            @RequestHeader("Authorization") String authHeader
-    ) {
+            @RequestHeader("Authorization") String authHeader) {
         UserContext admin = authContext.requireAdmin(authHeader);
         return ResponseEntity.ok(returnRequestService.finalVerdict(
                 id,
                 request.getAction(),
                 request.getAdminNote(),
                 admin.getUserId(),
-                admin.getEmail()
-        ));
+                admin.getEmail()));
+    }
+
+    @GetMapping("/customer")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ReturnRequestResponse>> listMyReturns(
+            @RequestHeader("Authorization") String authHeader) {
+        UserContext ctx = authContext.fromAuthHeader(authHeader);
+        return ResponseEntity.ok(returnRequestService.getCustomerReturns(ctx.getUserId()));
+    }
+
+    @GetMapping("/order/{orderId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ReturnRequestResponse>> getByOrderId(
+            @PathVariable UUID orderId,
+            @RequestHeader("Authorization") String authHeader) {
+        UserContext ctx = authContext.fromAuthHeader(authHeader);
+        return ResponseEntity.ok(returnRequestService.getCustomerReturnsByOrderId(orderId, ctx.getUserId()));
     }
 
     private List<ReturnRequest.ReturnStatus> mergeStatuses(
             ReturnRequest.ReturnStatus status,
-            List<ReturnRequest.ReturnStatus> statuses
-    ) {
+            List<ReturnRequest.ReturnStatus> statuses) {
         List<ReturnRequest.ReturnStatus> merged = new ArrayList<>();
         if (statuses != null) {
             for (ReturnRequest.ReturnStatus item : statuses) {

@@ -230,8 +230,10 @@ const VendorPromotions = () => {
     return () => window.clearTimeout(timeoutId);
   }, [searchInput, keyword, updateQuery]);
 
-  const loadVouchers = useCallback(async () => {
-    setLoading(true);
+  const loadVouchers = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+    }
     setLoadError('');
 
     try {
@@ -256,7 +258,9 @@ const VendorPromotions = () => {
       setLoadError(message);
       addToast(message, 'error');
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [activeTab, addToast, currentPage, keyword, setPage]);
 
@@ -376,17 +380,49 @@ const VendorPromotions = () => {
       return;
     }
 
-    setWorking(true);
+    // 1. Cập nhật UI lạc quan (Optimistic UI Update) ngay lập tức không chờ API
+    setResult((prev) => {
+      const nextItems = prev.items.map((item) => {
+        const update = updates.find((u) => u.id === item.id);
+        if (update) {
+          return { ...item, status: update.status };
+        }
+        return item;
+      });
+
+      const nextCounts = { ...prev.counts };
+      updates.forEach((update) => {
+        const oldVoucher = vouchersById.get(update.id);
+        if (oldVoucher && oldVoucher.status !== update.status) {
+          if (oldVoucher.status in nextCounts) {
+            nextCounts[oldVoucher.status as keyof typeof nextCounts] = Math.max(
+              0,
+              nextCounts[oldVoucher.status as keyof typeof nextCounts] - 1
+            );
+          }
+          if (update.status in nextCounts) {
+            nextCounts[update.status as keyof typeof nextCounts] =
+              nextCounts[update.status as keyof typeof nextCounts] + 1;
+          }
+        }
+      });
+
+      return {
+        ...prev,
+        items: nextItems,
+        counts: nextCounts,
+      };
+    });
+
     try {
       await Promise.all(
         updates.map((item) => vendorVoucherService.updateStatus(item.id, item.status)),
       );
       setSelected(new Set());
-      await loadVouchers();
-    } catch {
-      // Intentionally suppress toast for pause/resume actions.
-    } finally {
-      setWorking(false);
+      await loadVouchers(true); // Tải lại ngầm trong chế độ silent
+    } catch (error: unknown) {
+      addToast(getUiErrorMessage(error, 'Không thể cập nhật trạng thái voucher'), 'error');
+      await loadVouchers(); // Nếu thất bại, tải lại đầy đủ có skeleton để đồng bộ dữ liệu chuẩn
     }
   };
 
@@ -506,7 +542,7 @@ const VendorPromotions = () => {
             />
           ) : (
             <>
-<div className="admin-table" role="table" aria-label="Bang voucher shop">
+              <div className="admin-table" role="table" aria-label="Bang voucher shop">
                 <div className="admin-table-row vendor-promotions admin-table-head" role="row">
                   <div role="columnheader">
                     <input
@@ -564,7 +600,7 @@ const VendorPromotions = () => {
                             }
                             setSelected(next);
                           }}
-/>
+                        />
                       </div>
                       <div role="cell" className="admin-mono">{startRow + index}</div>
                       <div role="cell">

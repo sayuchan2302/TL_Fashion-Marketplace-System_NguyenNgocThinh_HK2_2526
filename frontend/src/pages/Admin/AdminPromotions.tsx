@@ -402,7 +402,6 @@ const AdminPromotions = () => {
       await Promise.all(
         row.memberPromotions.map((item) => adminPromotionService.updateStatus(item.id, nextStatus)),
       );
-      pushToast(nextStatus === 'paused' ? 'Đã tạm dừng chiến dịch.' : 'Đã kích hoạt lại chiến dịch.');
       await loadData();
     } catch (error: unknown) {
       pushToast(getErrorMessage(error, 'Không thể cập nhật trạng thái chiến dịch.'));
@@ -513,135 +512,135 @@ const AdminPromotions = () => {
             />
           ) : (
             <>
-            <div className="admin-table admin-responsive-table" role="table" aria-label="Bảng chiến dịch toàn sàn">
-              <div className="admin-table-row admin-table-head promotions" role="row">
-                <div role="columnheader">
-                  <input
-                    type="checkbox"
-                    checked={selected.size === filteredItems.length && filteredItems.length > 0}
-                    onChange={(e) => setSelected(e.target.checked ? new Set(filteredItems.map((item) => item.key)) : new Set())}
-                  />
+              <div className="admin-table admin-responsive-table" role="table" aria-label="Bảng chiến dịch toàn sàn">
+                <div className="admin-table-row admin-table-head promotions" role="row">
+                  <div role="columnheader">
+                    <input
+                      type="checkbox"
+                      checked={selected.size === filteredItems.length && filteredItems.length > 0}
+                      onChange={(e) => setSelected(e.target.checked ? new Set(filteredItems.map((item) => item.key)) : new Set())}
+                    />
+                  </div>
+                  <div role="columnheader">STT</div>
+                  <div role="columnheader">Chiến dịch</div>
+                  <div role="columnheader">Phạm vi</div>
+                  <div role="columnheader">Giá trị</div>
+                  <div role="columnheader">Điều kiện</div>
+                  <div role="columnheader">Đã sử dụng</div>
+                  <div role="columnheader">Lịch trình</div>
+                  <div role="columnheader">Trạng thái</div>
+                  <div role="columnheader">Hành động</div>
                 </div>
-                <div role="columnheader">STT</div>
-                <div role="columnheader">Chiến dịch</div>
-                <div role="columnheader">Phạm vi</div>
-                <div role="columnheader">Giá trị</div>
-                <div role="columnheader">Điều kiện</div>
-                <div role="columnheader">Đã sử dụng</div>
-                <div role="columnheader">Lịch trình</div>
-                <div role="columnheader">Trạng thái</div>
-                <div role="columnheader">Hành động</div>
+                {pagedItems.map((row, index) => {
+                  const promo = row.promotion;
+                  const usedPercent = promo.totalIssued > 0 ? Math.min(100, Math.round((promo.usedCount / promo.totalIssued) * 100)) : 0;
+                  const currentStatus = deriveStatus(promo);
+                  return (
+                    <motion.div
+                      key={row.key}
+                      className="admin-table-row promotions"
+                      role="row"
+                      whileHover={{ y: -1 }}
+                      onClick={() => openEdit(row)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div role="cell" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(row.key)}
+                          onChange={(e) => {
+                            const next = new Set(selected);
+                            if (e.target.checked) next.add(row.key);
+                            else next.delete(row.key);
+                            setSelected(next);
+                          }}
+                        />
+                      </div>
+                      <div role="cell" className="admin-mono">{startIndex + index}</div>
+                      <div role="cell">
+                        <p className="admin-bold promo-name">{promo.name}</p>
+                        <p className="admin-muted promo-code">{promo.code}</p>
+                      </div>
+                      <div role="cell">
+                        <span className={`promo-scope-badge ${row.isGlobalCampaign ? 'global' : 'vendor'}`}>
+                          {row.isGlobalCampaign ? 'Toàn sàn' : (promo.storeName || 'Store không xác định')}
+                        </span>
+                      </div>
+                      <div role="cell">
+                        <p className="admin-bold">
+                          {promo.discountType === 'percent' ? `${promo.discountValue}%` : formatCurrency(promo.discountValue)}
+                        </p>
+                      </div>
+                      <div role="cell">Đơn từ {formatCurrency(promo.minOrderValue)}</div>
+                      <div role="cell">
+                        <p className="admin-bold">{promo.usedCount}/{promo.totalIssued}</p>
+                        <div className="promo-progress-track"><span style={{ width: `${usedPercent}%` }} /></div>
+                      </div>
+                      <div role="cell" className="admin-muted">{formatDate(promo.startDate)} - {formatDate(promo.endDate)}</div>
+                      <div role="cell"><span className={`admin-pill ${promotionStatusClass(currentStatus)}`}>{promotionStatusLabel(currentStatus)}</span></div>
+                      <div role="cell" className="admin-actions" onClick={(e) => e.stopPropagation()}>
+                        <button className="admin-icon-btn subtle" onClick={() => openEdit(row)}><Pencil size={16} /></button>
+                        <button className="admin-icon-btn subtle" onClick={() => void togglePause(row)}>
+                          {promo.status === 'running' ? <Pause size={16} /> : <Play size={16} />}
+                        </button>
+                        <button className="admin-icon-btn subtle danger-icon" onClick={() => setDeleteIds(row.memberPromotions.map((item) => item.id))}><Trash2 size={16} /></button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
-              {pagedItems.map((row, index) => {
-                const promo = row.promotion;
-                const usedPercent = promo.totalIssued > 0 ? Math.min(100, Math.round((promo.usedCount / promo.totalIssued) * 100)) : 0;
-                const currentStatus = deriveStatus(promo);
-                return (
-                  <motion.div
-                    key={row.key}
-                    className="admin-table-row promotions"
-                    role="row"
-                    whileHover={{ y: -1 }}
-                    onClick={() => openEdit(row)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div role="cell" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selected.has(row.key)}
-                        onChange={(e) => {
-                          const next = new Set(selected);
-                          if (e.target.checked) next.add(row.key);
-                          else next.delete(row.key);
-                          setSelected(next);
-                        }}
-                      />
-                    </div>
-                    <div role="cell" className="admin-mono">{startIndex + index}</div>
-                    <div role="cell">
-                      <p className="admin-bold promo-name">{promo.name}</p>
-                      <p className="admin-muted promo-code">{promo.code}</p>
-                    </div>
-                    <div role="cell">
-                      <span className={`promo-scope-badge ${row.isGlobalCampaign ? 'global' : 'vendor'}`}>
-                        {row.isGlobalCampaign ? 'Toàn sàn' : (promo.storeName || 'Store không xác định')}
-                      </span>
-                    </div>
-                    <div role="cell">
-                      <p className="admin-bold">
-                        {promo.discountType === 'percent' ? `${promo.discountValue}%` : formatCurrency(promo.discountValue)}
-                      </p>
-                    </div>
-                    <div role="cell">Đơn từ {formatCurrency(promo.minOrderValue)}</div>
-                    <div role="cell">
-                      <p className="admin-bold">{promo.usedCount}/{promo.totalIssued}</p>
-                      <div className="promo-progress-track"><span style={{ width: `${usedPercent}%` }} /></div>
-                    </div>
-                    <div role="cell" className="admin-muted">{formatDate(promo.startDate)} - {formatDate(promo.endDate)}</div>
-                    <div role="cell"><span className={`admin-pill ${promotionStatusClass(currentStatus)}`}>{promotionStatusLabel(currentStatus)}</span></div>
-                    <div role="cell" className="admin-actions" onClick={(e) => e.stopPropagation()}>
-                      <button className="admin-icon-btn subtle" onClick={() => openEdit(row)}><Pencil size={16} /></button>
-                      <button className="admin-icon-btn subtle" onClick={() => void togglePause(row)}>
-                        {promo.status === 'running' ? <Pause size={16} /> : <Play size={16} />}
-                      </button>
-                      <button className="admin-icon-btn subtle danger-icon" onClick={() => setDeleteIds(row.memberPromotions.map((item) => item.id))}><Trash2 size={16} /></button>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-            <div className="admin-mobile-cards" aria-label="Danh sách voucher dạng thẻ">
-              {pagedItems.map((row) => {
-                const promo = row.promotion;
-                const usedPercent = promo.totalIssued > 0 ? Math.min(100, Math.round((promo.usedCount / promo.totalIssued) * 100)) : 0;
-                const currentStatus = deriveStatus(promo);
+              <div className="admin-mobile-cards" aria-label="Danh sách voucher dạng thẻ">
+                {pagedItems.map((row) => {
+                  const promo = row.promotion;
+                  const usedPercent = promo.totalIssued > 0 ? Math.min(100, Math.round((promo.usedCount / promo.totalIssued) * 100)) : 0;
+                  const currentStatus = deriveStatus(promo);
 
-                return (
-                  <article key={row.key} className="admin-mobile-card">
-                    <div className="admin-mobile-card-head">
-                      <div className="admin-mobile-card-title">
-                        <div className="admin-mobile-card-title-main">
-                          <p className="admin-bold">{promo.name}</p>
-                          <p className="admin-mobile-card-sub">{promo.code}</p>
+                  return (
+                    <article key={row.key} className="admin-mobile-card">
+                      <div className="admin-mobile-card-head">
+                        <div className="admin-mobile-card-title">
+                          <div className="admin-mobile-card-title-main">
+                            <p className="admin-bold">{promo.name}</p>
+                            <p className="admin-mobile-card-sub">{promo.code}</p>
+                          </div>
+                        </div>
+                        <span className={`admin-pill ${promotionStatusClass(currentStatus)}`}>{promotionStatusLabel(currentStatus)}</span>
+                      </div>
+                      <div className="admin-mobile-card-grid">
+                        <div className="admin-mobile-card-field">
+                          <span>Phạm vi</span>
+                          <strong>{row.isGlobalCampaign ? 'Toàn sàn' : (promo.storeName || 'Store không xác định')}</strong>
+                        </div>
+                        <div className="admin-mobile-card-field">
+                          <span>Giá trị</span>
+                          <strong>{promo.discountType === 'percent' ? `${promo.discountValue}%` : formatCurrency(promo.discountValue)}</strong>
+                          <p>Đơn từ {formatCurrency(promo.minOrderValue)}</p>
+                        </div>
+                        <div className="admin-mobile-card-field">
+                          <span>Đã sử dụng</span>
+                          <strong>{promo.usedCount}/{promo.totalIssued}</strong>
+                          <p>{usedPercent}%</p>
+                        </div>
+                        <div className="admin-mobile-card-field">
+                          <span>Lịch trình</span>
+                          <strong>{formatDate(promo.startDate)}</strong>
+                          <p>{formatDate(promo.endDate)}</p>
                         </div>
                       </div>
-                      <span className={`admin-pill ${promotionStatusClass(currentStatus)}`}>{promotionStatusLabel(currentStatus)}</span>
-                    </div>
-                    <div className="admin-mobile-card-grid">
-                      <div className="admin-mobile-card-field">
-                        <span>Phạm vi</span>
-                        <strong>{row.isGlobalCampaign ? 'Toàn sàn' : (promo.storeName || 'Store không xác định')}</strong>
+                      <div className="admin-mobile-card-actions">
+                        <button className="admin-primary-btn" type="button" onClick={() => openEdit(row)}>
+                          <Pencil size={16} />
+                          Chỉnh sửa
+                        </button>
+                        <button className="admin-icon-btn subtle" type="button" onClick={() => void togglePause(row)} aria-label={promo.status === 'running' ? 'Tạm dừng chiến dịch' : 'Kích hoạt chiến dịch'}>
+                          {promo.status === 'running' ? <Pause size={16} /> : <Play size={16} />}
+                        </button>
+                        <button className="admin-icon-btn subtle danger-icon" type="button" onClick={() => setDeleteIds(row.memberPromotions.map((item) => item.id))} aria-label="Xóa chiến dịch"><Trash2 size={16} /></button>
                       </div>
-                      <div className="admin-mobile-card-field">
-                        <span>Giá trị</span>
-                        <strong>{promo.discountType === 'percent' ? `${promo.discountValue}%` : formatCurrency(promo.discountValue)}</strong>
-                        <p>Đơn từ {formatCurrency(promo.minOrderValue)}</p>
-                      </div>
-                      <div className="admin-mobile-card-field">
-                        <span>Đã sử dụng</span>
-                        <strong>{promo.usedCount}/{promo.totalIssued}</strong>
-                        <p>{usedPercent}%</p>
-                      </div>
-                      <div className="admin-mobile-card-field">
-                        <span>Lịch trình</span>
-                        <strong>{formatDate(promo.startDate)}</strong>
-                        <p>{formatDate(promo.endDate)}</p>
-                      </div>
-                    </div>
-                    <div className="admin-mobile-card-actions">
-                      <button className="admin-primary-btn" type="button" onClick={() => openEdit(row)}>
-                        <Pencil size={16} />
-                        Chỉnh sửa
-                      </button>
-                      <button className="admin-icon-btn subtle" type="button" onClick={() => void togglePause(row)} aria-label={promo.status === 'running' ? 'Tạm dừng chiến dịch' : 'Kích hoạt chiến dịch'}>
-                        {promo.status === 'running' ? <Pause size={16} /> : <Play size={16} />}
-                      </button>
-                      <button className="admin-icon-btn subtle danger-icon" type="button" onClick={() => setDeleteIds(row.memberPromotions.map((item) => item.id))} aria-label="Xóa chiến dịch"><Trash2 size={16} /></button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+                    </article>
+                  );
+                })}
+              </div>
             </>
           )}
           {!isLoading && filteredItems.length > 0 && (

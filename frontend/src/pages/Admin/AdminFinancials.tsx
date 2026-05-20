@@ -6,6 +6,10 @@ import { PanelFilterSelect, PanelSearchField, PanelStatsGrid } from '../../compo
 import { useToast } from '../../contexts/ToastContext';
 import { walletService, type VendorWallet, type PayoutRequest } from '../../services/walletService';
 import { adminDashboardService } from '../../services/adminDashboardService';
+import {
+  adminFinancialSettingsService,
+  type CommissionSettings,
+} from '../../services/adminFinancialSettingsService';
 import AdminFinancialWalletsPanel from './components/financials/AdminFinancialWalletsPanel';
 import AdminFinancialPendingPayoutsPanel from './components/financials/AdminFinancialPendingPayoutsPanel';
 import AdminWalletDetailDrawer from './components/financials/AdminWalletDetailDrawer';
@@ -41,6 +45,9 @@ const AdminFinancials = () => {
   const [rejectNote, setRejectNote] = useState('');
   const [isApplyingPayout, setIsApplyingPayout] = useState(false);
   const [payoutConfirm, setPayoutConfirm] = useState<PayoutConfirmState | null>(null);
+  const [commissionSettings, setCommissionSettings] = useState<CommissionSettings | null>(null);
+  const [commissionRateInput, setCommissionRateInput] = useState('5');
+  const [isSavingCommissionSettings, setIsSavingCommissionSettings] = useState(false);
   const view = useAdminViewState({
     storageKey: ADMIN_VIEW_KEYS.financials,
     path: '/admin/financials',
@@ -54,10 +61,11 @@ const AdminFinancials = () => {
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [walletPage, dashboard, payoutSummary] = await Promise.all([
+      const [walletPage, dashboard, payoutSummary, nextCommissionSettings] = await Promise.all([
         walletService.getAdminWallets(search.trim(), page, PAGE_SIZE),
         adminDashboardService.get(),
         walletService.getPayoutSummary(),
+        adminFinancialSettingsService.getCommissionSettings(),
       ]);
 
       setWallets(walletPage.content || []);
@@ -69,6 +77,8 @@ const AdminFinancials = () => {
         pendingPayoutTotal: Number(payoutSummary.pendingTotal || 0),
         pendingPayoutCount: Number(payoutSummary.pendingCount || 0),
       });
+      setCommissionSettings(nextCommissionSettings);
+      setCommissionRateInput(String(nextCommissionSettings.defaultCommissionRate));
     } catch {
       setWallets([]);
       setTotalPages(1);
@@ -79,6 +89,7 @@ const AdminFinancials = () => {
         pendingPayoutTotal: 0,
         pendingPayoutCount: 0,
       });
+      setCommissionSettings(null);
       addToast('Lỗi khi tải dữ liệu đối soát.', 'error');
     } finally {
       setIsLoading(false);
@@ -252,6 +263,26 @@ const AdminFinancials = () => {
     setPayoutConfirm({ mode: 'reject', payout });
   };
 
+  const saveCommissionSettings = async () => {
+    const nextRate = Number.parseFloat(commissionRateInput);
+    if (!Number.isFinite(nextRate) || nextRate <= 0 || nextRate > 100) {
+      addToast('Tỷ lệ hoa hồng mặc định phải lớn hơn 0 và không vượt quá 100%.', 'error');
+      return;
+    }
+
+    try {
+      setIsSavingCommissionSettings(true);
+      const nextSettings = await adminFinancialSettingsService.updateCommissionSettings(nextRate);
+      setCommissionSettings(nextSettings);
+      setCommissionRateInput(String(nextSettings.defaultCommissionRate));
+      addToast('Đã cập nhật phí hoa hồng mặc định toàn sàn.', 'success');
+    } catch {
+      addToast('Không thể cập nhật phí hoa hồng mặc định.', 'error');
+    } finally {
+      setIsSavingCommissionSettings(false);
+    }
+  };
+
   const confirmSinglePayoutAction = async () => {
     if (!payoutConfirm || isApplyingPayout) return;
 
@@ -301,6 +332,59 @@ const AdminFinancials = () => {
           },
         ]}
       />
+
+      <section className="admin-panels single financial-commission-policy">
+        <div className="admin-panel financial-commission-card">
+          <div className="admin-panel-head financial-commission-head">
+            <div>
+              <h2>Chính sách hoa hồng</h2>
+              <p className="admin-muted">
+                Mức mặc định áp dụng cho seller đang dùng chính sách chung. Seller override riêng vẫn giữ tỷ lệ đã cấu hình tại quản lý gian hàng.
+              </p>
+            </div>
+          </div>
+          <div className="financial-commission-layout">
+            <label className="financial-commission-input">
+              <span>Phí hoa hồng mặc định toàn sàn</span>
+              <div className="financial-commission-field">
+                <input
+                  className="admin-input"
+                  type="number"
+                  min="0.01"
+                  max="100"
+                  step="0.01"
+                  value={commissionRateInput}
+                  onChange={(event) => setCommissionRateInput(event.target.value)}
+                  aria-label="Phí hoa hồng mặc định toàn sàn"
+                />
+                <strong>%</strong>
+              </div>
+            </label>
+            <div className="financial-commission-stats" aria-label="Thống kê áp dụng phí hoa hồng">
+              <div>
+                <span className="admin-muted small">Dùng mặc định</span>
+                <strong>{commissionSettings?.sellersUsingDefault ?? 0}</strong>
+              </div>
+              <div>
+                <span className="admin-muted small">Override riêng</span>
+                <strong>{commissionSettings?.sellersUsingOverride ?? 0}</strong>
+              </div>
+              <div>
+                <span className="admin-muted small">Đang áp dụng</span>
+                <strong>{commissionSettings ? `${commissionSettings.defaultCommissionRate}%` : '--'}</strong>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="admin-primary-btn financial-commission-save"
+              onClick={() => void saveCommissionSettings()}
+              disabled={isSavingCommissionSettings || !commissionRateInput.trim()}
+            >
+              {isSavingCommissionSettings ? 'Đang lưu...' : 'Lưu chính sách'}
+            </button>
+          </div>
+        </div>
+      </section>
 
       <section className="admin-panels single">
         <div className="admin-panel">

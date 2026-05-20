@@ -93,6 +93,10 @@ public class Store extends BaseEntity {
     @Builder.Default
     private BigDecimal commissionRate = new BigDecimal("5.0");
 
+    @Column(name = "uses_default_commission_rate")
+    @Builder.Default
+    private Boolean usesDefaultCommissionRate = true;
+
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private StoreStatus status = StoreStatus.INACTIVE;

@@ -21,6 +21,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.any;
@@ -142,6 +143,71 @@ class StoreServiceBankVerificationTest {
         storeService.updateCommissionRateAsAdmin(storeId, new BigDecimal("7.5"), UUID.randomUUID(), "admin@example.com");
 
         assertEquals(0, store.getCommissionRate().compareTo(new BigDecimal("7.5")));
+        assertFalse(Boolean.TRUE.equals(store.getUsesDefaultCommissionRate()));
+    }
+
+    @Test
+    void registerStoreUsesDefaultCommissionPolicy() {
+        UUID userId = UUID.randomUUID();
+        User owner = User.builder()
+                .id(userId)
+                .email("vendor@example.com")
+                .password("hashed")
+                .name("Vendor")
+                .role(User.Role.CUSTOMER)
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(owner));
+        when(storeRepository.findByOwnerId(userId)).thenReturn(Optional.empty());
+        when(storeRepository.existsByName("New Store")).thenReturn(false);
+        when(storeRepository.existsBySlug("new-store")).thenReturn(false);
+        when(storeRepository.save(any(Store.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StoreRequest request = StoreRequest.builder()
+                .name("New Store")
+                .slug("new-store")
+                .address("1 Test Street")
+                .build();
+
+        storeService.registerStore(userId, request);
+
+        org.mockito.ArgumentCaptor<Store> storeCaptor = org.mockito.ArgumentCaptor.forClass(Store.class);
+        org.mockito.Mockito.verify(storeRepository).save(storeCaptor.capture());
+        Store savedStore = storeCaptor.getValue();
+        assertTrue(Boolean.TRUE.equals(savedStore.getUsesDefaultCommissionRate()));
+        assertNull(savedStore.getCommissionRate());
+    }
+
+    @Test
+    void adminResetCommissionRateUsesPlatformDefault() {
+        UUID storeId = UUID.randomUUID();
+        User owner = User.builder()
+                .id(UUID.randomUUID())
+                .email("vendor@example.com")
+                .password("hashed")
+                .name("Vendor")
+                .role(User.Role.VENDOR)
+                .build();
+        Store store = Store.builder()
+                .id(storeId)
+                .owner(owner)
+                .name("Store")
+                .slug("store")
+                .commissionRate(new BigDecimal("7.5"))
+                .usesDefaultCommissionRate(false)
+                .status(Store.StoreStatus.ACTIVE)
+                .approvalStatus(Store.ApprovalStatus.APPROVED)
+                .build();
+
+        when(storeRepository.findById(storeId)).thenReturn(Optional.of(store));
+        when(storeRepository.save(any(Store.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderRepository.countByStoreId(storeId)).thenReturn(0L);
+        when(orderRepository.calculateRevenueByStoreId(storeId)).thenReturn(BigDecimal.ZERO);
+
+        storeService.resetCommissionRateToDefaultAsAdmin(storeId, UUID.randomUUID(), "admin@example.com");
+
+        assertTrue(Boolean.TRUE.equals(store.getUsesDefaultCommissionRate()));
+        assertNull(store.getCommissionRate());
     }
 
     @Test

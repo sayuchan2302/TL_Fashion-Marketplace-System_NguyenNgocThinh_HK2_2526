@@ -63,6 +63,7 @@ public class OrderService {
     private final AdminAuditLogService adminAuditLogService;
     private final NotificationDomainService notificationDomainService;
     private final OrderStatusLogRepository orderStatusLogRepository;
+    private final PlatformCommissionSettingsService platformCommissionSettingsService;
 
     @Value("${app.orders.sla.vendor-confirmation.days:3}")
     private long vendorConfirmationSlaDays = VENDOR_CONFIRMATION_SLA_DAYS;
@@ -78,7 +79,8 @@ public class OrderService {
                         ApplicationEventPublisher applicationEventPublisher,
                         AdminAuditLogService adminAuditLogService,
                         NotificationDomainService notificationDomainService,
-                        OrderStatusLogRepository orderStatusLogRepository) {
+                        OrderStatusLogRepository orderStatusLogRepository,
+                        PlatformCommissionSettingsService platformCommissionSettingsService) {
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
         this.addressRepository = addressRepository;
@@ -95,6 +97,39 @@ public class OrderService {
         this.adminAuditLogService = adminAuditLogService;
         this.notificationDomainService = notificationDomainService;
         this.orderStatusLogRepository = orderStatusLogRepository;
+        this.platformCommissionSettingsService = platformCommissionSettingsService;
+    }
+
+    public OrderService(OrderRepository orderRepository, UserRepository userRepository,
+                        AddressRepository addressRepository, ProductRepository productRepository,
+                        ProductVariantRepository productVariantRepository, FlashSaleItemRepository flashSaleItemRepository,
+                        WalletService walletService,
+                        StoreRepository storeRepository, CouponRepository couponRepository,
+                        VoucherRepository voucherRepository, CustomerVoucherRepository customerVoucherRepository,
+                        PublicCodeService publicCodeService,
+                        ApplicationEventPublisher applicationEventPublisher,
+                        AdminAuditLogService adminAuditLogService,
+                        NotificationDomainService notificationDomainService,
+                        OrderStatusLogRepository orderStatusLogRepository) {
+        this(
+                orderRepository,
+                userRepository,
+                addressRepository,
+                productRepository,
+                productVariantRepository,
+                flashSaleItemRepository,
+                walletService,
+                storeRepository,
+                couponRepository,
+                voucherRepository,
+                customerVoucherRepository,
+                publicCodeService,
+                applicationEventPublisher,
+                adminAuditLogService,
+                notificationDomainService,
+                orderStatusLogRepository,
+                null
+        );
     }
 
     public OrderService(OrderRepository orderRepository, UserRepository userRepository,
@@ -122,7 +157,8 @@ public class OrderService {
                 applicationEventPublisher,
                 adminAuditLogService,
                 notificationDomainService,
-                orderStatusLogRepository
+                orderStatusLogRepository,
+                null
         );
     }
 
@@ -146,6 +182,7 @@ public class OrderService {
                 null,
                 publicCodeService,
                 applicationEventPublisher,
+                null,
                 null,
                 null,
                 null
@@ -175,12 +212,13 @@ public class OrderService {
                 applicationEventPublisher,
                 null,
                 null,
+                null,
                 null
         );
     }
 
-    // Default commission rate (5%)
-    private static final BigDecimal DEFAULT_COMMISSION_RATE_PERCENT = new BigDecimal("5.0");
+    private static final BigDecimal DEFAULT_COMMISSION_RATE_PERCENT =
+            PlatformCommissionSettingsService.DEFAULT_COMMISSION_RATE_PERCENT;
     private static final BigDecimal COMMISSION_RATE_DIVISOR = new BigDecimal("100");
     private static final BigDecimal DEFAULT_SHIPPING_FEE = new BigDecimal("30000.0");
     private static final BigDecimal FREE_SHIPPING_THRESHOLD = new BigDecimal("500000.0");
@@ -2666,7 +2704,7 @@ public class OrderService {
     private CommissionSnapshot calculateCommissionSnapshot(StoreOrderGroup group) {
         Store store = storeRepository.findById(group.storeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
-        BigDecimal commissionRatePercent = resolveCommissionRatePercent(store.getCommissionRate());
+        BigDecimal commissionRatePercent = resolveCommissionRatePercent(store);
         BigDecimal commissionBaseAmount = group.subtotal();
         BigDecimal commissionFee = commissionBaseAmount
                 .multiply(commissionRatePercent)
@@ -2689,7 +2727,11 @@ public class OrderService {
         return new CommissionSnapshot(aggregatedRate, totalBase, totalFee);
     }
 
-    private BigDecimal resolveCommissionRatePercent(BigDecimal rawRate) {
+    private BigDecimal resolveCommissionRatePercent(Store store) {
+        if (platformCommissionSettingsService != null) {
+            return platformCommissionSettingsService.resolveEffectiveCommissionRate(store);
+        }
+        BigDecimal rawRate = store != null ? store.getCommissionRate() : null;
         if (rawRate == null || rawRate.compareTo(BigDecimal.ZERO) <= 0) {
             return DEFAULT_COMMISSION_RATE_PERCENT;
         }

@@ -34,6 +34,7 @@ public class StoreService {
     private final ReviewRepository reviewRepository;
     private final StorePerformanceMetricsService storePerformanceMetricsService;
     private final AdminAuditLogService adminAuditLogService;
+    private final PlatformCommissionSettingsService platformCommissionSettingsService;
 
     @Autowired
     public StoreService(
@@ -42,7 +43,8 @@ public class StoreService {
             ProductRepository productRepository,
             ReviewRepository reviewRepository,
             StorePerformanceMetricsService storePerformanceMetricsService,
-            AdminAuditLogService adminAuditLogService
+            AdminAuditLogService adminAuditLogService,
+            PlatformCommissionSettingsService platformCommissionSettingsService
     ) {
         this.storeRepository = storeRepository;
         this.userRepository = userRepository;
@@ -50,6 +52,7 @@ public class StoreService {
         this.reviewRepository = reviewRepository;
         this.storePerformanceMetricsService = storePerformanceMetricsService;
         this.adminAuditLogService = adminAuditLogService;
+        this.platformCommissionSettingsService = platformCommissionSettingsService;
     }
 
     public StoreService(
@@ -59,7 +62,18 @@ public class StoreService {
             ReviewRepository reviewRepository,
             StorePerformanceMetricsService storePerformanceMetricsService
     ) {
-        this(storeRepository, userRepository, productRepository, reviewRepository, storePerformanceMetricsService, null);
+        this(storeRepository, userRepository, productRepository, reviewRepository, storePerformanceMetricsService, null, null);
+    }
+
+    public StoreService(
+            StoreRepository storeRepository,
+            UserRepository userRepository,
+            ProductRepository productRepository,
+            ReviewRepository reviewRepository,
+            StorePerformanceMetricsService storePerformanceMetricsService,
+            AdminAuditLogService adminAuditLogService
+    ) {
+        this(storeRepository, userRepository, productRepository, reviewRepository, storePerformanceMetricsService, adminAuditLogService, null);
     }
 
     private static final Pattern SLUG_PATTERN = Pattern.compile("^[a-z0-9]+(-[a-z0-9]+)*$");
@@ -107,7 +121,8 @@ public class StoreService {
                 .warehouseAddress(request.getWarehouseAddress() != null ? request.getWarehouseAddress() : request.getAddress())
                 .warehouseContact(request.getWarehouseContact())
                 .warehousePhone(request.getWarehousePhone() != null ? request.getWarehousePhone() : request.getPhone())
-                .commissionRate(new BigDecimal("5.0"))
+                .commissionRate(null)
+                .usesDefaultCommissionRate(true)
                 .status(Store.StoreStatus.INACTIVE)
                 .approvalStatus(Store.ApprovalStatus.PENDING)
                 .totalSales(BigDecimal.ZERO)
@@ -483,6 +498,7 @@ public class StoreService {
 
             BigDecimal normalizedRate = commissionRate.stripTrailingZeros();
             store.setCommissionRate(normalizedRate);
+            store.setUsesDefaultCommissionRate(false);
             Store saved = storeRepository.save(store);
 
             String auditNote = note != null && !note.isBlank()
@@ -504,6 +520,58 @@ public class StoreService {
                     adminEmail,
                     "STORE",
                     "UPDATE_COMMISSION_RATE",
+                    storeId,
+                    false,
+                    ex.getMessage()
+            );
+            throw ex;
+        }
+    }
+
+    @Transactional
+    public StoreResponse resetCommissionRateToDefaultAsAdmin(
+            UUID storeId,
+            UUID adminId,
+            String adminEmail
+    ) {
+        return resetCommissionRateToDefaultAsAdmin(storeId, adminId, adminEmail, null);
+    }
+
+    @Transactional
+    public StoreResponse resetCommissionRateToDefaultAsAdmin(
+            UUID storeId,
+            UUID adminId,
+            String adminEmail,
+            String note
+    ) {
+        try {
+            Store store = storeRepository.findById(storeId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Store not found"));
+
+            store.setUsesDefaultCommissionRate(true);
+            store.setCommissionRate(null);
+            Store saved = storeRepository.save(store);
+
+            BigDecimal defaultRate = resolveEffectiveCommissionRate(saved);
+            String auditNote = note != null && !note.isBlank()
+                    ? note + " | defaultRate=" + defaultRate.toPlainString() + "%"
+                    : "defaultRate=" + defaultRate.toPlainString() + "%";
+            writeAdminAuditLog(
+                    adminId,
+                    adminEmail,
+                    "STORE",
+                    "RESET_COMMISSION_RATE_DEFAULT",
+                    saved.getId(),
+                    true,
+                    auditNote
+            );
+            return toResponse(saved);
+        } catch (RuntimeException ex) {
+            writeAdminAuditLog(
+                    adminId,
+                    adminEmail,
+                    "STORE",
+                    "RESET_COMMISSION_RATE_DEFAULT",
                     storeId,
                     false,
                     ex.getMessage()
@@ -625,6 +693,8 @@ public class StoreService {
                 .warehouseContact(store.getWarehouseContact())
                 .warehousePhone(store.getWarehousePhone())
                 .commissionRate(store.getCommissionRate())
+                .usesDefaultCommissionRate(Boolean.TRUE.equals(store.getUsesDefaultCommissionRate()))
+                .effectiveCommissionRate(resolveEffectiveCommissionRate(store))
                 .status(store.getStatus().name())
                 .approvalStatus(store.getApprovalStatus().name())
                 .rejectionReason(store.getRejectionReason())
@@ -643,6 +713,17 @@ public class StoreService {
 
     private static Boolean defaultIfNull(Boolean value, boolean fallback) {
         return value != null ? value : fallback;
+    }
+
+    private BigDecimal resolveEffectiveCommissionRate(Store store) {
+        if (platformCommissionSettingsService != null) {
+            return platformCommissionSettingsService.resolveEffectiveCommissionRate(store);
+        }
+        BigDecimal storeRate = store.getCommissionRate();
+        if (storeRate == null || storeRate.compareTo(BigDecimal.ZERO) <= 0) {
+            return PlatformCommissionSettingsService.DEFAULT_COMMISSION_RATE_PERCENT;
+        }
+        return storeRate;
     }
 
     private void validateCommissionRate(BigDecimal commissionRate) {

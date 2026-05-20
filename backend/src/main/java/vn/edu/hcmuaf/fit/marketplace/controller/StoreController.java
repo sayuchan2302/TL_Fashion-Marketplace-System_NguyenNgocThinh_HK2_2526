@@ -192,6 +192,22 @@ public class StoreController {
         ));
     }
 
+    @PatchMapping("/{id}/commission-rate/default")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<StoreResponse> resetCommissionRateToDefault(
+            @PathVariable UUID id,
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody(required = false) CommissionRateRequest request
+    ) {
+        AuthContext.UserContext admin = authContext.requireAdmin(authHeader);
+        return ResponseEntity.ok(storeService.resetCommissionRateToDefaultAsAdmin(
+                id,
+                admin.getUserId(),
+                admin.getEmail(),
+                request != null ? request.getNote() : null
+        ));
+    }
+
     @PutMapping("/my-store")
     public ResponseEntity<StoreResponse> updateStore(
             @RequestHeader("Authorization") String authHeader,

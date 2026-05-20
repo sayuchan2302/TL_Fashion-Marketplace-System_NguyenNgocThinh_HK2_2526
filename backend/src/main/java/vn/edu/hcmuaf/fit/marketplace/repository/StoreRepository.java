@@ -43,6 +43,12 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
 
     List<Store> findByApprovalStatusAndStatus(Store.ApprovalStatus approvalStatus, Store.StoreStatus status);
 
+    long countByUsesDefaultCommissionRateTrue();
+
+    long countByUsesDefaultCommissionRateFalse();
+
+    List<Store> findByUsesDefaultCommissionRateIsNull();
+
     @Query("""
             SELECT s FROM Store s
             WHERE s.approvalStatus = 'APPROVED'
