@@ -232,6 +232,7 @@ const mapBackendProduct = (product: BackendProduct): Product => {
     gender: product.gender,
     careInstructions: product.careInstructions,
     category: product.category?.name || 'Fashion',
+    categorySlug: product.category?.slug,
     price: product.salePrice || product.basePrice || 0,
     originalPrice: product.basePrice || undefined,
     image: imageUrls[0] || '',

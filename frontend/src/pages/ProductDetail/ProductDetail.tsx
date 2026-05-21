@@ -105,6 +105,7 @@ const ProductDetail = () => {
 
   const productId = id || '';
   const storeSlug = normalizeStoreSlug(product?.storeSlug);
+  const categoryLinkSlug = product?.categorySlug || product?.category || 'all';
   usePageTitle(product?.name || 'Sản phẩm');
 
   useEffect(() => {
@@ -230,7 +231,7 @@ const ProductDetail = () => {
               {CLIENT_TEXT.common.breadcrumb.home}
             </Link>
             <ChevronRight size={14} className="breadcrumb-separator" />
-            <Link to={`/category/${product.category || 'all'}`} className="breadcrumb-link">
+            <Link to={`/category/${encodeURIComponent(categoryLinkSlug)}`} className="breadcrumb-link">
               {product.category || CLIENT_TEXT.productListing.title}
             </Link>
             <ChevronRight size={14} className="breadcrumb-separator" />
@@ -476,4 +477,5 @@ const ProductDetail = () => {
 };
 
 export default ProductDetail;
+
 

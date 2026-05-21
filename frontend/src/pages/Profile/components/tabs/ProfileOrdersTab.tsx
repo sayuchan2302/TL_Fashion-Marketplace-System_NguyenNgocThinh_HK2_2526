@@ -49,27 +49,6 @@ const getOrderSlaNotice = (order: ProfileTabContentProps['orders'][number]): { t
   return null;
 };
 
-const getReturnStatusLabel = (req: ReturnRequest) => {
-  switch (req.status) {
-    case 'PENDING_VENDOR':
-      return 'Chờ shop duyệt';
-    case 'ACCEPTED':
-      return 'Gửi hàng về';
-    case 'SHIPPING':
-      return 'Đang vận chuyển';
-    case 'RECEIVED':
-      return 'Shop đã nhận';
-    case 'COMPLETED':
-      return 'Hoàn thành';
-    case 'REJECTED':
-      return 'Bị từ chối';
-    case 'DISPUTED':
-      return 'Tranh chấp';
-    default:
-      return 'Đang xử lý';
-  }
-};
-
 const getReturnStatusBadgeLabel = (status: string) => {
   switch (status) {
     case 'PENDING_VENDOR':
@@ -90,6 +69,9 @@ const getReturnStatusBadgeLabel = (status: string) => {
       return 'Đang đổi/trả';
   }
 };
+
+const hasActiveReturnRequest = (returns: ReturnRequest[], orderId: string) =>
+  returns.some((req) => req.orderId === orderId && req.status !== 'CANCELLED');
 
 const OrdersTab = ({
   orderFilter,
@@ -145,11 +127,13 @@ const OrdersTab = ({
       if (orderFilter === 'Tất cả') return orders;
       if (orderFilter === 'Hoàn trả') {
         return orders.filter((order) => {
-          const hasReturn = customerReturns.some((req) => req.orderId === order.id);
+          const hasReturn = hasActiveReturnRequest(customerReturns, order.id);
           return order.status === 'refunded' || hasReturn;
         });
       }
-      return orders.filter((order) => order.status === statusMap[orderFilter]);
+      return orders.filter(
+        (order) => order.status === statusMap[orderFilter] && !hasActiveReturnRequest(customerReturns, order.id),
+      );
     },
     [orderFilter, orders, customerReturns],
   );
@@ -205,9 +189,7 @@ const OrdersTab = ({
         ) : (
           pagedOrders.map((order) => {
             const slaNotice = getOrderSlaNotice(order);
-            const activeReturn = customerReturns.find(
-              (req) => req.orderId === order.id && req.status !== 'CANCELLED'
-            );
+            const activeReturn = customerReturns.find((req) => req.orderId === order.id && req.status !== 'CANCELLED');
             const displayStatusText = activeReturn
               ? getReturnStatusBadgeLabel(activeReturn.status)
               : (orderStatusLabelMap[order.status] ?? order.status);
@@ -271,13 +253,7 @@ const OrdersTab = ({
                           const activeReq = customerReturns.find(
                             (req) => req.orderId === order.id && req.status !== 'CANCELLED'
                           );
-                          if (activeReq) {
-                            return (
-                              <button className="order-action-btn order-btn-outline" disabled>
-                                <RotateCcw size={16} /> Đã yêu cầu ({getReturnStatusLabel(activeReq)})
-                              </button>
-                            );
-                          }
+                          if (activeReq) return null;
                           return (
                             <button className="order-action-btn order-btn-outline" onClick={() => onOpenReturnDrawer(order)}>
                               <RotateCcw size={16} /> Đổi / trả hàng

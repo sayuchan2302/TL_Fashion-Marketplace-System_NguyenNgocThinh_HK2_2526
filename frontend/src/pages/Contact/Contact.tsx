@@ -3,6 +3,8 @@ import { MapPin, Phone, Mail, Clock, Send, ChevronRight } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import './Contact.css';
 
+const BRAND_NAME = 'Phố Mặc';
+
 const Contact = () => {
   const { addToast } = useToast();
 
@@ -16,8 +18,11 @@ const Contact = () => {
           <span>Liên hệ</span>
         </div>
 
-        <h1 className="contact-title">Liên hệ với chúng tôi</h1>
-        <p className="contact-subtitle">Coolmate luôn sẵn sàng lắng nghe và hỗ trợ bạn!</p>
+        <section className="contact-hero">
+          <img src="/brand/pho-mac-icon-white.png" alt={`${BRAND_NAME} logo`} className="contact-hero-logo" />
+          <h1 className="contact-title">Liên hệ {BRAND_NAME}</h1>
+          <p className="contact-subtitle">{BRAND_NAME} luôn sẵn sàng lắng nghe, tư vấn phong cách và hỗ trợ đơn hàng của bạn.</p>
+        </section>
 
         <div className="contact-layout">
           {/* Contact Info */}
@@ -27,15 +32,15 @@ const Contact = () => {
                 <div className="ci-icon"><Phone size={20} /></div>
                 <div>
                   <h4>Hotline</h4>
-                  <p><strong>1900.27.27.37</strong></p>
-                  <p className="ci-sub">(028.7777.2737)</p>
+                  <p><strong>1900 2323 02</strong></p>
+                  <p className="ci-sub">Hỗ trợ mua hàng & đổi trả</p>
                 </div>
               </div>
               <div className="ci-item">
                 <div className="ci-icon"><Mail size={20} /></div>
                 <div>
                   <h4>Email</h4>
-                  <p>cool@coolmate.me</p>
+                  <p>support@phomac.vn</p>
                 </div>
               </div>
               <div className="ci-item">
@@ -50,14 +55,14 @@ const Contact = () => {
                 <div className="ci-icon"><MapPin size={20} /></div>
                 <div>
                   <h4>Văn phòng Hà Nội</h4>
-                  <p>Tầng 3-4, BMM, KM2, Phùng Hưng, Hà Đông, Hà Nội</p>
+                  <p>Hà Đông, Hà Nội</p>
                 </div>
               </div>
               <div className="ci-item">
                 <div className="ci-icon"><MapPin size={20} /></div>
                 <div>
                   <h4>Văn phòng TP.HCM</h4>
-                  <p>Lầu 1, 163 Trần Trọng Cung, Quận 7, TP.HCM</p>
+                  <p>Quận 7, TP.HCM</p>
                 </div>
               </div>
             </div>
@@ -66,7 +71,7 @@ const Contact = () => {
           {/* Contact Form */}
           <div className="contact-form-col">
             <div className="contact-form-container">
-              <h2 className="contact-title">Gửi tin nhắn cho chúng tôi</h2>
+              <h2 className="contact-title">Gửi tin nhắn cho {BRAND_NAME}</h2>
               <form className="contact-form" onSubmit={(e) => { e.preventDefault(); addToast('Cảm ơn bạn! Tin nhắn đã được gửi.', 'success'); e.currentTarget.reset(); }}>
                 <div className="form-group">
                   <div className="cf-group">
@@ -84,7 +89,7 @@ const Contact = () => {
                 </div>
                 <div className="cf-group">
                   <label>Chủ đề</label>
-                  <select>
+                  <select aria-label="Chủ đề liên hệ">
                     <option value="">-- Chọn chủ đề --</option>
                     <option>Hỏi về sản phẩm</option>
                     <option>Đổi / trả hàng</option>

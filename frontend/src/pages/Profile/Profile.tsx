@@ -166,6 +166,18 @@ const dedupeMarketplaceVouchers = (vouchers: CustomerWalletVoucher[]) => {
   return result;
 };
 
+const isVisibleWalletVoucher = (voucher: CustomerWalletVoucher) =>
+  voucher.displayStatus === 'AVAILABLE' || voucher.displayStatus === 'USED';
+
+const sortVisibleWalletVouchers = (vouchers: CustomerWalletVoucher[]) =>
+  [...vouchers].sort((left, right) => {
+    const leftRank = left.displayStatus === 'AVAILABLE' ? 0 : 1;
+    const rightRank = right.displayStatus === 'AVAILABLE' ? 0 : 1;
+    if (leftRank !== rightRank) return leftRank - rightRank;
+
+    return new Date(left.expiresAt || 0).getTime() - new Date(right.expiresAt || 0).getTime();
+  });
+
 const Profile = () => {
   const navigate = useNavigate();
   const { addToast } = useToast();
@@ -229,7 +241,7 @@ const Profile = () => {
   const [voucherPage, setVoucherPage] = useState(1);
 
   const displayVoucherWallet = useMemo(
-    () => dedupeMarketplaceVouchers(voucherWallet),
+    () => sortVisibleWalletVouchers(dedupeMarketplaceVouchers(voucherWallet).filter(isVisibleWalletVoucher)),
     [voucherWallet],
   );
 
@@ -1056,4 +1068,6 @@ const Profile = () => {
 };
 
 export default Profile;
+
+
 

@@ -24,6 +24,7 @@ export interface Product {
   gender?: string;
   careInstructions?: string;
   category?: string;
+  categorySlug?: string;
   price: number;
   originalPrice?: number;
   image: string;

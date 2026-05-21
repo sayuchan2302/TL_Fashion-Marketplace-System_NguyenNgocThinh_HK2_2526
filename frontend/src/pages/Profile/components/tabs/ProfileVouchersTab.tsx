@@ -44,7 +44,7 @@ const VouchersTab = ({
           return (
             <div
               key={voucher.customerVoucherId || `${voucher.code}-${voucher.storeId ?? 'global'}-${voucher.expiresAt ?? 'na'}-${(voucherPage - 1) * vouchersPerPage + index}`}
-              className="voucher-card"
+              className={`voucher-card ${voucher.displayStatus === 'USED' ? 'voucher-card-used' : ''}`}
             >
               <span className={`voucher-owner-badge ${isMarketplaceOwner ? 'marketplace' : 'vendor'}`}>
                 {ownerLabel}

@@ -327,6 +327,7 @@ const mapProductCard = (row: MarketplaceProductCardPayload): Product => {
     sku: row.productCode || row.id,
     name: row.name || 'Sản phẩm',
     category: row.category || 'Marketplace',
+    categorySlug: row.categorySlug,
     material: row.material,
     fit: row.fit,
     gender: row.gender,

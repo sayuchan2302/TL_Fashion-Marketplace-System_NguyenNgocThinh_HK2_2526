@@ -2,6 +2,8 @@ import './FAQ.css';
 import { Link } from 'react-router-dom';
 import { MessageCircle, Package, ShieldCheck, Search, CreditCard, Ruler } from 'lucide-react';
 
+const BRAND_NAME = 'Phố Mặc';
+
 const faqGroups = [
   {
     title: 'Đơn hàng & vận chuyển',
@@ -12,7 +14,7 @@ const faqGroups = [
       },
       {
         q: 'Bao lâu tôi nhận được hàng?',
-        a: 'Nội thành: 1-3 ngày làm việc; ngoại tỉnh: 3-5 ngày làm việc. Mùa cao điểm có thể thêm 1-2 ngày, chúng tôi sẽ thông báo nếu có chậm trễ.'
+        a: `${BRAND_NAME} giao nội thành trong 1-3 ngày làm việc; ngoại tỉnh 3-5 ngày làm việc. Mùa cao điểm có thể thêm 1-2 ngày, chúng tôi sẽ thông báo nếu có chậm trễ.`
       },
       {
         q: 'Phí vận chuyển tính như thế nào?',
@@ -46,7 +48,7 @@ const faqGroups = [
       },
       {
         q: 'Thanh toán online có an toàn?',
-        a: 'Chúng tôi dùng cổng thanh toán được cấp phép, mã hóa SSL, không lưu thông tin thẻ. Bạn có thể chọn COD nếu chưa sẵn sàng trả trước.'
+        a: `${BRAND_NAME} dùng cổng thanh toán được cấp phép, mã hóa SSL, không lưu thông tin thẻ. Bạn có thể chọn COD nếu chưa sẵn sàng trả trước.`
       }
     ]
   },
@@ -81,8 +83,9 @@ const FAQ = () => {
         <div className="container faq-hero-inner">
           <div>
             <p className="faq-eyebrow">Trợ giúp & FAQ</p>
-            <h1 className="faq-title">Mọi câu hỏi về đơn hàng, vận chuyển, đổi trả</h1>
-            <p className="faq-subtitle">Xem nhanh hướng dẫn hoặc liên hệ CSKH. Thời gian hỗ trợ: 8:00 - 22:00 mỗi ngày.</p>
+            <img src="/brand/pho-mac-logo.png" alt={`${BRAND_NAME} logo`} className="faq-hero-logo" />
+            <h1 className="faq-title">Mọi câu hỏi về đơn hàng {BRAND_NAME}</h1>
+            <p className="faq-subtitle">Xem nhanh hướng dẫn vận chuyển, đổi trả, thanh toán hoặc liên hệ CSKH {BRAND_NAME}. Thời gian hỗ trợ: 8:00 - 22:00 mỗi ngày.</p>
             <div className="faq-cta-row">
               <Link to="/contact" className="faq-primary">Chat với CSKH</Link>
               <Link to="/returns" className="faq-secondary">Tạo yêu cầu đổi trả</Link>

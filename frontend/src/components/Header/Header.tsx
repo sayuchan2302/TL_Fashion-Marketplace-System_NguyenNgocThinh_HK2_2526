@@ -285,10 +285,7 @@ const Header = () => {
             ))}
             <li>
               <Link to="/category/sale" className="nav-link nav-sale">
-                <div className="sale-content">
-                  <span className="sale-percent">-50%</span>
-                  <span className="sale-label">SALE</span>
-                </div>
+                SALE
               </Link>
             </li>
           </ul>
@@ -532,7 +529,7 @@ const Header = () => {
             </div>
           ))}
 
-          <Link to="/category/sale" className="mobile-nav-link mobile-sale" onClick={closeMobileMenu}>🔥 SALE -50%</Link>
+          <Link to="/category/sale" className="mobile-nav-link mobile-sale" onClick={closeMobileMenu}>SALE</Link>
         </nav>
 
         <div className="mobile-auth">
@@ -588,4 +585,6 @@ const Header = () => {
 };
 
 export default Header;
+
+
 

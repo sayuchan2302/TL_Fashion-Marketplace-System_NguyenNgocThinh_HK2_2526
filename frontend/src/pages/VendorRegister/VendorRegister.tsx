@@ -188,7 +188,7 @@ const VendorRegister = () => {
               label={dict.form.shopName}
               value={shopInfo.shopName}
               onChange={(v) => setShopInfo({ ...shopInfo, shopName: v })}
-              placeholder="Coolmate Studio"
+              placeholder="Phố Mặc Studio"
             />
             <Field
               label={dict.form.brandName}
@@ -201,7 +201,7 @@ const VendorRegister = () => {
               value={shopInfo.slug}
               onChange={(v) => setShopInfo({ ...shopInfo, slug: v })}
               prefix="/store/"
-              placeholder="coolmate"
+              placeholder="pho-mac"
             />
             <Field
               label={dict.form.address}
@@ -216,6 +216,7 @@ const VendorRegister = () => {
               <div className="vr-input-wrap vr-select-wrap">
                 <select
                   className="vr-select"
+                  aria-label={dict.form.city}
                   value={addressLocation.selectedProvinceCode}
                   onChange={(e) => {
                     const code = e.target.value;
@@ -246,6 +247,7 @@ const VendorRegister = () => {
               <div className="vr-input-wrap vr-select-wrap">
                 <select
                   className="vr-select"
+                  aria-label={dict.form.district}
                   value={addressLocation.selectedDistrictCode}
                   onChange={(e) => {
                     const code = e.target.value;

@@ -7,6 +7,10 @@
 
 .contact-title { font-size: 28px; font-weight: 800; color: var(--co-black); margin: 0 0 8px; text-align: center; }
 .contact-subtitle { font-size: 16px; color: #666; margin: 0 0 40px; text-align: center; }
+.contact-hero { display: flex; flex-direction: column; align-items: center; margin-bottom: 32px; padding: 48px 20px; border-radius: 22px; text-align: center; color: white; background: radial-gradient(circle at 85% 15%, rgba(255,255,255,0.22), transparent 26%), linear-gradient(135deg, #111827, #5b3a22 58%, #b7793f); }
+.contact-hero .contact-title { color: white; }
+.contact-hero .contact-subtitle { color: rgba(255,255,255,0.9); margin-bottom: 0; }
+.contact-hero-logo { display: block; width: 84px; height: 84px; object-fit: contain; margin: 0 auto 14px; filter: drop-shadow(0 8px 20px rgba(0,0,0,0.28)); }
 
 .contact-layout { display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px; }
 
