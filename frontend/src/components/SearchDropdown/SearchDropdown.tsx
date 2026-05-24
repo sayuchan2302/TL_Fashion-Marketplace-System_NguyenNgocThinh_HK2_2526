@@ -146,6 +146,7 @@ const SearchDropdown = ({ isOpen, onClose, inputValue, onSearch }: SearchDropdow
                     </div>
                   </AnimatePresence>
                   <motion.button
+                    type="button"
                     className="sd-view-all"
                     onClick={() => handleSearchClick(inputValue)}
                     whileHover={{ x: 4 }}
@@ -173,6 +174,7 @@ const SearchDropdown = ({ isOpen, onClose, inputValue, onSearch }: SearchDropdow
                       <Clock size={14} /> {t.recentSearches}
                     </p>
                     <button
+                      type="button"
                       className="sd-clear-all"
                       onClick={clearHistory}
                       aria-label={t.clearAll}
@@ -191,12 +193,14 @@ const SearchDropdown = ({ isOpen, onClose, inputValue, onSearch }: SearchDropdow
                         transition={{ delay: i * 0.04, duration: 0.2, ease: 'easeOut' }}
                       >
                         <button
+                          type="button"
                           className="sd-history-text"
                           onClick={() => handleSearchClick(item)}
                         >
                           <Clock size={14} /> {item}
                         </button>
                         <button
+                          type="button"
                           className="sd-history-remove"
                           onClick={() => removeHistoryItem(item)}
                           aria-label={`${t.clearAll} "${item}"`}
@@ -216,6 +220,7 @@ const SearchDropdown = ({ isOpen, onClose, inputValue, onSearch }: SearchDropdow
                 <div className="sd-popular-chips">
                   {searchService.getPopularKeywords().map((kw, i) => (
                     <motion.button
+                      type="button"
                       key={kw}
                       className="sd-popular-chip"
                       onClick={() => handleSearchClick(kw)}

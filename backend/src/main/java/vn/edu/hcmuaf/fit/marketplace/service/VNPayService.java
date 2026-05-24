@@ -101,6 +101,9 @@ public class VNPayService {
         if (checksumValid && orderExists && amountMatches && successTxn && !orderPaid) {
             orderPaid = tryConfirmPaidFromVerifiedReturn(order);
         }
+        if (checksumValid && orderExists && amountMatches && !successTxn && !orderPaid) {
+            cancelUnpaidOrder(order, "VNPay payment was not completed");
+        }
 
         String status = "failed";
         String message = resolveVerifyMessage(checksumValid, orderExists, amountMatches, successTxn, responseCode, orderPaid);
@@ -229,6 +232,17 @@ public class VNPayService {
             return true;
         } catch (Exception ex) {
             return false;
+        }
+    }
+
+    private void cancelUnpaidOrder(Order order, String reason) {
+        if (order == null) {
+            return;
+        }
+        try {
+            orderService.cancelUnpaidOnlinePaymentOrder(order.getId(), reason);
+        } catch (Exception ignored) {
+            // Verification should still return the gateway result even if cancellation sync fails.
         }
     }
 

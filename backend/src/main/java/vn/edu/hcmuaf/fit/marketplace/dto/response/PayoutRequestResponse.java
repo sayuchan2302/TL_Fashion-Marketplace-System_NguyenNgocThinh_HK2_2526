@@ -18,6 +18,7 @@ public class PayoutRequestResponse {
     private UUID storeId;
     private String storeName;
     private String storeSlug;
+    private String storeLogo;
     private BigDecimal amount;
     private String bankAccountName;
     private String bankAccountNumber;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
-import { ChevronRight, Star, MessageSquare, X, Flag } from 'lucide-react';
+import { useLocation, useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
+import { ChevronRight, Star, MessageSquare, X, Flag, Store } from 'lucide-react';
 import ProductGallery from '../../components/ProductGallery/ProductGallery';
 import ProductInfo from '../../components/ProductInfo/ProductInfo';
 import ProductActions from '../../components/ProductActions/ProductActions';
@@ -103,6 +103,10 @@ const ProductDetail = () => {
   const [selectedColor, setSelectedColor] = useState('');
   const [selectedSize, setSelectedSize] = useState('');
 
+  const [searchParams] = useSearchParams();
+  const reviewIdParam = searchParams.get('reviewId');
+  const [visibleReviewsCount, setVisibleReviewsCount] = useState(5);
+
   const productId = id || '';
   const storeSlug = normalizeStoreSlug(product?.storeSlug);
   const categoryLinkSlug = product?.categorySlug || product?.category || 'all';
@@ -112,6 +116,33 @@ const ProductDetail = () => {
     setIsReportModalOpen(false);
     setHasReportedLocally(false);
   }, [productId]);
+
+  // Adjust pagination limit if landing on a deep review link
+  useEffect(() => {
+    if (!reviewIdParam || reviews.length === 0) return;
+    const targetIdx = reviews.findIndex((r) => r.id === reviewIdParam);
+    if (targetIdx !== -1 && targetIdx >= visibleReviewsCount) {
+      setVisibleReviewsCount(targetIdx + 1);
+    }
+  }, [reviewIdParam, reviews, visibleReviewsCount]);
+
+  // Smooth scroll and glowing visual highlight on direct redirect landing
+  useEffect(() => {
+    if (isLoading || !reviewIdParam || reviews.length === 0) return;
+
+    const timer = setTimeout(() => {
+      const element = document.getElementById(`review-${reviewIdParam}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add('pdp-review-card-highlight');
+        setTimeout(() => {
+          element.classList.remove('pdp-review-card-highlight');
+        }, 3000);
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [isLoading, reviewIdParam, reviews]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -338,8 +369,9 @@ const ProductDetail = () => {
             {reviews.length > 0 ? (
               <div className="pdp-reviews-overview">
                 <div className="pdp-reviews-overview-score">
-                  <strong>{averageRating?.toFixed(1) || '0.0'}</strong>
-                  <span>trên 5</span>
+                  <strong>
+                    {averageRating?.toFixed(1) || '0.0'}<span>/5.0</span>
+                  </strong>
                   <div className="pdp-reviews-overview-stars">{renderRating(Math.round(averageRating || 0))}</div>
                   <p className="pdp-reviews-overview-total">
                     {reviews.length} {CLIENT_DICTIONARY.reviews.countLabel}
@@ -370,10 +402,10 @@ const ProductDetail = () => {
               </div>
             ) : (
               <div className="pdp-reviews-list">
-                {reviews.map((review) => {
+                {reviews.slice(0, visibleReviewsCount).map((review) => {
                   const purchasedVariant = formatPurchasedVariant(review.variantName);
                   return (
-                    <article key={review.id} className="pdp-review-card">
+                    <article key={review.id} id={`review-${review.id}`} className="pdp-review-card">
                       <div className="pdp-review-meta">
                         <div className="pdp-review-author">
                           <div className="pdp-review-avatar" aria-hidden="true">
@@ -396,38 +428,61 @@ const ProductDetail = () => {
                           <span className="pdp-review-date">{formatReviewDateTime(review.createdAt)}</span>
                         </div>
                       </div>
-                      <p className="pdp-review-content">{review.content}</p>
-                      {review.images && review.images.length > 0 ? (
-                        <div className="pdp-review-images">
-                          {review.images.map((imageUrl, index) => (
-                            <button
-                              key={`${review.id}-image-${index}`}
-                              type="button"
-                              className="pdp-review-image-link"
-                              onClick={() =>
-                                setSelectedReviewImage({
-                                  url: imageUrl,
-                                  alt: `Ảnh đánh giá ${index + 1}`,
-                                })
-                              }
-                            >
-                              <img src={imageUrl} alt={`Ảnh đánh giá ${index + 1}`} className="pdp-review-image" loading="lazy" />
-                            </button>
-                          ))}
+                      <div className="pdp-review-thread">
+                        <div className="pdp-review-bubble pdp-review-bubble-customer">
+                          <span className="pdp-review-speaker pdp-review-speaker-customer">Khách hàng</span>
+                          <p className="pdp-review-content">{review.content}</p>
+                          {review.images && review.images.length > 0 ? (
+                            <div className="pdp-review-images">
+                              {review.images.map((imageUrl, index) => (
+                                <button
+                                  key={`${review.id}-image-${index}`}
+                                  type="button"
+                                  className="pdp-review-image-link"
+                                  onClick={() =>
+                                    setSelectedReviewImage({
+                                      url: imageUrl,
+                                      alt: `Ảnh đánh giá ${index + 1}`,
+                                    })
+                                  }
+                                >
+                                  <img src={imageUrl} alt={`Ảnh đánh giá ${index + 1}`} className="pdp-review-image" loading="lazy" />
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
-                      ) : null}
-                      {review.shopReply ? (
-                        <div className="pdp-review-reply">
-                          <div className="pdp-review-reply-head">
-                            <span className="pdp-review-reply-title">Phản hồi của Người Bán</span>
-                            <span className="pdp-review-reply-time">{formatReviewDateTime(review.shopReply.createdAt)}</span>
+                        {review.shopReply ? (
+                          <div className="pdp-review-reply">
+                            <div className="pdp-review-reply-rail" aria-hidden="true" />
+                            <div className="pdp-review-reply-avatar" aria-hidden="true">
+                              <Store size={15} />
+                            </div>
+                            <div className="pdp-review-bubble pdp-review-bubble-vendor">
+                              <div className="pdp-review-reply-head">
+                                <span className="pdp-review-speaker pdp-review-speaker-vendor">Phản hồi từ người bán</span>
+                                <span className="pdp-review-reply-time">{formatReviewDateTime(review.shopReply.createdAt)}</span>
+                              </div>
+                              <p className="pdp-review-reply-text">{review.shopReply.content}</p>
+                            </div>
                           </div>
-                          <p className="pdp-review-reply-text">{review.shopReply.content}</p>
-                        </div>
-                      ) : null}
+                        ) : null}
+                      </div>
                     </article>
                   );
                 })}
+
+                {reviews.length > visibleReviewsCount && (
+                  <div className="pdp-reviews-load-more">
+                    <button
+                      type="button"
+                      className="pdp-reviews-load-more-btn"
+                      onClick={() => setVisibleReviewsCount((prev) => prev + 5)}
+                    >
+                      Xem thêm đánh giá ({reviews.length - visibleReviewsCount} còn lại)
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -477,5 +532,7 @@ const ProductDetail = () => {
 };
 
 export default ProductDetail;
+
+
 
 

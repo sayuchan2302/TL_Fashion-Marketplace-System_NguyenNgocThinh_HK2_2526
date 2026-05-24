@@ -38,9 +38,9 @@ const paymentOptions: Array<{
     icon: 'https://mcdn.coolmate.me/image/October2024/mceclip0_81.png',
     alt: 'VNPay',
     label: t.paymentMethods.vnpay,
-    promo: t.paymentMethods.vnpayPromo,
   },
 ];
+
 
 interface CheckoutPaymentSectionProps {
   paymentMethod: CheckoutPaymentMethod;

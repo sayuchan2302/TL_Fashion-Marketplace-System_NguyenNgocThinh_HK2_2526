@@ -282,6 +282,7 @@ public class StoreService {
         }
     }
 
+
     @Transactional
     public StoreResponse suspendStore(UUID storeId, UUID adminId, String adminEmail) {
         try {

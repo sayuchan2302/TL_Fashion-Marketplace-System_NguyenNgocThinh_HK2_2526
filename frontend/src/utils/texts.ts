@@ -121,8 +121,8 @@ export const CLIENT_TEXT = {
       zalopay: 'Thanh toán qua Zalopay',
       zalopayDesc: 'Hỗ trợ mọi hình thức thanh toán',
       momo: 'Ví điện tử MoMo',
-      vnpay: 'VNPAY / TháiQR',
-      vnpayPromo: 'Mã "VNPAYCOOL" giảm 10% (tối đa 150k)',
+      vnpay: 'VNPAY / VietQR',
+
     },
     orderSummary: {
       title: 'Chi tiết thanh toán',

@@ -135,6 +135,9 @@ public class MoMoService {
         if (successTxn && orderExists && !orderPaid) {
             orderPaid = tryMarkPaid(order);
         }
+        if (orderExists && !successTxn && !orderPaid) {
+            cancelUnpaidOrder(order, "MoMo payment was not completed");
+        }
 
         String status = "failed";
         if (successTxn && orderExists && orderPaid) {
@@ -341,6 +344,15 @@ public class MoMoService {
             return true;
         } catch (Exception ex) {
             return false;
+        }
+    }
+
+    private void cancelUnpaidOrder(Order order, String reason) {
+        if (order == null) return;
+        try {
+            orderService.cancelUnpaidOnlinePaymentOrder(order.getId(), reason);
+        } catch (Exception ignored) {
+            // Keep return verification responsive even if cancellation sync fails.
         }
     }
 

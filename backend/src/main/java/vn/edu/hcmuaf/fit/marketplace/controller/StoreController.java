@@ -140,6 +140,7 @@ public class StoreController {
         return ResponseEntity.ok(storeService.rejectStore(id, admin.getUserId(), admin.getEmail(), request.getReason()));
     }
 
+
     @PostMapping("/{id}/suspend")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<StoreResponse> suspendStore(
@@ -243,6 +244,7 @@ public class StoreController {
             this.reason = reason;
         }
     }
+
 
     public static class BankVerificationRequest {
         private Boolean bankVerified;

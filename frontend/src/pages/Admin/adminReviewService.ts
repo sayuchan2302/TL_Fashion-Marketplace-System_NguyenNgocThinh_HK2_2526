@@ -6,6 +6,7 @@ export interface Review {
   id: string;
   storeId: string;
   productId: string;
+  productSlug?: string;
   productName: string;
   productImage: string;
   customerName: string;
@@ -32,6 +33,7 @@ export interface PaginatedResponse<T> {
 
 interface BackendReview extends Omit<Review, 'status'> {
   status?: string | null;
+  productSlug?: string;
 }
 
 const normalizeReviewStatus = (status?: string | null): ReviewStatus => {

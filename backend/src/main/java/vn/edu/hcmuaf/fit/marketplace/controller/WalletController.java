@@ -41,8 +41,7 @@ public class WalletController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<Page<WalletResponse>> getAllWallets(
             @RequestParam(required = false, defaultValue = "") String keyword,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         Page<VendorWallet> wallets = walletService.getAllWalletsPageable(keyword, pageable);
         return ResponseEntity.ok(wallets.map(this::toResponse));
     }
@@ -59,8 +58,7 @@ public class WalletController {
     @PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<Page<WalletTransactionResponse>> getMyTransactions(
             @RequestHeader("Authorization") String authHeader,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         UserContext ctx = authContext.requireVendor(authHeader);
         Page<WalletTransaction> transactions = walletService.getTransactions(ctx.getStoreId(), pageable);
         return ResponseEntity.ok(transactions.map(this::toResponse));
@@ -70,8 +68,7 @@ public class WalletController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<Page<WalletTransactionResponse>> getStoreTransactions(
             @PathVariable UUID storeId,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         Page<WalletTransaction> transactions = walletService.getTransactions(storeId, pageable);
         return ResponseEntity.ok(transactions.map(this::toResponse));
     }
@@ -80,8 +77,7 @@ public class WalletController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<WalletTransactionResponse> withdraw(
             @PathVariable UUID storeId,
-            @RequestBody(required = false) Map<String, Object> payload
-    ) {
+            @RequestBody(required = false) Map<String, Object> payload) {
         BigDecimal amount = (payload != null && payload.get("amount") != null)
                 ? new BigDecimal(payload.get("amount").toString())
                 : walletService.getOrCreateWallet(storeId).getAvailableBalance();
@@ -99,8 +95,7 @@ public class WalletController {
     @PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<PayoutRequestResponse> createPayoutRequest(
             @RequestHeader("Authorization") String authHeader,
-            @Valid @RequestBody PayoutRequestCreateRequest requestBody
-    ) {
+            @Valid @RequestBody PayoutRequestCreateRequest requestBody) {
         UserContext ctx = authContext.requireVendor(authHeader);
 
         PayoutRequest request = walletService.createPayoutRequest(
@@ -108,8 +103,7 @@ public class WalletController {
                 requestBody.getAmount(),
                 requestBody.getBankAccountName(),
                 requestBody.getBankAccountNumber(),
-                requestBody.getBankName()
-        );
+                requestBody.getBankName());
 
         return ResponseEntity.ok(toPayoutResponse(request));
     }
@@ -118,8 +112,7 @@ public class WalletController {
     @PreAuthorize("hasRole('VENDOR')")
     public ResponseEntity<Page<PayoutRequestResponse>> getMyPayouts(
             @RequestHeader("Authorization") String authHeader,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         UserContext ctx = authContext.requireVendor(authHeader);
         Page<PayoutRequest> payouts = walletService.getStorePayouts(ctx.getStoreId(), pageable);
         return ResponseEntity.ok(payouts.map(this::toPayoutResponse));
@@ -136,8 +129,7 @@ public class WalletController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<PayoutRequestResponse> approvePayout(
             @RequestHeader("Authorization") String authHeader,
-            @PathVariable UUID id
-    ) {
+            @PathVariable UUID id) {
         UserContext ctx = authContext.requireAdmin(authHeader);
         PayoutRequest request = walletService.approvePayoutRequest(id, ctx.getUserId(), ctx.getEmail());
         return ResponseEntity.ok(toPayoutResponse(request));
@@ -148,8 +140,7 @@ public class WalletController {
     public ResponseEntity<PayoutRequestResponse> rejectPayout(
             @RequestHeader("Authorization") String authHeader,
             @PathVariable UUID id,
-            @RequestBody Map<String, String> payload
-    ) {
+            @RequestBody Map<String, String> payload) {
         UserContext ctx = authContext.requireAdmin(authHeader);
         String note = payload.getOrDefault("note", "");
         PayoutRequest request = walletService.rejectPayoutRequest(id, ctx.getUserId(), ctx.getEmail(), note);
@@ -161,8 +152,7 @@ public class WalletController {
     public ResponseEntity<Map<String, Object>> getPayoutSummary() {
         return ResponseEntity.ok(Map.of(
                 "pendingCount", walletService.getPendingPayoutCount(),
-                "pendingTotal", walletService.getPendingPayoutTotal()
-        ));
+                "pendingTotal", walletService.getPendingPayoutTotal()));
     }
 
     // ─── Mappers ───────────────────────────────────────────────────────────────
@@ -207,6 +197,7 @@ public class WalletController {
                 .storeId(request.getStoreId())
                 .storeName(store != null ? store.getName() : "Unknown Store")
                 .storeSlug(store != null ? store.getSlug() : null)
+                .storeLogo(store != null ? store.getLogo() : null)
                 .amount(request.getAmount())
                 .bankAccountName(request.getBankAccountName())
                 .bankAccountNumber(request.getBankAccountNumber())

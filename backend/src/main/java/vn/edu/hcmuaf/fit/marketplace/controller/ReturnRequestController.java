@@ -232,10 +232,10 @@ public class ReturnRequestController {
     @GetMapping("/order/{orderId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<ReturnRequestResponse>> getByOrderId(
-            @PathVariable UUID orderId,
+            @PathVariable String orderId,
             @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.fromAuthHeader(authHeader);
-        return ResponseEntity.ok(returnRequestService.getCustomerReturnsByOrderId(orderId, ctx.getUserId()));
+        return ResponseEntity.ok(returnRequestService.getCustomerReturnsByOrderIdentifier(orderId, ctx.getUserId()));
     }
 
     private List<ReturnRequest.ReturnStatus> mergeStatuses(

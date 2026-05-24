@@ -46,25 +46,34 @@
 
 .social-links {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
-.social-btn {
-  color: var(--co-white);
+.footer .footer-social-btn {
+  color: var(--social-color, var(--co-white));
+  background: color-mix(in srgb, var(--social-color, var(--co-white)) 12%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid var(--co-gray-600);
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--social-color, var(--co-white)) 42%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.social-btn:hover {
-  background-color: var(--co-white);
-  color: var(--co-black);
+.footer .footer-social-btn:hover {
+  background-color: var(--social-color, var(--co-white));
+  border-color: var(--social-color, var(--co-white));
+  color: var(--co-white);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--social-color, var(--co-white)) 30%, transparent);
 }
+
+.social-facebook { --social-color: #1877f2; }
+.social-instagram { --social-color: #e4405f; }
+.social-youtube { --social-color: #ff0000; }
 
 .footer-links {
   display: flex;
@@ -119,13 +128,101 @@
 }
 
 .payment-icon {
-  background-color: var(--co-white);
-  color: var(--co-black);
-  padding: 4px 8px;
-  border-radius: 4px;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.payment-momo {
+  background: #fff;
+  padding: 4px 9px;
+}
+
+.payment-momo img {
+  display: block;
+  width: 62px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.payment-vnpay {
+  background: #fff;
+  padding: 4px 9px;
+}
+
+.payment-vnpay img {
+  display: block;
+  width: 72px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.payment-visa {
+  background: #fff;
+  padding: 4px 9px;
+}
+
+.payment-visa img {
+  display: block;
+  width: 54px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.payment-mastercard {
+  background: #161616;
+  color: #fff;
+}
+
+.mc-circles {
+  position: relative;
+  width: 18px;
+  height: 12px;
   display: inline-block;
+}
+
+.mc-circles::before,
+.mc-circles::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.mc-circles::before {
+  left: 0;
+  background: #eb001b;
+}
+
+.mc-circles::after {
+  right: 0;
+  background: rgba(247, 158, 27, 0.88);
+}
+
+.commerce-badge {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  margin-left: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
 @media (max-width: 1024px) {
@@ -144,5 +241,13 @@
     flex-direction: column;
     text-align: center;
     gap: var(--space-4);
+  }
+
+  .payment-methods {
+    justify-content: center;
+  }
+
+  .commerce-badge {
+    margin-left: 0;
   }
 }

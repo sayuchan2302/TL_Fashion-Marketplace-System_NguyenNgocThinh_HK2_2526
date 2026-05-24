@@ -64,6 +64,9 @@ public class Product extends BaseEntity {
     @Column(name = "sale_price")
     private BigDecimal salePrice;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     private String material;
 
     private String fit;

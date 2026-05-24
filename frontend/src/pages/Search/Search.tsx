@@ -4,7 +4,6 @@ import { ChevronRight, Clock, Search as SearchIcon, SlidersHorizontal, Trash2, X
 import { AnimatePresence, motion } from 'framer-motion';
 import FilterSidebar from '../../components/FilterSidebar/FilterSidebar';
 import ProductGrid from '../../components/ProductGrid/ProductGrid';
-import EmptySearchState from '../../components/EmptySearchState/EmptySearchState';
 import LoadingSpinner from '../../components/LoadingSpinner/LoadingSpinner';
 import SearchImageLandingHero from './components/SearchImageLandingHero';
 import SearchImageQueryPanel from './components/SearchImageQueryPanel';
@@ -285,14 +284,14 @@ const Search = () => {
   const hasNoResults = hasMissingImageSearchFile
     ? true
     : isAwaitingImageSearch
-    ? false
-    : isImageSearchMode
-    ? !isImageSearchLoading && filteredResults.length === 0
-    : isFlashSaleMode
-      ? filteredResults.length === 0
-      : scope === 'stores'
-        ? storeResults.length === 0
-        : filteredResults.length === 0;
+      ? false
+      : isImageSearchMode
+        ? !isImageSearchLoading && filteredResults.length === 0
+        : isFlashSaleMode
+          ? filteredResults.length === 0
+          : scope === 'stores'
+            ? storeResults.length === 0
+            : false; // Let ProductGrid handle the empty state for standard products search
   const isLoadingResults = isSearching || isAwaitingImageSearch || isImageSearchLoading;
 
   const headerTitle = isImageSearchPage
@@ -477,27 +476,27 @@ const Search = () => {
               ) : hasNoResults ? (
                 (scope === 'products' || isFlashSaleMode || isImageSearchPage)
                   ? (isFlashSaleMode
-                      ? <div className="store-empty-state"><p>Hiện chưa có sản phẩm Flash Sale đang hoạt động.</p></div>
-                      : isImageSearchPage
-                        ? (
-                            <div className="store-empty-state">
-                              <p>
-                                {hasMissingImageSearchFile
-                                  ? imageSearchError || 'Ảnh tìm kiếm không còn sau khi tải lại. Vui lòng chọn ảnh lại.'
-                                  : 'Không tìm thấy sản phẩm phù hợp với ảnh bạn đã tải lên.'}
-                              </p>
-                              {hasMissingImageSearchFile && (
-                                <button
-                                  type="button"
-                                  className="search-visual-query__button store-empty-state__action"
-                                  onClick={triggerImagePicker}
-                                >
-                                  Chọn ảnh lại
-                                </button>
-                              )}
-                            </div>
-                          )
-                        : <EmptySearchState query={query} />)
+                    ? <div className="store-empty-state"><p>Hiện chưa có sản phẩm Flash Sale đang hoạt động.</p></div>
+                    : isImageSearchPage
+                      ? (
+                        <div className="store-empty-state">
+                          <p>
+                            {hasMissingImageSearchFile
+                              ? imageSearchError || 'Ảnh tìm kiếm không còn sau khi tải lại. Vui lòng chọn ảnh lại.'
+                              : 'Không tìm thấy sản phẩm phù hợp với ảnh bạn đã tải lên.'}
+                          </p>
+                          {hasMissingImageSearchFile && (
+                            <button
+                              type="button"
+                              className="search-visual-query__button store-empty-state__action"
+                              onClick={triggerImagePicker}
+                            >
+                              Chọn ảnh lại
+                            </button>
+                          )}
+                        </div>
+                      )
+                      : null)
                   : <div className="store-empty-state"><p>Không tìm thấy cửa hàng phù hợp cho "{query}".</p></div>
               ) : scope === 'stores' ? (
                 <div className="store-results-grid">

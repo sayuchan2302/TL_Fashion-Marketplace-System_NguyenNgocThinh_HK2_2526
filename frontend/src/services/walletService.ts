@@ -29,6 +29,7 @@ export interface PayoutRequest {
   storeId: string;
   storeName: string;
   storeSlug: string | null;
+  storeLogo?: string | null;
   amount: number;
   bankAccountName: string;
   bankAccountNumber: string;

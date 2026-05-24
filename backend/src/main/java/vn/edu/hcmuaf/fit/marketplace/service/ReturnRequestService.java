@@ -857,12 +857,34 @@ public class ReturnRequestService {
     public List<ReturnRequestResponse> getCustomerReturnsByOrderId(UUID orderId, UUID userId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        return getCustomerReturnsByOrder(order, userId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReturnRequestResponse> getCustomerReturnsByOrderIdentifier(String orderIdentifier, UUID userId) {
+        String normalizedIdentifier = normalizeRequiredText(orderIdentifier, "Order is required");
+        Order order = parseUuid(normalizedIdentifier)
+                .flatMap(orderRepository::findById)
+                .or(() -> orderRepository.findByOrderCode(normalizedIdentifier))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        return getCustomerReturnsByOrder(order, userId);
+    }
+
+    private List<ReturnRequestResponse> getCustomerReturnsByOrder(Order order, UUID userId) {
         if (order.getUser() == null || !order.getUser().getId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Order does not belong to user");
         }
-        return returnRequestRepository.findByOrderId(orderId).stream()
+        return returnRequestRepository.findByOrderId(order.getId()).stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    private java.util.Optional<UUID> parseUuid(String value) {
+        try {
+            return java.util.Optional.of(UUID.fromString(value));
+        } catch (IllegalArgumentException ex) {
+            return java.util.Optional.empty();
+        }
     }
 
     private void writeAdminAuditLog(

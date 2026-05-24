@@ -131,20 +131,21 @@ public class PublicCodeService {
 
     private long resolveExistingMaxSequence(PublicCodeType type, LocalDate codeDate) {
         String prefixWithDate = "%s-%s-".formatted(prefix(type), codeDate.format(DATE_FORMATTER));
-        return switch (type) {
-            case ORDER -> orderRepository.findTopByOrderCodeStartingWithOrderByOrderCodeDesc(prefixWithDate)
+        switch (type) {
+            case ORDER: return orderRepository.findTopByOrderCodeStartingWithOrderByOrderCodeDesc(prefixWithDate)
                     .map(Order::getOrderCode)
                     .map(this::parseSequence)
                     .orElse(0L);
-            case RETURN -> returnRequestRepository.findTopByReturnCodeStartingWithOrderByReturnCodeDesc(prefixWithDate)
+            case RETURN: return returnRequestRepository.findTopByReturnCodeStartingWithOrderByReturnCodeDesc(prefixWithDate)
                     .map(ReturnRequest::getReturnCode)
                     .map(this::parseSequence)
                     .orElse(0L);
-            case TRANSACTION -> walletTransactionRepository.findTopByTransactionCodeStartingWithOrderByTransactionCodeDesc(prefixWithDate)
+            case TRANSACTION: return walletTransactionRepository.findTopByTransactionCodeStartingWithOrderByTransactionCodeDesc(prefixWithDate)
                     .map(WalletTransaction::getTransactionCode)
                     .map(this::parseSequence)
                     .orElse(0L);
-        };
+            default: throw new IllegalArgumentException("Unknown type: " + type);
+        }
     }
 
     private long parseSequence(String code) {
@@ -163,11 +164,12 @@ public class PublicCodeService {
     }
 
     private String prefix(PublicCodeType type) {
-        return switch (type) {
-            case ORDER -> "DH";
-            case RETURN -> "TH";
-            case TRANSACTION -> "GD";
-        };
+        switch (type) {
+            case ORDER: return "DH";
+            case RETURN: return "TH";
+            case TRANSACTION: return "GD";
+            default: throw new IllegalArgumentException("Unknown type: " + type);
+        }
     }
 
     private boolean hasText(String value) {

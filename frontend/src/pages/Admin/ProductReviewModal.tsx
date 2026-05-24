@@ -1,6 +1,11 @@
-import { Ban, CheckCircle2, X } from 'lucide-react';
+import { Ban, CheckCircle2 } from 'lucide-react';
 import Drawer from '../../components/Drawer/Drawer';
 import type { AdminModerationProduct } from './adminProductModerationService';
+import {
+  PanelDrawerHeader,
+  PanelDrawerSection,
+  PanelDrawerFooter
+} from '../../components/Panel/PanelPrimitives';
 
 interface ProductReviewModalProps {
   open: boolean;
@@ -38,128 +43,140 @@ const ProductReviewModal = ({ open, product, onClose, onBlock, onUnblock, loadin
       size="xl"
       ariaLabel="Rà soát sản phẩm"
     >
-      <div className="drawer-header">
-        <div>
-          <p className="drawer-eyebrow">Quản trị sản phẩm</p>
-          <h3>{product.productCode}</h3>
-        </div>
-        <button className="admin-icon-btn" onClick={onClose} aria-label="Đóng">
-          <X size={16} />
-        </button>
-      </div>
+      <PanelDrawerHeader
+        eyebrow="Quản lý sản phẩm"
+        title={product.productCode}
+        onClose={onClose}
+        closeLabel="Đóng chi tiết sản phẩm"
+      />
 
       <div className="drawer-body">
-        <section className="drawer-section">
-          <h4>Tổng quan sản phẩm</h4>
-          <div className="moderation-review-header">
-            <img src={product.thumbnail || previewImages[0] || ''} alt={product.name} />
-            <div>
-              <p className="admin-bold">{product.name}</p>
-              <p className="admin-muted small">
-                Trạng thái quản lý: {isBlocked ? 'Đã chặn' : 'Đang hiển thị'}
+        <PanelDrawerSection title="Tổng quan sản phẩm">
+          <div className="review-drawer-product">
+            <img
+              src={product.thumbnail || previewImages[0] || ''}
+              alt={product.name}
+              className="review-drawer-product-image"
+            />
+            <div className="review-drawer-product-copy">
+              <p className="review-drawer-product-name">{product.name}</p>
+              <p className="review-drawer-product-sub">Gian hàng: <strong>{product.storeName || 'N/A'}</strong></p>
+              <div className="review-drawer-pill-row">
+                <span className={`admin-pill ${product.productStatus === 'ACTIVE' ? 'success' : 'neutral'}`}>
+                  {product.productStatus === 'ACTIVE' ? 'Đang bán' : product.productStatus || 'Chưa có'}
+                </span>
+                <span className={`admin-pill ${isBlocked ? 'danger' : 'success'}`}>
+                  {isBlocked ? 'Đã chặn' : 'Đang hiển thị'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </PanelDrawerSection>
+
+        <PanelDrawerSection title="Thông tin chi tiết">
+          <div className="review-drawer-meta-grid">
+            <div className="review-drawer-meta-card">
+              <span className="review-drawer-meta-label">Mã sản phẩm</span>
+              <span className="review-drawer-meta-value review-drawer-code">{product.productCode}</span>
+            </div>
+            <div className="review-drawer-meta-card">
+              <span className="review-drawer-meta-label">Gian hàng</span>
+              <span className="review-drawer-meta-value"><strong>{product.storeName || 'N/A'}</strong></span>
+            </div>
+            <div className="review-drawer-meta-card">
+              <span className="review-drawer-meta-label">Danh mục</span>
+              <span className="review-drawer-meta-value"><strong>{product.categoryName || 'N/A'}</strong></span>
+            </div>
+            <div className="review-drawer-meta-card">
+              <span className="review-drawer-meta-label">Giá bán</span>
+              <span className="review-drawer-meta-value" style={{ color: '#0d9488', fontWeight: 700 }}>{price}</span>
+            </div>
+            <div className="review-drawer-meta-card">
+              <span className="review-drawer-meta-label">Tồn kho / Doanh số</span>
+              <span className="review-drawer-meta-value review-drawer-stacked">
+                <strong>{product.stock.toLocaleString('vi-VN')} chiếc</strong>
+                <small>Đã bán {product.sales.toLocaleString('vi-VN')}</small>
+              </span>
+            </div>
+            <div className="review-drawer-meta-card">
+              <span className="review-drawer-meta-label">Ngày đăng bán</span>
+              <span className="review-drawer-meta-value">{createdAt}</span>
+            </div>
+            <div className="review-drawer-meta-card" style={{ gridColumn: 'span 2' }}>
+              <span className="review-drawer-meta-label">Cập nhật gần nhất</span>
+              <span className="review-drawer-meta-value">{updatedAt}</span>
+            </div>
+          </div>
+        </PanelDrawerSection>
+
+        <div className="review-drawer-meta-grid" style={{ gap: '20px', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)' }}>
+          <PanelDrawerSection title="Mô tả từ vendor">
+            <div className="report-drawer-note" style={{ marginTop: 0, padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+              <p className="review-drawer-content" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: '#334155' }}>
+                {product.description?.trim() || 'Vendor chưa cập nhật mô tả sản phẩm.'}
               </p>
             </div>
-          </div>
-        </section>
+          </PanelDrawerSection>
 
-        <section className="drawer-section">
-          <h4>Thông tin vendor cung cấp</h4>
-          <div className="moderation-readonly-grid">
-            <div className="moderation-readonly-item">
-              <span className="admin-muted small">Mã sản phẩm</span>
-              <strong>{product.productCode}</strong>
-            </div>
-            <div className="moderation-readonly-item">
-              <span className="admin-muted small">Gian hàng</span>
-              <strong>{product.storeName || 'N/A'}</strong>
-            </div>
-            <div className="moderation-readonly-item">
-              <span className="admin-muted small">Danh mục</span>
-              <strong>{product.categoryName || 'N/A'}</strong>
-            </div>
-            <div className="moderation-readonly-item">
-              <span className="admin-muted small">Trạng thái sản phẩm</span>
-              <strong>{product.productStatus || 'N/A'}</strong>
-            </div>
-            <div className="moderation-readonly-item">
-              <span className="admin-muted small">Giá bán</span>
-              <strong>{price}</strong>
-            </div>
-            <div className="moderation-readonly-item">
-              <span className="admin-muted small">Tồn kho</span>
-              <strong>{product.stock.toLocaleString('vi-VN')}</strong>
-            </div>
-            <div className="moderation-readonly-item">
-              <span className="admin-muted small">Đã bán</span>
-              <strong>{product.sales.toLocaleString('vi-VN')}</strong>
-            </div>
-            <div className="moderation-readonly-item">
-              <span className="admin-muted small">Ngày tạo</span>
-              <strong>{createdAt}</strong>
-            </div>
-            <div className="moderation-readonly-item moderation-readonly-item-wide">
-              <span className="admin-muted small">Cập nhật gần nhất</span>
-              <strong>{updatedAt}</strong>
-            </div>
-          </div>
-        </section>
-
-        <section className="drawer-section moderation-review-grid">
-          <div className="moderation-review-panel">
-            <h4>Mô tả từ vendor</h4>
-            <p className="moderation-review-description">
-              {product.description?.trim() || 'Vendor chưa cập nhật mô tả sản phẩm.'}
-            </p>
-          </div>
-          <div className="moderation-review-panel">
-            <h4>Hình ảnh sản phẩm</h4>
+          <PanelDrawerSection title="Hình ảnh sản phẩm">
             {previewImages.length === 0 ? (
               <p className="admin-muted small">Chưa có ảnh để rà soát.</p>
             ) : (
-              <div className="moderation-review-images">
+              <div className="review-drawer-media-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '8px' }}>
                 {previewImages.map((image, index) => (
-                  <img key={`${product.id}-${index}`} src={image} alt={`${product.name}-${index + 1}`} />
+                  <a
+                    key={`${product.id}-${index}`}
+                    href={image}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="review-drawer-media-item"
+                    style={{ borderRadius: '6px', overflow: 'hidden', border: '1px solid #e2e8f0', display: 'block', aspectRatio: '1/1' }}
+                  >
+                    <img src={image} alt={`${product.name}-${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </a>
                 ))}
               </div>
             )}
-          </div>
-        </section>
+          </PanelDrawerSection>
+        </div>
 
-        {!isBlocked ? (
-          <section className="drawer-section">
-            <p className="admin-muted small">Nhấn "Chặn sản phẩm" để nhập lý do chặn chi tiết.</p>
-          </section>
-        ) : null}
+        {!isBlocked && (
+          <PanelDrawerSection title="Chỉ dẫn nghiệp vụ">
+            <p className="admin-muted small" style={{ fontStyle: 'italic' }}>
+              * Rà soát hình ảnh bản quyền và nội dung mô tả trước khi thực hiện thao tác cấm. Nhấn "Chặn sản phẩm" để khai báo biên bản lý do chi tiết.
+            </p>
+          </PanelDrawerSection>
+        )}
       </div>
 
-      <div className="drawer-footer moderation-review-actions">
+      <PanelDrawerFooter>
         <button className="admin-ghost-btn" onClick={onClose} disabled={loading}>
           Đóng
         </button>
         {isBlocked ? (
           <button
-            className="admin-ghost-btn moderation-btn-approve"
+            className="admin-ghost-btn"
+            style={{ color: '#10b981', background: 'transparent', marginLeft: 'auto' }}
             onClick={() => {
               void onUnblock(product);
             }}
             disabled={loading}
           >
-            <CheckCircle2 size={15} />
-            Gỡ chặn
+            <CheckCircle2 size={16} /> Gỡ chặn
           </button>
         ) : (
           <button
-            className="admin-ghost-btn moderation-btn-ban"
+            className="admin-ghost-btn danger"
+            style={{ marginLeft: 'auto' }}
             onClick={() => {
               void handleBlock();
             }}
             disabled={loading}
           >
-            <Ban size={15} />
-            Chặn sản phẩm
+            <Ban size={16} /> Chặn sản phẩm
           </button>
         )}
-      </div>
+      </PanelDrawerFooter>
     </Drawer>
   );
 };

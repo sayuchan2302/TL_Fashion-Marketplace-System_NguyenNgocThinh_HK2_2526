@@ -20,7 +20,16 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
     Optional<Review> findByIdAndStoreId(UUID id, UUID storeId);
     List<Review> findByProductIdAndStatusOrderByCreatedAtDesc(UUID productId, Review.ReviewStatus status);
     List<Review> findByStoreIdAndStatusOrderByCreatedAtDesc(UUID storeId, Review.ReviewStatus status);
-    List<Review> findByProductIdAndStatusNotOrderByCreatedAtDesc(UUID productId, Review.ReviewStatus status);
+    @Query("""
+            SELECT r FROM Review r
+            JOIN FETCH r.product p
+            JOIN FETCH r.user u
+            LEFT JOIN FETCH r.order o
+            WHERE p.id = :productId
+              AND r.status <> :status
+            ORDER BY r.createdAt DESC, r.id DESC
+            """)
+    List<Review> findVisibleProductReviews(@Param("productId") UUID productId, @Param("status") Review.ReviewStatus status);
     List<Review> findByStoreIdAndStatusNotOrderByCreatedAtDesc(UUID storeId, Review.ReviewStatus status);
     List<Review> findByUserIdOrderByCreatedAtDesc(UUID userId);
     boolean existsByUserIdAndProductIdAndOrderId(UUID userId, UUID productId, UUID orderId);

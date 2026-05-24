@@ -52,8 +52,7 @@ public class ReviewService {
             UserRepository userRepository,
             OrderRepository orderRepository,
             StoreRepository storeRepository,
-            NotificationDomainService notificationDomainService
-    ) {
+            NotificationDomainService notificationDomainService) {
         this.reviewRepository = reviewRepository;
         this.productRepository = productRepository;
         this.userRepository = userRepository;
@@ -67,18 +66,20 @@ public class ReviewService {
         if (images == null || images.isEmpty()) {
             return Collections.emptyList();
         }
-        // Break Hibernate lazy collection reference before leaving transaction boundary.
+        // Break Hibernate lazy collection reference before leaving transaction
+        // boundary.
         return new ArrayList<>(images);
     }
 
     private ReviewResponse toReviewResponse(Review review) {
+        Product product = review.getProduct();
         return ReviewResponse.builder()
                 .id(review.getId())
                 .storeId(review.getStoreId())
-                .productId(review.getProduct() != null ? review.getProduct().getId() : null)
-                .productSlug(review.getProduct() != null ? review.getProduct().getSlug() : null)
-                .productName(review.getProduct() != null ? review.getProduct().getName() : "Unknown Product")
-                .productImage(review.getProduct() != null && review.getProduct().getImages() != null && !review.getProduct().getImages().isEmpty() ? review.getProduct().getImages().get(0).getUrl() : null)
+                .productId(product != null ? product.getId() : null)
+                .productSlug(product != null ? product.getSlug() : null)
+                .productName(product != null ? product.getName() : "Unknown Product")
+                .productImage(resolveProductImage(product))
                 .customerName(review.getUser() != null ? review.getUser().getName() : "Unknown Customer")
                 .customerEmail(review.getUser() != null ? review.getUser().getEmail() : "Unknown Email")
                 .rating(review.getRating())
@@ -95,8 +96,20 @@ public class ReviewService {
                 .build();
     }
 
+    private String resolveProductImage(Product product) {
+        if (product == null) {
+            return null;
+        }
+        List<vn.edu.hcmuaf.fit.marketplace.entity.ProductImage> images = product.getImages();
+        if (images == null || images.isEmpty()) {
+            return null;
+        }
+        return images.get(0).getUrl();
+    }
+
     private String resolvePurchasedVariantName(Review review) {
-        if (review == null || review.getOrder() == null || review.getProduct() == null || review.getProduct().getId() == null) {
+        if (review == null || review.getOrder() == null || review.getProduct() == null
+                || review.getProduct().getId() == null) {
             return null;
         }
 
@@ -119,7 +132,8 @@ public class ReviewService {
 
     @Transactional(readOnly = true)
     public Page<ReviewResponse> getAllReviews(Review.ReviewStatus status, Pageable pageable) {
-        Page<Review> page = status == null ? reviewRepository.findAll(pageable) : reviewRepository.findByStatus(status, pageable);
+        Page<Review> page = status == null ? reviewRepository.findAll(pageable)
+                : reviewRepository.findByStatus(status, pageable);
         List<ReviewResponse> content = page.getContent().stream()
                 .map(this::toReviewResponse)
                 .collect(Collectors.toList());
@@ -138,8 +152,7 @@ public class ReviewService {
             String keyword,
             Boolean needReply,
             Integer maxRating,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         String normalizedKeyword = keyword == null ? null : keyword.trim();
         if (normalizedKeyword != null && normalizedKeyword.isEmpty()) {
             normalizedKeyword = null;
@@ -151,8 +164,7 @@ public class ReviewService {
                 normalizedKeyword,
                 needReply,
                 maxRating,
-                pageable
-        );
+                pageable);
 
         List<ReviewResponse> content = page.getContent().stream()
                 .map(this::toReviewResponse)
@@ -177,7 +189,7 @@ public class ReviewService {
 
     @Transactional(readOnly = true)
     public List<ReviewResponse> getVisibleProductReviews(UUID productId) {
-        return reviewRepository.findByProductIdAndStatusNotOrderByCreatedAtDesc(productId, Review.ReviewStatus.HIDDEN)
+        return reviewRepository.findVisibleProductReviews(productId, Review.ReviewStatus.HIDDEN)
                 .stream()
                 .map(this::toReviewResponse)
                 .toList();
@@ -195,8 +207,10 @@ public class ReviewService {
     public List<ReviewResponse> getCustomerReviews(UUID userId, UUID orderId, UUID productId) {
         return reviewRepository.findByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
-                .filter(review -> orderId == null || (review.getOrder() != null && orderId.equals(review.getOrder().getId())))
-                .filter(review -> productId == null || (review.getProduct() != null && productId.equals(review.getProduct().getId())))
+                .filter(review -> orderId == null
+                        || (review.getOrder() != null && orderId.equals(review.getOrder().getId())))
+                .filter(review -> productId == null
+                        || (review.getProduct() != null && productId.equals(review.getProduct().getId())))
                 .map(this::toReviewResponse)
                 .toList();
     }
@@ -208,7 +222,8 @@ public class ReviewService {
                         .orderId(item.getOrderId())
                         .productId(item.getProductId())
                         .productSlug(item.getProductSlug() == null ? "" : item.getProductSlug())
-                        .productName(item.getProductName() == null || item.getProductName().isBlank() ? "Sản phẩm" : item.getProductName())
+                        .productName(item.getProductName() == null || item.getProductName().isBlank() ? "Sản phẩm"
+                                : item.getProductName())
                         .productImage(item.getProductImage() == null ? "" : item.getProductImage())
                         .variantName(item.getVariantName() == null ? "" : item.getVariantName())
                         .quantity(item.getQuantity() == null ? 0 : item.getQuantity())
@@ -231,7 +246,8 @@ public class ReviewService {
         Order order = resolveDeliveredOrderForReview(userId, request.getProductId(), request.getOrderId());
 
         if (reviewRepository.existsByUserIdAndProductIdAndOrderId(userId, request.getProductId(), order.getId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "You have already reviewed this product for the order");
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "You have already reviewed this product for the order");
         }
 
         Review review = Review.builder()
@@ -322,8 +338,10 @@ public class ReviewService {
         return normalized.isEmpty() ? null : normalized;
     }
 
-    private void notifyCustomerReviewReply(Review review, String previousReply, String currentReply, boolean adminReply) {
-        if (notificationDomainService == null || review == null || review.getUser() == null || review.getUser().getId() == null) {
+    private void notifyCustomerReviewReply(Review review, String previousReply, String currentReply,
+            boolean adminReply) {
+        if (notificationDomainService == null || review == null || review.getUser() == null
+                || review.getUser().getId() == null) {
             return;
         }
         if (normalizeOptionalText(previousReply).equals(normalizeOptionalText(currentReply))) {
@@ -337,13 +355,16 @@ public class ReviewService {
             productName = "sản phẩm";
         }
         String message = "Đánh giá cho sản phẩm " + productName + " đã có phản hồi mới.";
+        String targetLink = REVIEW_NOTIFICATION_LINK;
+        if (review.getProduct() != null && review.getProduct().getId() != null) {
+            targetLink = "/product/" + review.getProduct().getId() + "?reviewId=" + review.getId();
+        }
         notificationDomainService.createAndPush(
                 review.getUser().getId(),
                 Notification.NotificationType.REVIEW,
                 adminReply ? REVIEW_NOTIFICATION_TITLE_ADMIN : REVIEW_NOTIFICATION_TITLE_VENDOR,
                 message,
-                REVIEW_NOTIFICATION_LINK
-        );
+                targetLink);
     }
 
     private Order resolveDeliveredOrderForReview(UUID userId, UUID productId, UUID orderId) {
@@ -351,13 +372,11 @@ public class ReviewService {
             boolean purchasedByOrder = orderRepository.existsDeliveredOrderItemByUserAndOrderAndProduct(
                     userId,
                     orderId,
-                    productId
-            );
+                    productId);
             if (!purchasedByOrder) {
                 throw new ResponseStatusException(
                         HttpStatus.FORBIDDEN,
-                        "You can only review products from delivered orders that you purchased"
-                );
+                        "You can only review products from delivered orders that you purchased");
             }
             return orderRepository.findByUserIdAndId(userId, orderId)
                     .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
@@ -367,15 +386,13 @@ public class ReviewService {
         if (!purchased) {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN,
-                    "You can only review products that you have purchased"
-            );
+                    "You can only review products that you have purchased");
         }
 
         List<Order> deliveredOrders = orderRepository.findDeliveredOrdersByUserAndProduct(
                 userId,
                 productId,
-                PageRequest.of(0, 1)
-        );
+                PageRequest.of(0, 1));
         if (deliveredOrders.isEmpty()) {
             throw new ResourceNotFoundException("Delivered order not found");
         }

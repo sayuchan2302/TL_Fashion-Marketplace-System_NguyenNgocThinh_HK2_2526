@@ -111,6 +111,12 @@ const EMPTY_ADMIN_COUNTS: AdminTabCounts = {
   rejected: 0,
 };
 
+const getInitials = (name: string) => {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+};
 const AdminReturns = () => {
   const { pushToast } = useAdminToast();
   const [rows, setRows] = useState<ReturnRequest[]>([]);
@@ -369,7 +375,7 @@ const AdminReturns = () => {
             />
           ) : (
             <>
-<div className="admin-table admin-responsive-table" role="table" aria-label="Bảng yêu cầu hoàn trả">
+              <div className="admin-table admin-responsive-table" role="table" aria-label="Bảng yêu cầu hoàn trả">
                 <div className="admin-table-row admin-table-head returns-row" role="row">
                   <div role="columnheader" className="returns-checkbox-cell">
                     <input
@@ -383,12 +389,11 @@ const AdminReturns = () => {
                   </div>
                   <div role="columnheader">STT</div>
                   <div role="columnheader">Khách hàng</div>
-                  <div role="columnheader">Gian hàng</div>
                   <div role="columnheader">Sản phẩm</div>
                   <div role="columnheader">Trạng thái</div>
                   <div role="columnheader">Giá trị</div>
                   <div role="columnheader">Hành động</div>
-</div>
+                </div>
 
                 {rows.map((item, index) => (
                   <motion.div
@@ -399,7 +404,7 @@ const AdminReturns = () => {
                     onClick={() => setDrawerItem(item)}
                     style={{ cursor: 'pointer' }}
                   >
-<div role="cell" className="returns-checkbox-cell" onClick={(e) => e.stopPropagation()}>
+                    <div role="cell" className="returns-checkbox-cell" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selected.has(item.id)}
@@ -416,17 +421,35 @@ const AdminReturns = () => {
                     <div role="cell">
                       <span className="returns-ellipsis" style={{ fontSize: '12px', fontWeight: 700 }}>{(safePage - 1) * PAGE_SIZE + index + 1}</span>
                     </div>
-<div role="cell" className="returns-customer-cell" title={item.customerName}>
-                      <span className="returns-ellipsis" style={{ fontSize: '12px', fontWeight: 700 }}>{item.customerName}</span>
-                      <small className="admin-muted returns-ellipsis">{item.customerEmail || 'Chưa có email'}</small>
-                    </div>
-                    <div role="cell" className="returns-store-cell" title={item.storeName || 'Chưa xác định gian hàng'}>
-                      <span className="returns-ellipsis" style={{ fontSize: '12px', fontWeight: 700 }}>{item.storeName || 'Chưa xác định'}</span>
+                    <div role="cell" className="returns-customer-cell" title={item.customerName}>
+                      <div className="returns-customer-cell-content">
+                        <div
+                          className="returns-customer-avatar"
+                        >
+                          {getInitials(item.customerName)}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <span className="returns-ellipsis" style={{ fontSize: '12px', fontWeight: 700 }}>{item.customerName}</span>
+                          <small className="admin-muted returns-ellipsis" style={{ fontSize: '11px' }}>{item.customerEmail || 'Chưa có email'}</small>
+                        </div>
+                      </div>
                     </div>
                     <div role="cell" className="returns-product-cell" title={item.items.map((i) => i.productName).join(', ')}>
-                      <span className="returns-ellipsis" style={{ fontSize: '12px', fontWeight: 700 }}>
-                        {item.items.map((product) => `${product.productName} (x${product.quantity})`).join(', ')}
-                      </span>
+                      {item.items[0]?.imageUrl ? (
+                        <img src={item.items[0].imageUrl} alt={item.items[0].productName} className="returns-product-thumb" />
+                      ) : (
+                        <div className="returns-product-thumb placeholder">SP</div>
+                      )}
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                        <span className="returns-ellipsis" style={{ fontSize: '12px', fontWeight: 700 }}>
+                          {item.items.map((product) => `${product.productName} (x${product.quantity})`).join(', ')}
+                        </span>
+                        {item.items[0]?.variantName ? (
+                          <small className="admin-muted returns-ellipsis" style={{ fontSize: '11px' }}>
+                            {item.items[0].variantName}
+                          </small>
+                        ) : null}
+                      </div>
                     </div>
                     <div role="cell">
                       <span className={statusConfig[item.status].pillClass}>{statusConfig[item.status].label}</span>
@@ -563,53 +586,67 @@ const AdminReturns = () => {
 
             <div className="drawer-body">
               <PanelDrawerSection title="Tổng quan yêu cầu">
-                <div className="returns-meta-grid">
-                  <article className="returns-meta-card">
-                    <span className="returns-meta-label">Mã đơn</span>
-                    <strong>#{toDisplayOrderCode(drawerItem.orderCode)}</strong>
+                <div className="returns-drawer-hero" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '16px' }}>
+                  <div
+                    className="returns-customer-avatar large"
+                  >
+                    {getInitials(drawerItem.customerName)}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <div className="admin-bold" style={{ fontSize: '15px', color: '#0f172a' }}>{drawerItem.customerName}</div>
+                    <div className="admin-muted" style={{ fontSize: '12px' }}>{drawerItem.customerEmail || 'Chưa có email'}</div>
+                  </div>
+                  <div className="returns-hero-pills" style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+                    <span className={statusConfig[drawerItem.status].pillClass}>
+                      {statusConfig[drawerItem.status].label}
+                    </span>
+                    <span className="admin-pill neutral">
+                      {resolutionLabel[drawerItem.resolution] || drawerItem.resolution}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="returns-meta-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+                  <article className="returns-meta-card" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 12px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span className="returns-meta-label" style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Mã đơn hàng</span>
+                    <strong style={{ fontSize: '14px', color: '#0f172a' }}>#{toDisplayOrderCode(drawerItem.orderCode)}</strong>
                   </article>
-                  <article className="returns-meta-card">
-                    <span className="returns-meta-label">Khách hàng</span>
-                    <strong>{drawerItem.customerName}</strong>
-                    <small className="admin-muted">{drawerItem.customerEmail || 'Chưa có email'}</small>
+                  <article className="returns-meta-card" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 12px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span className="returns-meta-label" style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Số điện thoại khách</span>
+                    <strong style={{ fontSize: '14px', color: '#0f172a' }}>{drawerItem.customerPhone || 'Chưa có số điện thoại'}</strong>
                   </article>
-                  <article className="returns-meta-card">
-                    <span className="returns-meta-label">Gian hàng</span>
-                    <strong>{drawerItem.storeName || 'Chưa xác định'}</strong>
-                    <small className="admin-muted">{drawerItem.customerPhone || 'Chưa có số điện thoại khách'}</small>
+                  <article className="returns-meta-card" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 12px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span className="returns-meta-label" style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Gian hàng</span>
+                    <strong style={{ fontSize: '14px', color: '#0f172a' }}>{drawerItem.storeName || 'Không rõ'}</strong>
                   </article>
-                  <article className="returns-meta-card">
-                    <span className="returns-meta-label">Trạng thái</span>
-                    <strong>{statusConfig[drawerItem.status].label}</strong>
-                    <small className="admin-muted">
-                      Hình thức: {resolutionLabel[drawerItem.resolution] || drawerItem.resolution}
-                    </small>
+                  <article className="returns-meta-card" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 12px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span className="returns-meta-label" style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Giá trị hoàn tiền</span>
+                    <strong style={{ fontSize: '14px', color: '#0d9488', fontWeight: 800 }}>{formatVnd(drawerRefundTotal)}</strong>
                   </article>
-                  <article className="returns-meta-card">
-                    <span className="returns-meta-label">Giá trị yêu cầu</span>
-                    <strong>{formatVnd(drawerRefundTotal)}</strong>
-                    <small className="admin-muted">Tạo: {formatDateTime(drawerItem.createdAt)}</small>
+                  <article className="returns-meta-card" style={{ gridColumn: 'span 2', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '10px 12px', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span className="returns-meta-label" style={{ fontSize: '11px', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>Thời điểm tạo yêu cầu</span>
+                    <strong style={{ fontSize: '14px', color: '#0f172a' }}>{formatDateTime(drawerItem.createdAt)}</strong>
                   </article>
                 </div>
               </PanelDrawerSection>
 
               <PanelDrawerSection title="Lý do & diễn biến">
-                <div className="returns-reason-box">
-                  <div className="admin-card-row">
-                    <span className="admin-bold">Lý do khách</span>
-                    <span className="admin-muted">{reasonLabel[drawerItem.reason] || drawerItem.reason}</span>
+                <div className="returns-reason-box" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div className="admin-card-row" style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
+                    <span className="admin-bold" style={{ fontWeight: 700, color: '#0f172a' }}>Lý do từ khách hàng:</span>
+                    <span className="admin-muted" style={{ color: '#475569' }}>{reasonLabel[drawerItem.reason] || drawerItem.reason}</span>
                   </div>
-                  <div className="admin-card-row">
-                    <span className="admin-bold">Ghi chú khách</span>
-                    <span className="admin-muted">{drawerItem.note?.trim() || 'Không có ghi chú bổ sung'}</span>
+                  <div className="admin-card-row" style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
+                    <span className="admin-bold" style={{ fontWeight: 700, color: '#0f172a' }}>Ghi chú bổ sung từ khách:</span>
+                    <p className="admin-muted" style={{ color: '#475569', fontSize: '13px', whiteSpace: 'pre-wrap', margin: 0 }}>{drawerItem.note?.trim() || 'Không có ghi chú bổ sung'}</p>
                   </div>
-                  <div className="admin-card-row">
-                    <span className="admin-bold">Lý do vendor từ chối</span>
-                    <span className="admin-muted">{drawerItem.vendorReason?.trim() || 'Chưa có'}</span>
+                  <div className="admin-card-row" style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
+                    <span className="admin-bold" style={{ fontWeight: 700, color: '#0f172a' }}>Lý do từ chối từ vendor:</span>
+                    <p className="admin-muted" style={{ color: '#475569', fontSize: '13px', whiteSpace: 'pre-wrap', margin: 0 }}>{drawerItem.vendorReason?.trim() || 'Chưa phản hồi lý do'}</p>
                   </div>
-                  <div className="admin-card-row">
-                    <span className="admin-bold">Lý do khách tranh chấp</span>
-                    <span className="admin-muted">{drawerItem.disputeReason?.trim() || 'Chưa có'}</span>
+                  <div className="admin-card-row" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span className="admin-bold" style={{ fontWeight: 700, color: '#0f172a' }}>Lý do tranh chấp từ khách:</span>
+                    <p className="admin-muted" style={{ color: '#475569', fontSize: '13px', whiteSpace: 'pre-wrap', margin: 0 }}>{drawerItem.disputeReason?.trim() || 'Chưa khai báo tranh chấp'}</p>
                   </div>
                 </div>
               </PanelDrawerSection>
@@ -618,23 +655,25 @@ const AdminReturns = () => {
                 <PanelDrawerSection title={`Sản phẩm trả lại (${drawerItemCount})`}>
                   <div className="returns-items-list">
                     {drawerItem.items.map((item) => (
-                      <article key={item.orderItemId} className="returns-item-card">
+                      <article key={item.orderItemId} className="returns-item-card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#ffffff', marginBottom: '8px' }}>
                         {item.imageUrl ? (
-                          <img src={item.imageUrl} alt={item.productName} className="returns-item-image" />
+                          <img src={item.imageUrl} alt={item.productName} className="returns-item-image" style={{ width: '48px', height: '48px', borderRadius: '8px', border: '1px solid #e2e8f0', objectFit: 'cover', flexShrink: 0 }} />
                         ) : (
-                          <div className="returns-item-image placeholder">SP</div>
+                          <div className="returns-item-image placeholder" style={{ width: '48px', height: '48px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', color: '#94a3b8', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>SP</div>
                         )}
-                        <div className="returns-item-content">
-                          <strong className="returns-item-name">{item.productName}</strong>
-                          <small className="admin-muted">{item.variantName || 'Biến thể mặc định'}</small>
-                          <div className="returns-item-meta">
-                            <span>x{item.quantity}</span>
-                            <span>{formatVnd(item.unitPrice)}</span>
-                            <span className="admin-bold">{formatVnd(item.unitPrice * item.quantity)}</span>
+                        <div className="returns-item-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                          <strong className="returns-item-name returns-ellipsis" style={{ fontSize: '13px', color: '#0f172a', fontWeight: 700 }}>{item.productName}</strong>
+                          {item.variantName ? (
+                            <small className="admin-muted" style={{ fontSize: '11px', color: '#64748b' }}>{item.variantName}</small>
+                          ) : null}
+                          <div className="returns-item-meta" style={{ display: 'flex', gap: '12px', fontSize: '12px', marginTop: '4px' }}>
+                            <span style={{ color: '#64748b' }}>Số lượng: <strong>x{item.quantity}</strong></span>
+                            <span style={{ color: '#64748b' }}>Đơn giá: <strong>{formatVnd(item.unitPrice)}</strong></span>
+                            <span style={{ color: '#0f172a', marginLeft: 'auto', fontWeight: 800 }}>Tạm tính: {formatVnd(item.unitPrice * item.quantity)}</span>
                           </div>
                           {item.evidenceUrl ? (
-                            <a className="admin-link" href={item.evidenceUrl} target="_blank" rel="noreferrer">
-                              Xem evidence
+                            <a className="admin-link" href={item.evidenceUrl} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#3b82f6', textDecoration: 'underline', width: 'fit-content', marginTop: '6px' }}>
+                              Xem evidence từ khách
                             </a>
                           ) : null}
                         </div>
@@ -645,9 +684,9 @@ const AdminReturns = () => {
               )}
 
               <PanelDrawerSection title="Ghi chú trọng tài">
-                <div className="returns-note-box">
-                  <p className="returns-note-label">Ghi chú hiện tại</p>
-                  <p className="returns-note-text">{drawerItem.adminNote?.trim() || 'Chưa có ghi chú trọng tài'}</p>
+                <div className="returns-note-box" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fffbeb', borderLeft: '4px solid #f59e0b', padding: '12px', marginBottom: '14px' }}>
+                  <p className="returns-note-label" style={{ fontSize: '11px', textTransform: 'uppercase', color: '#b45309', fontWeight: 700, margin: '0 0 4px' }}>Ghi chú phiên trọng tài hiện tại</p>
+                  <p className="returns-note-text" style={{ fontSize: '13px', color: '#78350f', margin: 0 }}>{drawerItem.adminNote?.trim() || 'Hệ thống chưa ghi nhận phán quyết bằng văn bản cho phiên này.'}</p>
                 </div>
                 <div className="returns-note-input-wrap">
                   <label htmlFor="admin-return-note" className="returns-note-label">

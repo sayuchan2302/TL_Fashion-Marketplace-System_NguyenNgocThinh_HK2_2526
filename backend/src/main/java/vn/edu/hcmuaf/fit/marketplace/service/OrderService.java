@@ -557,6 +557,22 @@ public class OrderService {
         return toAdminOrderResponse(savedOrder);
     }
 
+
+    @Transactional
+    public void cancelUnpaidOnlinePaymentOrder(UUID orderId, String reason) {
+        Order order = findById(orderId);
+        if (!isOnlinePaymentMethod(order.getPaymentMethod())) {
+            return;
+        }
+        if (order.getPaymentStatus() == Order.PaymentStatus.PAID
+                || order.getStatus() == Order.OrderStatus.CANCELLED
+                || order.getStatus() == Order.OrderStatus.DELIVERED) {
+            return;
+        }
+
+        applyStatusUpdate(order, Order.OrderStatus.CANCELLED, null, null, reason, false);
+    }
+
     @Transactional
     public int autoCancelExpiredVendorConfirmations(LocalDateTime now, int batchSize) {
         LocalDateTime effectiveNow = now == null ? LocalDateTime.now() : now;
@@ -2944,6 +2960,9 @@ public class OrderService {
 
     private void notifyCustomerOrderCreated(Order order) {
         if (notificationDomainService == null || order == null || order.getUser() == null) {
+            return;
+        }
+        if (isOnlinePaymentMethod(order.getPaymentMethod()) && order.getPaymentStatus() != Order.PaymentStatus.PAID) {
             return;
         }
         if (order.getParentOrder() != null) {

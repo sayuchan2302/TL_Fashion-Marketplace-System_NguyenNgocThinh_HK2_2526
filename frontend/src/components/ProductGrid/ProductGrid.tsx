@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { ShoppingBag } from 'lucide-react';
 import './ProductGrid.css';
 import ProductCardSkeleton from '../ProductCardSkeleton/ProductCardSkeleton';
 import ProductCardGrid from '../ProductCardGrid/ProductCardGrid';
@@ -208,10 +209,10 @@ const ProductGrid = ({ customResults, viewState, itemsPerPage, scrollToTopOnPage
       <div className="plp-grid">
         {showLoading
           ? Array.from({ length: 8 }).map((_, index) => (
-              <ProductCardSkeleton key={index} />
-            ))
+            <ProductCardSkeleton key={index} />
+          ))
           : pagedProducts.length > 0
-          ? (
+            ? (
               <div className="plp-grid__content">
                 <ProductCardGrid
                   items={pagedProducts}
@@ -220,8 +221,9 @@ const ProductGrid = ({ customResults, viewState, itemsPerPage, scrollToTopOnPage
                 />
               </div>
             )
-          : (
+            : (
               <div className="no-products">
+                <ShoppingBag size={48} className="no-products-icon" strokeWidth={1.5} />
                 <p>{dictionary.empty}</p>
               </div>
             )}

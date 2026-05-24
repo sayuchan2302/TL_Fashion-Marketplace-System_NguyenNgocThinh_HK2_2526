@@ -810,10 +810,6 @@ const AdminBotAI = () => {
             <p className="bot-ai-preview-title">Unknown</p>
             <p>{snapshot?.published.unknownPrompt}</p>
           </div>
-          <div className="bot-ai-preview-card">
-            <p className="bot-ai-preview-title">Publish checklist</p>
-            {renderReadinessChecklist()}
-          </div>
         </aside>
       </div>
     );

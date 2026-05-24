@@ -76,6 +76,14 @@ const formatDateTime = (iso?: string | null) => {
   });
 };
 
+const getInitials = (name: string) => {
+  if (!name) return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+  const first = parts[0]?.charAt(0) || '';
+  const last = parts[parts.length - 1]?.charAt(0) || '';
+  return `${first}${last}`.toUpperCase();
+};
 const AdminReviews = () => {
   const { toast, pushToast } = useAdminToast();
   const [allReviews, setAllReviews] = useState<(Review & { productMeta?: string })[]>([]);
@@ -94,9 +102,9 @@ const AdminReviews = () => {
           adminReviewService.getAll({ size: 1000 }),
           listAdminOrders(),
         ]);
-        
+
         const orderMap = new Map(orders.map((o) => [o.code, o]));
-        
+
         const enhanced = (res.content || []).map((review) => {
           const order = orderMap.get(review.orderCode || '');
           const matchingItem = order?.items.find((item) => item.name === review.productName);
@@ -501,86 +509,156 @@ const AdminReviews = () => {
             />
             <div className="drawer-body">
               <PanelDrawerSection title="Tổng quan đánh giá">
-                <div className="review-drawer-product">
-                  <img
-                    src={drawerReview.productImage}
-                    alt={drawerReview.productName}
-                    className="review-drawer-product-image"
-                  />
-                  <div className="review-drawer-product-copy">
-                    <p className="review-drawer-product-name">{drawerReview.productName}</p>
-                    <p className="review-drawer-product-sub">Đơn hàng: #{toDisplayOrderCode(drawerReview.orderCode)}</p>
-                    <div className="review-drawer-pill-row">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+
+                  {/* Hero Profile Block */}
+                  <div
+                    className="reviews-drawer-hero"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '16px',
+                      padding: '16px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '16px',
+                      background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+                    }}
+                  >
+                    <div
+                      className="returns-customer-avatar large"
+                    >
+                      {getInitials(drawerReview.customerName)}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
+                        {drawerReview.customerName}
+                      </span>
+                      <span className="admin-muted" style={{ fontSize: '13px', color: '#64748b' }}>
+                        {drawerReview.customerEmail || 'Chưa cung cấp email'}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                        <RatingStars rating={drawerReview.rating} size={14} />
+                        <strong style={{ fontSize: '13px', color: '#0f172a', fontWeight: 700 }}>
+                          {drawerReview.rating}/5
+                        </strong>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end', flexShrink: 0 }}>
                       <ReviewStatusBadge status={drawerReview.status} />
                       <span className={`admin-pill ${drawerReview.rating <= 3 ? 'pending' : 'success'}`}>
                         {drawerReview.rating <= 3 ? 'Cần chăm sóc' : 'Ổn định'}
                       </span>
                     </div>
                   </div>
-                </div>
-                <div className="review-drawer-meta-grid">
-                  <div className="review-drawer-meta-card">
-                    <span className="review-drawer-meta-label">Khách hàng</span>
-                    <span className="review-drawer-meta-value review-drawer-stacked">
-                      <strong>{drawerReview.customerName}</strong>
-                      <small>{drawerReview.customerEmail || 'Không có email'}</small>
-                    </span>
+
+                  {/* Product Association Card */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '14px',
+                      padding: '14px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      background: '#ffffff',
+                    }}
+                  >
+                    <img
+                      src={drawerReview.productImage}
+                      alt={drawerReview.productName}
+                      style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '8px',
+                        border: '1px solid #e2e8f0',
+                        objectFit: 'cover',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                      <p className="admin-bold" style={{ fontSize: '13px', color: '#0f172a', fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {drawerReview.productName}
+                      </p>
+                      <p className="admin-muted" style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0' }}>
+                        Mã đơn hàng: <strong>#{toDisplayOrderCode(drawerReview.orderCode)}</strong>
+                      </p>
+                    </div>
                   </div>
-                  <div className="review-drawer-meta-card">
-                    <span className="review-drawer-meta-label">Điểm đánh giá</span>
-                    <span className="review-drawer-meta-value">
-                      <RatingStars rating={drawerReview.rating} size={14} /> <strong>{drawerReview.rating}/5</strong>
-                    </span>
+
+                  {/* Metadata Cards Grid */}
+                  <div className="returns-meta-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' }}>
+                    <div className="returns-meta-card" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#ffffff', padding: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span className="returns-meta-label" style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        Mã sản phẩm / Slug
+                      </span>
+                      <strong className="returns-meta-value returns-code" style={{ fontSize: '13px', color: '#0f172a', fontWeight: 700 }}>
+                        {drawerReview.productSlug || drawerReview.productId || 'Chưa có'}
+                      </strong>
+                    </div>
+                    <div className="returns-meta-card" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#ffffff', padding: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span className="returns-meta-label" style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        Thời gian đánh giá
+                      </span>
+                      <strong className="returns-meta-value" style={{ fontSize: '13px', color: '#0f172a', fontWeight: 700 }}>
+                        {formatDateTime(drawerReview.date)}
+                      </strong>
+                    </div>
                   </div>
-                  <div className="review-drawer-meta-card">
-                    <span className="review-drawer-meta-label">Thời gian đánh giá</span>
-                    <span className="review-drawer-meta-value">{formatDateTime(drawerReview.date)}</span>
-                  </div>
-                  <div className="review-drawer-meta-card">
-                    <span className="review-drawer-meta-label">Mã sản phẩm</span>
-                    <span className="review-drawer-meta-value review-drawer-code">{drawerReview.productId || 'Chưa có'}</span>
-                  </div>
+
                 </div>
               </PanelDrawerSection>
 
               <PanelDrawerSection title="Nội dung khách hàng">
-                <p className="review-drawer-content">{drawerReview.content || 'Khách hàng chưa để lại nội dung.'}</p>
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc', padding: '14px' }}>
+                  <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '13px', color: '#334155' }}>
+                    {drawerReview.content || 'Khách hàng chưa để lại nội dung.'}
+                  </p>
+                </div>
               </PanelDrawerSection>
 
               <PanelDrawerSection title="Ảnh đính kèm">
                 {drawerReview.images && drawerReview.images.length > 0 ? (
-                  <div className="review-drawer-media-grid">
-                    {drawerReview.images.map((image, index) => (
+                  <div className="review-drawer-media-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '8px' }}>
+                    {drawerReview.images.map((image, idx) => (
                       <a
-                        key={`${drawerReview.id}-${index}`}
+                        key={`${drawerReview.id}-${idx}`}
                         href={image}
                         target="_blank"
                         rel="noreferrer"
                         className="review-drawer-media-item"
+                        style={{ display: 'block', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden', aspectRatio: '1', background: '#f1f5f9' }}
                       >
-                        <img src={image} alt={`Review media ${index + 1}`} />
+                        <img src={image} alt={`Review media ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       </a>
                     ))}
                   </div>
                 ) : (
-                  <p className="review-drawer-empty">Đánh giá này chưa có ảnh đính kèm.</p>
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc', padding: '14px', textAlign: 'center' }}>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Đánh giá này không đính kèm ảnh.</p>
+                  </div>
                 )}
               </PanelDrawerSection>
 
               <PanelDrawerSection title="Phản hồi từ người bán">
                 {drawerReview.reply ? (
-                  <div className="review-drawer-reply-box">
-                    <p className="review-drawer-reply-title">Đã phản hồi</p>
-                    <p>{drawerReview.reply}</p>
-                    <span className="review-drawer-reply-time">{formatDateTime(drawerReview.replyAt)}</span>
+                  <div style={{ border: '1px solid #fef08a', borderRadius: '12px', background: '#fefce8', padding: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <strong style={{ fontSize: '13px', color: '#854d0e', fontWeight: 700 }}>Đã phản hồi</strong>
+                      <span style={{ fontSize: '11px', color: '#a16207' }}>{formatDateTime(drawerReview.replyAt)}</span>
+                    </div>
+                    <p style={{ margin: 0, whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '13px', color: '#713f12' }}>
+                      {drawerReview.reply}
+                    </p>
                   </div>
                 ) : (
-                  <p className="review-drawer-empty">Shop chưa phản hồi đánh giá này.</p>
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc', padding: '14px', textAlign: 'center' }}>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>Shop chưa phản hồi đánh giá này.</p>
+                  </div>
                 )}
               </PanelDrawerSection>
             </div>
             <PanelDrawerFooter>
-              <button className="admin-ghost-btn" onClick={() => setDrawerReview(null)}>
+              <button className="admin-ghost-btn" style={{ marginLeft: 'auto' }} onClick={() => setDrawerReview(null)}>
                 Đóng
               </button>
               {normalizeStatus(drawerReview.status) !== 'hidden' && (
@@ -597,7 +675,6 @@ const AdminReviews = () => {
               )}
               <button
                 className="admin-ghost-btn danger"
-                style={{ marginLeft: 'auto' }}
                 onClick={() => setDeleteTarget({ ids: [drawerReview.id], names: [drawerReview.productName] })}
               >
                 <Trash2 size={15} />

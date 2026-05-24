@@ -134,6 +134,10 @@ const VendorReviews = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [activeReview, setActiveReview] = useState<Review | null>(null);
   const [confirmReplyIds, setConfirmReplyIds] = useState<string[] | null>(null);
+
+  const handleCloseDrawer = useCallback(() => {
+    setActiveReview(null);
+  }, []);
   const [replyingIds, setReplyingIds] = useState<Set<string>>(new Set());
   const [reloadKey, setReloadKey] = useState(0);
   const latestReviewsRequestIdRef = useRef(0);
@@ -316,15 +320,12 @@ const VendorReviews = () => {
     });
 
     try {
-      const updates = await Promise.all(
+      await Promise.all(
         targets.map(async (id) => {
           const content = (replyDrafts[id] || '').trim();
-          const updated = await reviewService.replyAsVendor(id, content);
-          return [id, updated] as const;
+          await reviewService.replyAsVendor(id, content);
         }),
       );
-
-      const updatedMap = new Map(updates);
       setReplyDrafts((current) => {
         const next = { ...current };
         targets.forEach((id) => {
@@ -332,10 +333,7 @@ const VendorReviews = () => {
         });
         return next;
       });
-      setActiveReview((current) => {
-        if (!current) return current;
-        return updatedMap.get(current.id) || current;
-      });
+      setActiveReview(null);
       setConfirmReplyIds(null);
       setSelected(new Set());
       addToast(
@@ -614,13 +612,13 @@ const VendorReviews = () => {
         onConfirm={() => void submitReplies(confirmReplyIds || [])}
       />
 
-      <Drawer open={Boolean(activeReview)} onClose={() => setActiveReview(null)} className="vendor-drawer">
+      <Drawer open={Boolean(activeReview)} onClose={handleCloseDrawer} className="vendor-drawer">
         {activeReview ? (
           <>
             <PanelDrawerHeader
               eyebrow="Chi tiết đánh giá"
               title={activeReview.productName}
-              onClose={() => setActiveReview(null)}
+              onClose={handleCloseDrawer}
               closeLabel="Đóng chi tiết đánh giá"
             />
             <div className="drawer-body">
@@ -661,7 +659,7 @@ const VendorReviews = () => {
                   </div>
                   <div className="review-drawer-meta-card">
                     <span className="review-drawer-meta-label">Mã sản phẩm</span>
-                    <span className="review-drawer-meta-value review-drawer-code">{activeReview.productId || 'Chưa có'}</span>
+                    <span className="review-drawer-meta-value review-drawer-code">{activeReview.productSlug || activeReview.productId || 'Chưa có'}</span>
                   </div>
                 </div>
               </PanelDrawerSection>
@@ -719,7 +717,7 @@ const VendorReviews = () => {
               </PanelDrawerSection>
             </div>
             <PanelDrawerFooter>
-              <button className="admin-ghost-btn" onClick={() => setActiveReview(null)}>Đóng</button>
+              <button className="admin-ghost-btn" type="button" onClick={handleCloseDrawer}>Đóng</button>
               {!activeReview.shopReply && canVendorReply ? (
                 <button
                   className="admin-primary-btn vendor-admin-primary"

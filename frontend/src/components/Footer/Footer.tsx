@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import './Footer.css';
-import { Facebook, Instagram, Youtube, MapPin, Phone, Mail } from 'lucide-react';
+import { Facebook, Instagram, Youtube, MapPin, Phone, Mail, ShieldCheck } from 'lucide-react';
 
 const Footer = () => {
   return (
@@ -22,10 +22,10 @@ const Footer = () => {
               <span>Email: support@phomac.vn</span>
             </div>
           </div>
-          <div className="social-links">
-            <a href="#" className="social-btn"><Facebook size={24} /></a>
-            <a href="#" className="social-btn"><Instagram size={24} /></a>
-            <a href="#" className="social-btn"><Youtube size={24} /></a>
+          <div className="social-links" aria-label="Kênh mạng xã hội Phố Mặc">
+            <a href="#" className="footer-social-btn social-facebook" aria-label="Facebook Phố Mặc"><Facebook size={22} /></a>
+            <a href="#" className="footer-social-btn social-instagram" aria-label="Instagram Phố Mặc"><Instagram size={22} /></a>
+            <a href="#" className="footer-social-btn social-youtube" aria-label="YouTube Phố Mặc"><Youtube size={22} /></a>
           </div>
         </div>
 
@@ -87,12 +87,19 @@ const Footer = () => {
       <div className="footer-bottom">
         <div className="container bottom-content">
           <p className="copyright-text">&copy; 2024 PHỐ MẶC. All rights reserved. (Clone for academic purposes)</p>
-          <div className="payment-methods">
-            <span className="payment-icon">MoMo</span>
-            <span className="payment-icon">VNPay</span>
-            <span className="payment-icon">Visa</span>
-            <span className="payment-icon">MasterCard</span>
-            <span style={{ fontSize: '10px', opacity: 0.5, border: '1px solid currentColor', padding: '4px', borderRadius: '4px', marginLeft: '12px' }}>
+          <div className="payment-methods" aria-label="Phương thức thanh toán">
+            <span className="payment-icon payment-momo">
+              <img src="https://developers.momo.vn/v3/assets/images/transparent-background-logo-138ebf0ffca865ec0f1a7d9c1e4a9f3c.png" alt="MoMo" />
+            </span>
+            <span className="payment-icon payment-vnpay">
+              <img src="https://cdn.haitrieu.com/wp-content/uploads/2022/10/Logo-VNPAY-QR-1.png" alt="VNPay QR" />
+            </span>
+            <span className="payment-icon payment-visa">
+              <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Visa_Inc._logo_%282021%E2%80%93present%29.svg/3840px-Visa_Inc._logo_%282021%E2%80%93present%29.svg.png" alt="Visa" />
+            </span>
+            <span className="payment-icon payment-mastercard"><span className="mc-circles" /> MasterCard</span>
+            <span className="commerce-badge">
+              <ShieldCheck size={13} />
               ĐÃ THÔNG BÁO BỘ CÔNG THƯƠNG
             </span>
           </div>
