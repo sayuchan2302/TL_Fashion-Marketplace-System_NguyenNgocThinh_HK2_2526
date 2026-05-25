@@ -376,7 +376,7 @@ const AdminReturns = () => {
           ) : (
             <>
               <div className="admin-table admin-responsive-table" role="table" aria-label="Bảng yêu cầu hoàn trả">
-                <div className="admin-table-row admin-table-head returns-row" role="row">
+                <div className="admin-table-row admin-table-head returns-row returns-grid" role="row">
                   <div role="columnheader" className="returns-checkbox-cell">
                     <input
                       type="checkbox"
@@ -398,7 +398,7 @@ const AdminReturns = () => {
                 {rows.map((item, index) => (
                   <motion.div
                     key={item.id}
-                    className={`admin-table-row returns-row ${item.status === 'DISPUTED' ? 'returns-row-disputed' : ''}`}
+                    className={`admin-table-row returns-row returns-grid ${item.status === 'DISPUTED' ? 'returns-row-disputed' : ''}`}
                     role="row"
                     whileHover={{ y: -1 }}
                     onClick={() => setDrawerItem(item)}

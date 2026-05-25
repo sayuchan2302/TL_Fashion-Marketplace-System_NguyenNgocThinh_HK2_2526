@@ -58,8 +58,7 @@ public class ProductService {
     private static final List<ProductAuditLog.Action> VENDOR_BLOCK_REASON_ACTIONS = List.of(
             ProductAuditLog.Action.BANNED,
             ProductAuditLog.Action.REJECTED,
-            ProductAuditLog.Action.REPORT_CONFIRMED
-    );
+            ProductAuditLog.Action.REPORT_CONFIRMED);
 
     public enum InventoryState {
         LOW,
@@ -108,7 +107,8 @@ public class ProductService {
         }
     }
 
-    private record ProductSalesSnapshot(long soldCount, BigDecimal grossRevenue) {}
+    private record ProductSalesSnapshot(long soldCount, BigDecimal grossRevenue) {
+    }
 
     public ProductService(
             ProductRepository productRepository,
@@ -116,8 +116,7 @@ public class ProductService {
             ProductVariantRepository productVariantRepository,
             StoreRepository storeRepository,
             OrderRepository orderRepository,
-            ProductAuditLogRepository productAuditLogRepository
-    ) {
+            ProductAuditLogRepository productAuditLogRepository) {
         this.productRepository = productRepository;
         this.categoryRepository = categoryRepository;
         this.productVariantRepository = productVariantRepository;
@@ -211,7 +210,8 @@ public class ProductService {
     }
 
     /**
-     * Find active products by store identifier (UUID or slug) with public storefront filters.
+     * Find active products by store identifier (UUID or slug) with public
+     * storefront filters.
      */
     @Transactional(readOnly = true)
     public Page<Product> findActiveByStoreIdentifier(
@@ -301,7 +301,8 @@ public class ProductService {
                 predicates.add(cb.lessThanOrEqualTo(effectivePrice, maxPrice));
             }
 
-            if (query != null && !Long.class.equals(query.getResultType()) && !long.class.equals(query.getResultType())) {
+            if (query != null && !Long.class.equals(query.getResultType())
+                    && !long.class.equals(query.getResultType())) {
                 applyStorefrontSort(root, query, cb, activeFilters.normalizedSort(), effectivePrice);
             }
 
@@ -369,18 +370,17 @@ public class ProductService {
             String keyword,
             UUID categoryId,
             InventoryState inventoryState,
-            Pageable pageable
-    ) {
-        Page<Product> page = productRepository.searchVendorProducts(
-                storeId,
-                status,
-                approvalStatus,
-                normalizeKeyword(keyword),
-                categoryId,
-                inventoryState == null ? null : inventoryState.name(),
-                LOW_STOCK_THRESHOLD,
-                pageable
-        );
+            Pageable pageable) {
+        org.springframework.data.jpa.domain.Specification<Product> spec = vn.edu.hcmuaf.fit.marketplace.repository.specification.VendorProductSpecification
+                .filterBy(
+                        storeId,
+                        status,
+                        approvalStatus,
+                        normalizeKeyword(keyword),
+                        categoryId,
+                        inventoryState == null ? null : inventoryState.name(),
+                        LOW_STOCK_THRESHOLD);
+        Page<Product> page = productRepository.findAll(spec, pageable);
         Map<UUID, ProductSalesSnapshot> salesByProductId = loadDeliveredSalesByProduct(page.getContent(), storeId);
         Map<UUID, String> blockReasonsByProductId = loadVendorBlockReasons(page.getContent());
 
@@ -412,8 +412,7 @@ public class ProductService {
                 .active(productRepository.countVisibleByStoreId(storeId))
                 .draft(
                         productRepository.countByStoreIdAndStatus(storeId, ProductStatus.DRAFT)
-                                + productRepository.countByStoreIdAndStatus(storeId, ProductStatus.INACTIVE)
-                )
+                                + productRepository.countByStoreIdAndStatus(storeId, ProductStatus.INACTIVE))
                 .outOfStock(productRepository.countOutOfStockByStoreId(storeId))
                 .lowStock(productRepository.countLowStockByStoreId(storeId, LOW_STOCK_THRESHOLD))
                 .banned(productRepository.countBannedByStoreId(storeId))
@@ -449,9 +448,10 @@ public class ProductService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Product image is required");
         }
 
-        BigDecimal effectivePrice = request.getSalePrice() != null && request.getSalePrice().compareTo(BigDecimal.ZERO) > 0
-                ? request.getSalePrice()
-                : (request.getBasePrice() == null ? BigDecimal.ZERO : request.getBasePrice());
+        BigDecimal effectivePrice = request.getSalePrice() != null
+                && request.getSalePrice().compareTo(BigDecimal.ZERO) > 0
+                        ? request.getSalePrice()
+                        : (request.getBasePrice() == null ? BigDecimal.ZERO : request.getBasePrice());
         if (effectivePrice.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Price must be greater than 0");
         }
@@ -459,7 +459,7 @@ public class ProductService {
         Product product = Product.builder()
                 .name(request.getName())
                 .slug(request.getSlug())
-                .storeId(storeId)  // Set store ownership
+                .storeId(storeId) // Set store ownership
                 .description(request.getDescription())
                 .sizeAndFit(resolveSizeAndFit(request))
                 .fabricAndCare(resolveFabricAndCare(request))
@@ -511,6 +511,7 @@ public class ProductService {
 
     /**
      * Update product with ownership validation (vendor operation)
+     * 
      * @throws ForbiddenException if vendor doesn't own the product
      */
     @Transactional
@@ -518,7 +519,7 @@ public class ProductService {
         Product product = productRepository.findByIdAndStoreId(id, storeId)
                 .orElseThrow(() -> new ForbiddenException("Product not found or you don't have permission to edit it"));
         ensureVendorCanMutate(product, "edited");
-        
+
         return applyUpdates(product, request);
     }
 
@@ -537,23 +538,30 @@ public class ProductService {
 
     private Product applyUpdates(Product product, ProductRequest request) {
         validateBasicRequest(request);
-        if (request.getName() != null) product.setName(request.getName());
-        if (request.getSlug() != null) product.setSlug(request.getSlug());
-        if (request.getDescription() != null) product.setDescription(request.getDescription());
+        if (request.getName() != null)
+            product.setName(request.getName());
+        if (request.getSlug() != null)
+            product.setSlug(request.getSlug());
+        if (request.getDescription() != null)
+            product.setDescription(request.getDescription());
         if (request.getSizeAndFit() != null || request.getHighlights() != null) {
             String sizeAndFit = resolveSizeAndFit(request);
             product.setSizeAndFit(sizeAndFit);
             product.setHighlights(sizeAndFit);
         }
-        if (request.getFabricAndCare() != null || request.getMaterial() != null || request.getCareInstructions() != null) {
+        if (request.getFabricAndCare() != null || request.getMaterial() != null
+                || request.getCareInstructions() != null) {
             String fabricAndCare = resolveFabricAndCare(request);
             product.setFabricAndCare(fabricAndCare);
             product.setCareInstructions(fabricAndCare);
             product.setMaterial(null);
         }
-        if (request.getBasePrice() != null) product.setBasePrice(request.getBasePrice());
-        if (request.getSalePrice() != null) product.setSalePrice(request.getSalePrice());
-        if (request.getFit() != null) product.setFit(request.getFit());
+        if (request.getBasePrice() != null)
+            product.setBasePrice(request.getBasePrice());
+        if (request.getSalePrice() != null)
+            product.setSalePrice(request.getSalePrice());
+        if (request.getFit() != null)
+            product.setFit(request.getFit());
         if (request.getGender() != null) {
             product.setGender(Gender.valueOf(request.getGender().toUpperCase()));
         }
@@ -609,8 +617,7 @@ public class ProductService {
         if (normalized.size() > MAX_PRODUCT_IMAGES) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Product images must not exceed " + MAX_PRODUCT_IMAGES + " items"
-            );
+                    "Product images must not exceed " + MAX_PRODUCT_IMAGES + " items");
         }
 
         return new ArrayList<>(normalized);
@@ -662,7 +669,8 @@ public class ProductService {
             if (normalizedSku.isBlank()) {
                 normalizedSku = generateSystemSku(seenSkus);
             } else if (!seenSkus.add(normalizedSku)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate SKU in variant matrix: " + normalizedSku);
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Duplicate SKU in variant matrix: " + normalizedSku);
             }
 
             ProductVariant variant = ProductVariant.builder()
@@ -791,14 +799,16 @@ public class ProductService {
 
     /**
      * Delete product with ownership validation (vendor operation)
+     * 
      * @throws ForbiddenException if vendor doesn't own the product
      */
     @Transactional
     public void deleteForStore(UUID id, UUID storeId) {
         Product product = productRepository.findByIdAndStoreId(id, storeId)
-                .orElseThrow(() -> new ForbiddenException("Product not found or you don't have permission to delete it"));
+                .orElseThrow(
+                        () -> new ForbiddenException("Product not found or you don't have permission to delete it"));
         ensureVendorCanMutate(product, "deleted");
-        
+
         product.setStatus(ProductStatus.ARCHIVED);
         productRepository.save(product);
     }
@@ -810,8 +820,7 @@ public class ProductService {
     private VendorProductSummaryResponse toVendorProductSummaryResponse(
             Product product,
             ProductSalesSnapshot salesSnapshot,
-            String moderationReason
-    ) {
+            String moderationReason) {
         List<ProductVariant> variants = ensureVariantList(product);
         List<ProductImage> images = ensureImageList(product);
 
@@ -832,8 +841,8 @@ public class ProductService {
                 .sorted(
                         java.util.Comparator
                                 .comparing((ProductImage image) -> !Boolean.TRUE.equals(image.getIsPrimary()))
-                                .thenComparing(image -> image.getSortOrder() == null ? Integer.MAX_VALUE : image.getSortOrder())
-                )
+                                .thenComparing(image -> image.getSortOrder() == null ? Integer.MAX_VALUE
+                                        : image.getSortOrder()))
                 .map(ProductImage::getUrl)
                 .filter(url -> url != null && !url.isBlank())
                 .toList();
@@ -859,12 +868,14 @@ public class ProductService {
                 .slug(product.getSlug())
                 .description(product.getDescription())
                 .sizeAndFit(firstNonBlank(product.getSizeAndFit(), product.getHighlights()))
-                .fabricAndCare(firstNonBlank(product.getFabricAndCare(), product.getCareInstructions(), product.getMaterial()))
+                .fabricAndCare(
+                        firstNonBlank(product.getFabricAndCare(), product.getCareInstructions(), product.getMaterial()))
                 .highlights(firstNonBlank(product.getSizeAndFit(), product.getHighlights()))
                 .material(null)
                 .fit(product.getFit())
                 .gender(product.getGender() == null ? null : product.getGender().name())
-                .careInstructions(firstNonBlank(product.getFabricAndCare(), product.getCareInstructions(), product.getMaterial()))
+                .careInstructions(
+                        firstNonBlank(product.getFabricAndCare(), product.getCareInstructions(), product.getMaterial()))
                 .status(product.getStatus() == null ? null : product.getStatus().name())
                 .approvalStatus(product.getApprovalStatus() == null ? null : product.getApprovalStatus().name())
                 .moderationReason(visibleModerationReason(product, moderationReason))
@@ -998,9 +1009,7 @@ public class ProductService {
                         OrderRepository.ProductSalesProjection::getProductId,
                         row -> new ProductSalesSnapshot(
                                 row.getSoldCount() == null ? 0L : row.getSoldCount(),
-                                row.getGrossRevenue() == null ? BigDecimal.ZERO : row.getGrossRevenue()
-                        )
-                ));
+                                row.getGrossRevenue() == null ? BigDecimal.ZERO : row.getGrossRevenue())));
     }
 
     private void attachDeliveredSales(Product product) {
@@ -1040,9 +1049,7 @@ public class ProductService {
                         OrderRepository.ProductSalesProjection::getProductId,
                         row -> new ProductSalesSnapshot(
                                 row.getSoldCount() == null ? 0L : row.getSoldCount(),
-                                row.getGrossRevenue() == null ? BigDecimal.ZERO : row.getGrossRevenue()
-                        )
-                ));
+                                row.getGrossRevenue() == null ? BigDecimal.ZERO : row.getGrossRevenue())));
     }
 
     private void validateBasicRequest(ProductRequest request) {
@@ -1055,7 +1062,8 @@ public class ProductService {
         }
 
         if (request.getStockQuantity() != null && request.getStockQuantity() < 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Stock quantity must be greater than or equal to 0");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Stock quantity must be greater than or equal to 0");
         }
 
         if (request.getVariants() != null) {
@@ -1064,7 +1072,8 @@ public class ProductService {
                     continue;
                 }
                 if (variant.getStockQuantity() != null && variant.getStockQuantity() < 0) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Variant stock quantity must be greater than or equal to 0");
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Variant stock quantity must be greater than or equal to 0");
                 }
             }
         }
@@ -1084,7 +1093,8 @@ public class ProductService {
         }
 
         if (categoryRepository.existsByParentId(product.getCategory().getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Please choose a leaf category before publishing");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Please choose a leaf category before publishing");
         }
 
         BigDecimal effectivePrice = product.getEffectivePrice();

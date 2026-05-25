@@ -12,11 +12,6 @@ const paymentIndicatorMap: Record<CheckoutPaymentMethod, { icon: string; alt: st
     alt: 'VNPAY',
     label: 'VNPAY / TháiQR',
   },
-  zalopay: {
-    icon: 'https://mcdn.coolmate.me/image/October2024/mceclip3_6.png',
-    alt: 'ZaloPay',
-    label: t.paymentMethods.zalopay,
-  },
   momo: {
     icon: 'https://mcdn.coolmate.me/image/October2024/mceclip1_171.png',
     alt: 'MoMo',

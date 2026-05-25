@@ -14,32 +14,25 @@ const paymentOptions: Array<{
   description?: string;
   promo?: string;
 }> = [
-  {
-    id: 'cod',
-    icon: 'https://mcdn.coolmate.me/image/October2024/mceclip2_42.png',
-    alt: 'COD',
-    label: t.paymentMethods.cod,
-  },
-  {
-    id: 'zalopay',
-    icon: 'https://mcdn.coolmate.me/image/October2024/mceclip3_6.png',
-    alt: 'ZaloPay',
-    label: t.paymentMethods.zalopay,
-    description: t.paymentMethods.zalopayDesc,
-  },
-  {
-    id: 'momo',
-    icon: 'https://mcdn.coolmate.me/image/October2024/mceclip1_171.png',
-    alt: 'MoMo',
-    label: t.paymentMethods.momo,
-  },
-  {
-    id: 'vnpay',
-    icon: 'https://mcdn.coolmate.me/image/October2024/mceclip0_81.png',
-    alt: 'VNPay',
-    label: t.paymentMethods.vnpay,
-  },
-];
+    {
+      id: 'cod',
+      icon: 'https://mcdn.coolmate.me/image/October2024/mceclip2_42.png',
+      alt: 'COD',
+      label: t.paymentMethods.cod,
+    },
+    {
+      id: 'momo',
+      icon: 'https://mcdn.coolmate.me/image/October2024/mceclip1_171.png',
+      alt: 'MoMo',
+      label: t.paymentMethods.momo,
+    },
+    {
+      id: 'vnpay',
+      icon: 'https://mcdn.coolmate.me/image/October2024/mceclip0_81.png',
+      alt: 'VNPay',
+      label: t.paymentMethods.vnpay,
+    },
+  ];
 
 
 interface CheckoutPaymentSectionProps {

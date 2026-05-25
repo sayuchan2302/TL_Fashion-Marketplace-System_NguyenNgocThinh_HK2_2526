@@ -14,6 +14,8 @@ export const useVendorProductsQueryState = ({ onScopeChange }: UseVendorProducts
   const page = normalizePositiveInteger(searchParams.get('page'));
   const keyword = (searchParams.get('q') || '').trim();
   const categoryId = (searchParams.get('category_id') || '').trim();
+  const sortBy = searchParams.get('sortBy') || 'createdAt';
+  const sortOrder = searchParams.get('sortOrder') || 'desc';
 
   const updateQuery = useCallback(
     (mutate: (query: URLSearchParams) => void, replace = false) => {
@@ -55,6 +57,20 @@ export const useVendorProductsQueryState = ({ onScopeChange }: UseVendorProducts
     });
   }, [onScopeChange, updateQuery]);
 
+  const handleSortChange = useCallback((nextSortBy: string, nextSortOrder: string) => {
+    onScopeChange?.();
+    updateQuery((query) => {
+      if (nextSortBy === 'createdAt' && nextSortOrder === 'desc') {
+        query.delete('sortBy');
+        query.delete('sortOrder');
+      } else {
+        query.set('sortBy', nextSortBy);
+        query.set('sortOrder', nextSortOrder);
+      }
+      query.set('page', '1');
+    });
+  }, [onScopeChange, updateQuery]);
+
   const setPage = useCallback((nextPage: number) => {
     updateQuery((query) => {
       query.set('page', String(Math.max(1, nextPage)));
@@ -71,9 +87,12 @@ export const useVendorProductsQueryState = ({ onScopeChange }: UseVendorProducts
     page,
     keyword,
     categoryId,
+    sortBy,
+    sortOrder,
     updateQuery,
     handleTabChange,
     handleCategoryChange,
+    handleSortChange,
     setPage,
     resetCurrentView,
   };

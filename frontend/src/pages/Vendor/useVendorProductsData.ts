@@ -9,6 +9,8 @@ interface UseVendorProductsDataOptions {
   activeTab: ProductTab;
   keyword: string;
   categoryId?: string;
+  sortBy?: string;
+  sortOrder?: string;
   page: number;
   updateQuery: (mutate: (query: URLSearchParams) => void, replace?: boolean) => void;
   pruneToVisibleIds: (ids: string[]) => void;
@@ -28,6 +30,8 @@ export const useVendorProductsData = ({
   activeTab,
   keyword,
   categoryId,
+  sortBy,
+  sortOrder,
   page,
   updateQuery,
   pruneToVisibleIds,
@@ -51,6 +55,8 @@ export const useVendorProductsData = ({
         status: activeTab,
         keyword: keyword || undefined,
         categoryId: categoryId || undefined,
+        sortBy: sortBy || undefined,
+        sortOrder: sortOrder || undefined,
         page,
         size: PAGE_SIZE,
       };
@@ -80,7 +86,7 @@ export const useVendorProductsData = ({
         setLoading(false);
       }
     }
-  }, [activeTab, addToast, categoryId, keyword, page, pruneToVisibleIds, updateQuery]);
+  }, [activeTab, addToast, categoryId, keyword, sortBy, sortOrder, page, pruneToVisibleIds, updateQuery]);
 
   const removeProductsOptimistically = useCallback((ids: string[]): OptimisticRemovalResult => {
     const idSet = new Set(ids);

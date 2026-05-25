@@ -17,6 +17,15 @@ import VendorProductsTable from './components/products/VendorProductsTable';
 import VendorProductDrawer from './components/products/VendorProductDrawer';
 import VendorProductsDeleteDialog from './components/products/VendorProductsDeleteDialog';
 
+const SORT_ITEMS = [
+  { key: 'createdAt:desc', label: 'Mới nhất' },
+  { key: 'createdAt:asc', label: 'Cũ nhất' },
+  { key: 'basePrice:asc', label: 'Giá: Thấp đến Cao' },
+  { key: 'basePrice:desc', label: 'Giá: Cao đến Thấp' },
+  { key: 'stockQuantity:asc', label: 'Tồn kho: Ít nhất' },
+  { key: 'stockQuantity:desc', label: 'Tồn kho: Nhiều nhất' },
+];
+
 const VendorProducts = () => {
   const { addToast } = useToast();
   const [showDrawer, setShowDrawer] = useState(false);
@@ -29,9 +38,12 @@ const VendorProducts = () => {
     page,
     keyword,
     categoryId,
+    sortBy,
+    sortOrder,
     updateQuery,
     handleTabChange,
     handleCategoryChange,
+    handleSortChange,
     setPage,
     resetCurrentView,
   } = useVendorProductsQueryState({
@@ -51,6 +63,8 @@ const VendorProducts = () => {
     activeTab,
     keyword,
     categoryId,
+    sortBy,
+    sortOrder,
     page,
     updateQuery,
     pruneToVisibleIds: selection.pruneToVisibleIds,
@@ -158,7 +172,12 @@ const VendorProducts = () => {
 
     return items;
   }, [categoryId, editor.leafCategories]);
-  const hasViewContext = activeTab !== 'all' || Boolean(keyword) || Boolean(categoryId);
+  const hasViewContext =
+    activeTab !== 'all' ||
+    Boolean(keyword) ||
+    Boolean(categoryId) ||
+    sortBy !== 'createdAt' ||
+    sortOrder !== 'desc';
 
   return (
     <VendorLayout
@@ -193,6 +212,16 @@ const VendorProducts = () => {
           items={categoryItems}
           value={categoryId || 'all'}
           onChange={handleCategoryChange}
+        />
+        <PanelFilterSelect
+          label="Sắp xếp"
+          ariaLabel="Sắp xếp danh sách sản phẩm"
+          items={SORT_ITEMS}
+          value={`${sortBy}:${sortOrder}`}
+          onChange={(value) => {
+            const [nextSortBy, nextSortOrder] = value.split(':');
+            handleSortChange(nextSortBy, nextSortOrder);
+          }}
         />
         {hasViewContext ? (
           <button type="button" className="admin-filter-reset" onClick={resetCurrentView}>

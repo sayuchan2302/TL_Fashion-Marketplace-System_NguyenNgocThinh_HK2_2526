@@ -63,6 +63,13 @@ const statusLabel: Record<StatusFilter, string> = {
 const statusPillClass = (status: ProductApprovalStatus) =>
   status === 'BANNED' ? 'admin-pill danger' : 'admin-pill success';
 
+const ADMIN_SORT_ITEMS = [
+  { key: 'createdAt:desc', label: 'Ngày yêu cầu: Mới nhất' },
+  { key: 'createdAt:asc', label: 'Ngày yêu cầu: Cũ nhất' },
+  { key: 'name:asc', label: 'Tên sản phẩm: A -> Z' },
+  { key: 'name:desc', label: 'Tên sản phẩm: Z -> A' },
+];
+
 const AdminProductGovernance = () => {
   const { toast, pushToast } = useAdminToast(2200);
 
@@ -85,6 +92,7 @@ const AdminProductGovernance = () => {
     path: '/admin/product-governance',
     validStatusKeys: STATUS_TABS.map((tab) => tab.key),
     defaultStatus: 'ALL',
+    validSortKeys: ['createdAt', 'name'],
     extraFilters: [
       { key: 'price', defaultValue: 'all', validate: (value) => validPriceFilters.has(value as PriceFilter) },
     ],
@@ -96,9 +104,9 @@ const AdminProductGovernance = () => {
 
   const baseFilterParams = useMemo(
     () => ({
-      sort: 'createdAt,desc',
+      sort: view.sortKey ? `${view.sortKey},${view.sortDirection}` : 'createdAt,desc',
     }),
-    [],
+    [view.sortKey, view.sortDirection],
   );
 
   const loadProducts = useCallback(async () => {
@@ -288,6 +296,16 @@ const AdminProductGovernance = () => {
               value={priceFilter}
               onChange={changePriceFilter}
             />
+            <PanelFilterSelect
+              label="Sắp xếp"
+              ariaLabel="Sắp xếp danh sách sản phẩm kiểm duyệt"
+              items={ADMIN_SORT_ITEMS}
+              value={`${view.sortKey || 'createdAt'}:${view.sortDirection}`}
+              onChange={(value) => {
+                const [nextSortBy, nextDirection] = value.split(':');
+                view.setSort(nextSortBy, nextDirection === 'desc' ? 'desc' : 'asc');
+              }}
+            />
             {view.hasViewContext ? (
               <button type="button" className="admin-filter-reset" onClick={resetCurrentView}>
                 Đặt lại
@@ -319,7 +337,7 @@ const AdminProductGovernance = () => {
             />
           ) : (
             <>
-                <div className="admin-table moderation-table admin-responsive-table" role="table" aria-label="Danh sách sản phẩm vendor">
+              <div className="admin-table moderation-table admin-responsive-table" role="table" aria-label="Danh sách sản phẩm vendor">
                 <div className="admin-table-row admin-table-head moderation-row" role="row">
                   <div role="columnheader">
                     <input
@@ -408,16 +426,16 @@ const AdminProductGovernance = () => {
                         >
                           <CheckCircle2 size={16} />
                         </button>
-                       ) : (
-                         <button
-                           className="admin-icon-btn subtle danger-icon moderation-icon-ban"
-                           title="Chặn sản phẩm"
-                           onClick={() => handleOpenBanReasonModal(product)}
-                           disabled={actionLoading}
-                         >
-                           <Ban size={16} />
-                         </button>
-                       )}
+                      ) : (
+                        <button
+                          className="admin-icon-btn subtle danger-icon moderation-icon-ban"
+                          title="Chặn sản phẩm"
+                          onClick={() => handleOpenBanReasonModal(product)}
+                          disabled={actionLoading}
+                        >
+                          <Ban size={16} />
+                        </button>
+                      )}
                     </div>
                   </motion.div>
                 ))}
@@ -477,17 +495,17 @@ const AdminProductGovernance = () => {
                         >
                           <CheckCircle2 size={16} />
                         </button>
-                       ) : (
-                         <button
-                           className="admin-icon-btn subtle danger-icon moderation-icon-ban"
-                           title="Chặn sản phẩm"
-                           aria-label="Chặn sản phẩm"
-                           onClick={() => handleOpenBanReasonModal(product)}
-                           disabled={actionLoading}
-                         >
-                           <Ban size={16} />
-                         </button>
-                       )}
+                      ) : (
+                        <button
+                          className="admin-icon-btn subtle danger-icon moderation-icon-ban"
+                          title="Chặn sản phẩm"
+                          aria-label="Chặn sản phẩm"
+                          onClick={() => handleOpenBanReasonModal(product)}
+                          disabled={actionLoading}
+                        >
+                          <Ban size={16} />
+                        </button>
+                      )}
                     </div>
                   </article>
                 ))}
@@ -506,33 +524,33 @@ const AdminProductGovernance = () => {
         </div>
       </section>
 
-       <ProductReviewModal
-         key={reviewingProduct?.id || 'no-product'}
-         open={Boolean(reviewingProduct)}
-         product={reviewingProduct}
-         onClose={() => setReviewingProduct(null)}
-         onBlock={() => setReviewingProduct(null)}
-         onUnblock={handleUnblock}
-         loading={actionLoading}
-       />
+      <ProductReviewModal
+        key={reviewingProduct?.id || 'no-product'}
+        open={Boolean(reviewingProduct)}
+        product={reviewingProduct}
+        onClose={() => setReviewingProduct(null)}
+        onBlock={() => setReviewingProduct(null)}
+        onUnblock={handleUnblock}
+        loading={actionLoading}
+      />
 
-       <BanProductReasonModal
-         key={banningProduct?.id || 'no-product-ban'}
-         open={Boolean(banningProduct)}
-         product={banningProduct}
-         onClose={handleCloseBanReasonModal}
-         onConfirm={(reason) => {
-           if (banningProduct) {
-             void handleBlock(banningProduct, reason);
-           }
-         }}
-         loading={actionLoading}
-       />
+      <BanProductReasonModal
+        key={banningProduct?.id || 'no-product-ban'}
+        open={Boolean(banningProduct)}
+        product={banningProduct}
+        onClose={handleCloseBanReasonModal}
+        onConfirm={(reason) => {
+          if (banningProduct) {
+            void handleBlock(banningProduct, reason);
+          }
+        }}
+        loading={actionLoading}
+      />
 
-       {toast ? <div className="toast success">{toast}</div> : null}
-     </AdminLayout>
-   );
- };
+      {toast ? <div className="toast success">{toast}</div> : null}
+    </AdminLayout>
+  );
+};
 
- export default AdminProductGovernance;
+export default AdminProductGovernance;
 

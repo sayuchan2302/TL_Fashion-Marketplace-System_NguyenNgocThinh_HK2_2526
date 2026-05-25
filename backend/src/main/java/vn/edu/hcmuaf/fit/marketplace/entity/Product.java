@@ -36,6 +36,9 @@ public class Product extends BaseEntity {
     @Builder.Default
     private Integer stockQuantity = 0;
 
+    @org.hibernate.annotations.Formula("(SELECT COALESCE(SUM(v.stock_quantity), 0) FROM product_variants v WHERE v.product_id = id AND COALESCE(v.is_active, true) = true)")
+    private Integer totalStockFormula;
+
     @Column(name = "store_id")
     private UUID storeId;
 

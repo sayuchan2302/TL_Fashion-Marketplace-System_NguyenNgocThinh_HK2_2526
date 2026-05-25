@@ -99,10 +99,18 @@ public class ProductController {
             @RequestParam(required = false, name = "approval_status") String approvalStatus,
             @RequestParam(required = false, name = "q") String keyword,
             @RequestParam(required = false, name = "category_id") UUID categoryId,
-            @RequestParam(required = false, name = "inventory") String inventoryState) {
+            @RequestParam(required = false, name = "inventory") String inventoryState,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortOrder) {
         UserContext ctx = authContext.requireVendor(authHeader);
         UUID effectiveStoreId = authContext.resolveRequiredStoreId(ctx, storeId);
-        Pageable pageable = PageRequest.of(page, size);
+
+        org.springframework.data.domain.Sort.Direction direction = "desc".equalsIgnoreCase(sortOrder)
+                ? org.springframework.data.domain.Sort.Direction.DESC
+                : org.springframework.data.domain.Sort.Direction.ASC;
+        String resolvedSortBy = "stockQuantity".equals(sortBy) ? "totalStockFormula" : sortBy;
+        Pageable pageable = PageRequest.of(page, size,
+                org.springframework.data.domain.Sort.by(direction, resolvedSortBy));
 
         Product.ProductStatus parsedStatus = parseProductStatus(status);
         Product.ApprovalStatus parsedApprovalStatus = parseProductApprovalStatus(approvalStatus);
@@ -207,7 +215,8 @@ public class ProductController {
         try {
             return Product.ApprovalStatus.valueOf(normalized);
         } catch (IllegalArgumentException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported product approval status: " + rawStatus);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Unsupported product approval status: " + rawStatus);
         }
     }
 

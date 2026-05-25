@@ -208,6 +208,8 @@ export interface VendorProductQuery {
   size?: number;
   keyword?: string;
   categoryId?: string;
+  sortBy?: string;
+  sortOrder?: string;
 }
 
 const FALLBACK_IMAGE = PLACEHOLDER_PRODUCT_IMAGE;
@@ -452,6 +454,8 @@ export const vendorProductService = {
 
     if (params.keyword?.trim()) searchParams.set('q', params.keyword.trim());
     if (params.categoryId && isUuid(params.categoryId)) searchParams.set('category_id', params.categoryId);
+    if (params.sortBy) searchParams.set('sortBy', params.sortBy);
+    if (params.sortOrder) searchParams.set('sortOrder', params.sortOrder);
 
     const response = await apiRequest<BackendVendorProductPage>(
       `/api/products/my-store?${searchParams.toString()}`,

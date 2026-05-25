@@ -41,6 +41,11 @@ export const useCheckoutFormState = () => {
   const [saveAddressToBook, setSaveAddressToBook] = useState(true);
   const [isAddressFromBook, setIsAddressFromBook] = useState(false);
   const addressLocation = useAddressLocation();
+  const {
+    selectedProvinceCode,
+    selectedDistrictCode,
+    selectedWardCode,
+  } = addressLocation;
 
   const handleFieldChange = useCallback((field: keyof CheckoutFormValues, value: string) => {
     if (field !== 'email' && field !== 'note' && isAddressFromBook) {
@@ -150,12 +155,12 @@ export const useCheckoutFormState = () => {
         district: formValues.district.trim(),
         province: formValues.province.trim(),
         isDefault: false,
-        ghnProvinceId: addressLocation.selectedProvinceCode ? Number(addressLocation.selectedProvinceCode) : undefined,
-        ghnDistrictId: addressLocation.selectedDistrictCode ? Number(addressLocation.selectedDistrictCode) : undefined,
-        ghnWardCode: addressLocation.selectedWardCode || undefined,
+        ghnProvinceId: selectedProvinceCode ? Number(selectedProvinceCode) : undefined,
+        ghnDistrictId: selectedDistrictCode ? Number(selectedDistrictCode) : undefined,
+        ghnWardCode: selectedWardCode || undefined,
       }),
     }, { auth: true });
-  }, [formValues]);
+  }, [formValues, selectedDistrictCode, selectedProvinceCode, selectedWardCode]);
 
   return {
     addressLocation,
