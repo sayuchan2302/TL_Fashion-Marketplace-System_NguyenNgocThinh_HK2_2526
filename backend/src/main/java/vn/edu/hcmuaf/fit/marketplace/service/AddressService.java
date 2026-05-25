@@ -53,6 +53,9 @@ public class AddressService {
                 .detail(request.getDetail())
                 .isDefault(shouldSetDefault)
                 .label(request.getLabel())
+                .ghnProvinceId(request.getGhnProvinceId())
+                .ghnDistrictId(request.getGhnDistrictId())
+                .ghnWardCode(request.getGhnWardCode())
                 .build();
 
         return addressRepository.save(address);
@@ -70,14 +73,28 @@ public class AddressService {
             clearDefaultAddresses(userId);
         }
 
-        if (request.getFullName() != null) address.setFullName(request.getFullName());
-        if (request.getPhone() != null) address.setPhone(request.getPhone());
-        if (request.getProvince() != null) address.setProvince(request.getProvince());
-        if (request.getDistrict() != null) address.setDistrict(request.getDistrict());
-        if (request.getWard() != null) address.setWard(request.getWard());
-        if (request.getDetail() != null) address.setDetail(request.getDetail());
-        if (request.getIsDefault() != null) address.setIsDefault(request.getIsDefault());
-        if (request.getLabel() != null) address.setLabel(request.getLabel());
+        if (request.getFullName() != null)
+            address.setFullName(request.getFullName());
+        if (request.getPhone() != null)
+            address.setPhone(request.getPhone());
+        if (request.getProvince() != null)
+            address.setProvince(request.getProvince());
+        if (request.getDistrict() != null)
+            address.setDistrict(request.getDistrict());
+        if (request.getWard() != null)
+            address.setWard(request.getWard());
+        if (request.getDetail() != null)
+            address.setDetail(request.getDetail());
+        if (request.getIsDefault() != null)
+            address.setIsDefault(request.getIsDefault());
+        if (request.getLabel() != null)
+            address.setLabel(request.getLabel());
+        if (request.getGhnProvinceId() != null)
+            address.setGhnProvinceId(request.getGhnProvinceId());
+        if (request.getGhnDistrictId() != null)
+            address.setGhnDistrictId(request.getGhnDistrictId());
+        if (request.getGhnWardCode() != null)
+            address.setGhnWardCode(request.getGhnWardCode());
 
         return addressRepository.save(address);
     }

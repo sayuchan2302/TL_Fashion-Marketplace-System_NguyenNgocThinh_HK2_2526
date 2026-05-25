@@ -32,9 +32,9 @@ export const useCheckoutFormState = () => {
 
     return sessionEmail
       ? {
-          ...DEFAULT_CHECKOUT_FORM_VALUES,
-          email: sessionEmail,
-        }
+        ...DEFAULT_CHECKOUT_FORM_VALUES,
+        email: sessionEmail,
+      }
       : DEFAULT_CHECKOUT_FORM_VALUES;
   });
   const [formErrors, setFormErrors] = useState<FormErrors>({});
@@ -150,6 +150,9 @@ export const useCheckoutFormState = () => {
         district: formValues.district.trim(),
         province: formValues.province.trim(),
         isDefault: false,
+        ghnProvinceId: addressLocation.selectedProvinceCode ? Number(addressLocation.selectedProvinceCode) : undefined,
+        ghnDistrictId: addressLocation.selectedDistrictCode ? Number(addressLocation.selectedDistrictCode) : undefined,
+        ghnWardCode: addressLocation.selectedWardCode || undefined,
       }),
     }, { auth: true });
   }, [formValues]);

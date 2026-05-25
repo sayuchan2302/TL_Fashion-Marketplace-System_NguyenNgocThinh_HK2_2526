@@ -18,4 +18,7 @@ public class AddressRequest {
     private String detail;
     private Boolean isDefault;
     private String label;
+    private Integer ghnProvinceId;
+    private Integer ghnDistrictId;
+    private String ghnWardCode;
 }

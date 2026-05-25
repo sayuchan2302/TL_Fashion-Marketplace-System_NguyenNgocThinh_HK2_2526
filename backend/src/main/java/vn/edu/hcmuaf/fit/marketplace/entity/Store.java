@@ -123,6 +123,15 @@ public class Store extends BaseEntity {
 
     private Double rating = 0.0;
 
+    @Column(name = "ghn_province_id")
+    private Integer ghnProvinceId;
+
+    @Column(name = "ghn_district_id")
+    private Integer ghnDistrictId;
+
+    @Column(name = "ghn_ward_code")
+    private String ghnWardCode;
+
     public enum StoreStatus {
         ACTIVE, INACTIVE, SUSPENDED
     }

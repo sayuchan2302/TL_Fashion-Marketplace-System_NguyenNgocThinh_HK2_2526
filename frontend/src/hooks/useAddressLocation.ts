@@ -1,21 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 
 export interface Province {
-  code: number;
+  code: string | number;
   name: string;
 }
 
 export interface District {
-  code: number;
+  code: string | number;
   name: string;
 }
 
 export interface Ward {
-  code: number;
+  code: string | number;
   name: string;
 }
 
-const API_BASE = 'https://provinces.open-api.vn/api';
+const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const API_BASE = `${VITE_API_URL.replace(/\/$/, '')}/api/shipping/ghn`;
 const LOCATION_PREFIX_PATTERN = /\b(tp|tinh|thanh pho|quan|huyen|thi xa|thi tran|phuong|xa)\b/gi;
 
 const normalizeLocationName = (value: string) =>
@@ -41,7 +42,7 @@ const findBestMatchByName = <T extends { name: string }>(rows: T[], target: stri
   });
 };
 
-const findBestMatchByNameOrCode = <T extends { name: string; code: number }>(rows: T[], target: string): T | undefined => {
+const findBestMatchByNameOrCode = <T extends { name: string; code: string | number }>(rows: T[], target: string): T | undefined => {
   const rawTarget = (target || '').trim();
   if (!rawTarget) return undefined;
 
@@ -175,10 +176,13 @@ export function useAddressLocation(options: UseAddressLocationOptions = {}): Use
     if (sourceProvinces.length === 0) {
       setLoadingProvinces(true);
       try {
-        const provinceRes = await fetch(`${API_BASE}/?depth=1`);
-        const provinceData: Province[] = await provinceRes.json();
-        sourceProvinces = provinceData || [];
+        const provinceRes = await fetch(`${API_BASE}/provinces`);
+        const provinceData = await provinceRes.json();
+        sourceProvinces = Array.isArray(provinceData) ? provinceData : [];
         setProvinces(sourceProvinces);
+      } catch (err) {
+        console.error('Failed to resolve provinces names:', err);
+        sourceProvinces = [];
       } finally {
         setLoadingProvinces(false);
       }
@@ -195,9 +199,9 @@ export function useAddressLocation(options: UseAddressLocationOptions = {}): Use
     setLoadingDistricts(true);
 
     try {
-      const distRes = await fetch(`${API_BASE}/p/${province.code}?depth=2`);
-      const distData: { districts: District[] } = await distRes.json();
-      const sourceDistricts = distData.districts || [];
+      const distRes = await fetch(`${API_BASE}/districts?provinceId=${province.code}`);
+      const distData = await distRes.json();
+      const sourceDistricts = Array.isArray(distData) ? distData : (Array.isArray(distData?.districts) ? distData.districts : []);
       setDistricts(sourceDistricts);
 
       const district = findBestMatchByNameOrCode(sourceDistricts, rawDistrict);
@@ -215,9 +219,9 @@ export function useAddressLocation(options: UseAddressLocationOptions = {}): Use
       setLoadingWards(true);
 
       try {
-        const wardRes = await fetch(`${API_BASE}/d/${district.code}?depth=2`);
-        const wardData: { wards: Ward[] } = await wardRes.json();
-        const sourceWards = wardData.wards || [];
+        const wardRes = await fetch(`${API_BASE}/wards?districtId=${district.code}`);
+        const wardData = await wardRes.json();
+        const sourceWards = Array.isArray(wardData) ? wardData : (Array.isArray(wardData?.wards) ? wardData.wards : []);
         setWards(sourceWards);
 
         const ward = findBestMatchByNameOrCode(sourceWards, rawWard);
@@ -239,13 +243,21 @@ export function useAddressLocation(options: UseAddressLocationOptions = {}): Use
   useEffect(() => {
     if (!loadOnMount) return;
     setLoadingProvinces(true);
-    fetch(`${API_BASE}/?depth=1`)
+    fetch(`${API_BASE}/provinces`)
       .then((res) => res.json())
-      .then((data: Province[]) => {
-        setProvinces(data);
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setProvinces(data);
+        } else {
+          console.error('Provinces data is not an array:', data);
+          setProvinces([]);
+        }
         setLoadingProvinces(false);
       })
-      .catch(() => setLoadingProvinces(false));
+      .catch((err) => {
+        console.error('Failed to fetch provinces:', err);
+        setLoadingProvinces(false);
+      });
   }, [loadOnMount]);
 
   useEffect(() => {
@@ -254,13 +266,21 @@ export function useAddressLocation(options: UseAddressLocationOptions = {}): Use
       return;
     }
     setLoadingDistricts(true);
-    fetch(`${API_BASE}/p/${selectedProvinceCode}?depth=2`)
+    fetch(`${API_BASE}/districts?provinceId=${selectedProvinceCode}`)
       .then((res) => res.json())
-      .then((data: { districts: District[] }) => {
-        setDistricts(data.districts || []);
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setDistricts(data);
+        } else {
+          const list = Array.isArray(data?.districts) ? data.districts : [];
+          setDistricts(list);
+        }
         setLoadingDistricts(false);
       })
-      .catch(() => setLoadingDistricts(false));
+      .catch((err) => {
+        console.error('Failed to fetch districts:', err);
+        setLoadingDistricts(false);
+      });
   }, [selectedProvinceCode]);
 
   useEffect(() => {
@@ -269,13 +289,21 @@ export function useAddressLocation(options: UseAddressLocationOptions = {}): Use
       return;
     }
     setLoadingWards(true);
-    fetch(`${API_BASE}/d/${selectedDistrictCode}?depth=2`)
+    fetch(`${API_BASE}/wards?districtId=${selectedDistrictCode}`)
       .then((res) => res.json())
-      .then((data: { wards: Ward[] }) => {
-        setWards(data.wards || []);
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setWards(data);
+        } else {
+          const list = Array.isArray(data?.wards) ? data.wards : [];
+          setWards(list);
+        }
         setLoadingWards(false);
       })
-      .catch(() => setLoadingWards(false));
+      .catch((err) => {
+        console.error('Failed to fetch wards:', err);
+        setLoadingWards(false);
+      });
   }, [selectedDistrictCode]);
 
   return {

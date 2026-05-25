@@ -1,5 +1,6 @@
-﻿import { useCallback, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CartItem, StoreGroup } from '../../contexts/CartContext';
+import { apiRequest } from '../../services/apiClient';
 import {
   getSelectedCartIdsForCheckout,
   setSelectedCartIdsForCheckout,
@@ -22,6 +23,8 @@ interface UseCheckoutSelectionArgs {
   updateQuantity: (cartId: string, quantity: number) => void;
   removeFromCart: (cartId: string) => void;
   clearCart: () => void;
+  toDistrictCode?: string;
+  toWardCode?: string;
 }
 
 export const useCheckoutSelection = ({
@@ -30,9 +33,13 @@ export const useCheckoutSelection = ({
   updateQuantity,
   removeFromCart,
   clearCart,
+  toDistrictCode,
+  toWardCode,
 }: UseCheckoutSelectionArgs) => {
   const [selectedCartIds, setSelectedCartIds] = useState<string[]>(() => getSelectedCartIdsForCheckout());
   const [hasExplicitSelection] = useState<boolean>(() => getSelectedCartIdsForCheckout().length > 0);
+  const [dynamicFees, setDynamicFees] = useState<Record<string, number>>({});
+  const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
 
   const checkoutItems = useMemo(() => {
     const validSelectedIds = selectedCartIds.filter((cartId) => items.some((item) => item.cartId === cartId));
@@ -54,15 +61,23 @@ export const useCheckoutSelection = ({
         }
 
         const subtotal = groupItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        let fee = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : DEFAULT_SHIPPING_FEE;
+
+        if (toDistrictCode && toWardCode && subtotal < FREE_SHIPPING_THRESHOLD) {
+          if (group.storeId in dynamicFees) {
+            fee = dynamicFees[group.storeId];
+          }
+        }
+
         return {
           ...group,
           items: groupItems,
           subtotal,
-          shippingFee: subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : DEFAULT_SHIPPING_FEE,
+          shippingFee: fee,
         } satisfies CheckoutStoreGroup;
       })
       .filter((group): group is CheckoutStoreGroup => Boolean(group));
-  }, [checkoutItems, groupedByStore]);
+  }, [checkoutItems, groupedByStore, dynamicFees, toDistrictCode, toWardCode]);
 
   const checkoutStoreIds = useMemo(
     () => Array.from(new Set(
@@ -92,6 +107,69 @@ export const useCheckoutSelection = ({
     () => storeGroups.reduce((sum, group) => sum + group.shippingFee, 0),
     [storeGroups],
   );
+
+  useEffect(() => {
+    if (!toDistrictCode || !toWardCode || storeGroups.length === 0) {
+      setDynamicFees({});
+      return;
+    }
+
+    let isMounted = true;
+    const calculateAllFees = async () => {
+      setIsCalculatingShipping(true);
+      const nextFees: Record<string, number> = {};
+
+      try {
+        await Promise.all(
+          storeGroups.map(async (group) => {
+            if (group.subtotal >= FREE_SHIPPING_THRESHOLD) {
+              nextFees[group.storeId] = 0;
+              return;
+            }
+
+            try {
+              const weight = group.items.reduce((sum, item) => sum + item.quantity * 300, 0);
+              const data = await apiRequest<{ fee: number }>('/api/shipping/ghn/calculate-fee', {
+                method: 'POST',
+                body: JSON.stringify({
+                  storeId: group.storeId,
+                  toDistrictId: Number(toDistrictCode),
+                  toWardCode: toWardCode,
+                  weight: weight > 0 ? weight : 500,
+                  insuranceValue: group.subtotal,
+                }),
+              }, { auth: true });
+
+              if (data && typeof data.fee === 'number') {
+                nextFees[group.storeId] = data.fee;
+              } else {
+                nextFees[group.storeId] = DEFAULT_SHIPPING_FEE;
+              }
+            } catch (err) {
+              console.error(`Failed to calculate shipping fee for store ${group.storeId}:`, err);
+              nextFees[group.storeId] = DEFAULT_SHIPPING_FEE;
+            }
+          })
+        );
+
+        if (isMounted) {
+          setDynamicFees(nextFees);
+        }
+      } catch (err) {
+        console.error('Failed to calculate shipping fees:', err);
+      } finally {
+        if (isMounted) {
+          setIsCalculatingShipping(false);
+        }
+      }
+    };
+
+    void calculateAllFees();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [toDistrictCode, toWardCode, checkoutStoreKey]);
 
   const clearCartByMarker = useCallback((cartIds: string[]) => {
     const selected = Array.from(new Set(cartIds.map((value) => value.trim()).filter(Boolean)));
@@ -150,5 +228,6 @@ export const useCheckoutSelection = ({
     clearCartByMarker,
     handleQuantityChange,
     handleRemoveItem,
+    isCalculatingShipping,
   };
 };

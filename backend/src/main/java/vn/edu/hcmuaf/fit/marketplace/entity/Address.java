@@ -44,4 +44,13 @@ public class Address extends BaseEntity {
     private Boolean isDefault = false;
 
     private String label; // 'home', 'office', etc.
+
+    @Column(name = "ghn_province_id")
+    private Integer ghnProvinceId;
+
+    @Column(name = "ghn_district_id")
+    private Integer ghnDistrictId;
+
+    @Column(name = "ghn_ward_code")
+    private String ghnWardCode;
 }

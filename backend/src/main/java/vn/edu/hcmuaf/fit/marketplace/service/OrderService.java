@@ -65,22 +65,29 @@ public class OrderService {
     private final OrderStatusLogRepository orderStatusLogRepository;
     private final PlatformCommissionSettingsService platformCommissionSettingsService;
 
+    @Autowired(required = false)
+    private GhnService ghnService;
+
+    public void setGhnService(GhnService ghnService) {
+        this.ghnService = ghnService;
+    }
+
     @Value("${app.orders.sla.vendor-confirmation.days:3}")
     private long vendorConfirmationSlaDays = VENDOR_CONFIRMATION_SLA_DAYS;
 
     @Autowired
     public OrderService(OrderRepository orderRepository, UserRepository userRepository,
-                        AddressRepository addressRepository, ProductRepository productRepository,
-                        ProductVariantRepository productVariantRepository, FlashSaleItemRepository flashSaleItemRepository,
-                        WalletService walletService,
-                        StoreRepository storeRepository, CouponRepository couponRepository,
-                        VoucherRepository voucherRepository, CustomerVoucherRepository customerVoucherRepository,
-                        PublicCodeService publicCodeService,
-                        ApplicationEventPublisher applicationEventPublisher,
-                        AdminAuditLogService adminAuditLogService,
-                        NotificationDomainService notificationDomainService,
-                        OrderStatusLogRepository orderStatusLogRepository,
-                        PlatformCommissionSettingsService platformCommissionSettingsService) {
+            AddressRepository addressRepository, ProductRepository productRepository,
+            ProductVariantRepository productVariantRepository, FlashSaleItemRepository flashSaleItemRepository,
+            WalletService walletService,
+            StoreRepository storeRepository, CouponRepository couponRepository,
+            VoucherRepository voucherRepository, CustomerVoucherRepository customerVoucherRepository,
+            PublicCodeService publicCodeService,
+            ApplicationEventPublisher applicationEventPublisher,
+            AdminAuditLogService adminAuditLogService,
+            NotificationDomainService notificationDomainService,
+            OrderStatusLogRepository orderStatusLogRepository,
+            PlatformCommissionSettingsService platformCommissionSettingsService) {
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
         this.addressRepository = addressRepository;
@@ -101,16 +108,16 @@ public class OrderService {
     }
 
     public OrderService(OrderRepository orderRepository, UserRepository userRepository,
-                        AddressRepository addressRepository, ProductRepository productRepository,
-                        ProductVariantRepository productVariantRepository, FlashSaleItemRepository flashSaleItemRepository,
-                        WalletService walletService,
-                        StoreRepository storeRepository, CouponRepository couponRepository,
-                        VoucherRepository voucherRepository, CustomerVoucherRepository customerVoucherRepository,
-                        PublicCodeService publicCodeService,
-                        ApplicationEventPublisher applicationEventPublisher,
-                        AdminAuditLogService adminAuditLogService,
-                        NotificationDomainService notificationDomainService,
-                        OrderStatusLogRepository orderStatusLogRepository) {
+            AddressRepository addressRepository, ProductRepository productRepository,
+            ProductVariantRepository productVariantRepository, FlashSaleItemRepository flashSaleItemRepository,
+            WalletService walletService,
+            StoreRepository storeRepository, CouponRepository couponRepository,
+            VoucherRepository voucherRepository, CustomerVoucherRepository customerVoucherRepository,
+            PublicCodeService publicCodeService,
+            ApplicationEventPublisher applicationEventPublisher,
+            AdminAuditLogService adminAuditLogService,
+            NotificationDomainService notificationDomainService,
+            OrderStatusLogRepository orderStatusLogRepository) {
         this(
                 orderRepository,
                 userRepository,
@@ -128,19 +135,18 @@ public class OrderService {
                 adminAuditLogService,
                 notificationDomainService,
                 orderStatusLogRepository,
-                null
-        );
+                null);
     }
 
     public OrderService(OrderRepository orderRepository, UserRepository userRepository,
-                        AddressRepository addressRepository, ProductRepository productRepository,
-                        ProductVariantRepository productVariantRepository, WalletService walletService,
-                        StoreRepository storeRepository, CouponRepository couponRepository,
-                        VoucherRepository voucherRepository, PublicCodeService publicCodeService,
-                        ApplicationEventPublisher applicationEventPublisher,
-                        AdminAuditLogService adminAuditLogService,
-                        NotificationDomainService notificationDomainService,
-                        OrderStatusLogRepository orderStatusLogRepository) {
+            AddressRepository addressRepository, ProductRepository productRepository,
+            ProductVariantRepository productVariantRepository, WalletService walletService,
+            StoreRepository storeRepository, CouponRepository couponRepository,
+            VoucherRepository voucherRepository, PublicCodeService publicCodeService,
+            ApplicationEventPublisher applicationEventPublisher,
+            AdminAuditLogService adminAuditLogService,
+            NotificationDomainService notificationDomainService,
+            OrderStatusLogRepository orderStatusLogRepository) {
         this(
                 orderRepository,
                 userRepository,
@@ -158,16 +164,15 @@ public class OrderService {
                 adminAuditLogService,
                 notificationDomainService,
                 orderStatusLogRepository,
-                null
-        );
+                null);
     }
 
     public OrderService(OrderRepository orderRepository, UserRepository userRepository,
-                        AddressRepository addressRepository, ProductRepository productRepository,
-                        ProductVariantRepository productVariantRepository, WalletService walletService,
-                        StoreRepository storeRepository, CouponRepository couponRepository,
-                        VoucherRepository voucherRepository, PublicCodeService publicCodeService,
-                        ApplicationEventPublisher applicationEventPublisher) {
+            AddressRepository addressRepository, ProductRepository productRepository,
+            ProductVariantRepository productVariantRepository, WalletService walletService,
+            StoreRepository storeRepository, CouponRepository couponRepository,
+            VoucherRepository voucherRepository, PublicCodeService publicCodeService,
+            ApplicationEventPublisher applicationEventPublisher) {
         this(
                 orderRepository,
                 userRepository,
@@ -185,17 +190,16 @@ public class OrderService {
                 null,
                 null,
                 null,
-                null
-        );
+                null);
     }
 
     public OrderService(OrderRepository orderRepository, UserRepository userRepository,
-                        AddressRepository addressRepository, ProductRepository productRepository,
-                        ProductVariantRepository productVariantRepository, WalletService walletService,
-                        StoreRepository storeRepository, CouponRepository couponRepository,
-                        VoucherRepository voucherRepository, CustomerVoucherRepository customerVoucherRepository,
-                        PublicCodeService publicCodeService,
-                        ApplicationEventPublisher applicationEventPublisher) {
+            AddressRepository addressRepository, ProductRepository productRepository,
+            ProductVariantRepository productVariantRepository, WalletService walletService,
+            StoreRepository storeRepository, CouponRepository couponRepository,
+            VoucherRepository voucherRepository, CustomerVoucherRepository customerVoucherRepository,
+            PublicCodeService publicCodeService,
+            ApplicationEventPublisher applicationEventPublisher) {
         this(
                 orderRepository,
                 userRepository,
@@ -213,35 +217,29 @@ public class OrderService {
                 null,
                 null,
                 null,
-                null
-        );
+                null);
     }
 
-    private static final BigDecimal DEFAULT_COMMISSION_RATE_PERCENT =
-            PlatformCommissionSettingsService.DEFAULT_COMMISSION_RATE_PERCENT;
+    private static final BigDecimal DEFAULT_COMMISSION_RATE_PERCENT = PlatformCommissionSettingsService.DEFAULT_COMMISSION_RATE_PERCENT;
     private static final BigDecimal COMMISSION_RATE_DIVISOR = new BigDecimal("100");
     private static final BigDecimal DEFAULT_SHIPPING_FEE = new BigDecimal("30000.0");
     private static final BigDecimal FREE_SHIPPING_THRESHOLD = new BigDecimal("500000.0");
     private static final LocalDateTime DEFAULT_FILTER_FROM = LocalDateTime.of(1970, 1, 1, 0, 0);
     private static final LocalDateTime DEFAULT_FILTER_TO = LocalDateTime.of(2999, 12, 31, 23, 59, 59);
-    private static final EnumSet<Order.OrderStatus> TRACKING_UPDATABLE_STATUSES =
-            EnumSet.of(Order.OrderStatus.PROCESSING, Order.OrderStatus.SHIPPED);
-    private static final EnumSet<Order.OrderStatus> RESTOCKABLE_CANCEL_SOURCE_STATUSES =
-            EnumSet.of(
-                    Order.OrderStatus.PENDING,
-                    Order.OrderStatus.WAITING_FOR_VENDOR,
-                    Order.OrderStatus.CONFIRMED,
-                    Order.OrderStatus.PROCESSING
-            );
-    private static final EnumSet<Order.OrderStatus> CUSTOMER_NOTIFICATION_STATUSES =
-            EnumSet.of(
-                    Order.OrderStatus.WAITING_FOR_VENDOR,
-                    Order.OrderStatus.CONFIRMED,
-                    Order.OrderStatus.PROCESSING,
-                    Order.OrderStatus.SHIPPED,
-                    Order.OrderStatus.DELIVERED,
-                    Order.OrderStatus.CANCELLED
-            );
+    private static final EnumSet<Order.OrderStatus> TRACKING_UPDATABLE_STATUSES = EnumSet
+            .of(Order.OrderStatus.PROCESSING, Order.OrderStatus.SHIPPED);
+    private static final EnumSet<Order.OrderStatus> RESTOCKABLE_CANCEL_SOURCE_STATUSES = EnumSet.of(
+            Order.OrderStatus.PENDING,
+            Order.OrderStatus.WAITING_FOR_VENDOR,
+            Order.OrderStatus.CONFIRMED,
+            Order.OrderStatus.PROCESSING);
+    private static final EnumSet<Order.OrderStatus> CUSTOMER_NOTIFICATION_STATUSES = EnumSet.of(
+            Order.OrderStatus.WAITING_FOR_VENDOR,
+            Order.OrderStatus.CONFIRMED,
+            Order.OrderStatus.PROCESSING,
+            Order.OrderStatus.SHIPPED,
+            Order.OrderStatus.DELIVERED,
+            Order.OrderStatus.CANCELLED);
     private static final String ORDER_LOG_EVENT_CREATED = "ORDER_CREATED";
     private static final String ORDER_LOG_EVENT_STATUS_CHANGED = "STATUS_CHANGED";
     private static final String ORDER_LOG_EVENT_TRACKING_UPDATED = "TRACKING_UPDATED";
@@ -262,18 +260,17 @@ public class OrderService {
             String variantName,
             String productImage,
             UUID flashSaleItemId,
-            BigDecimal flashSaleUnitPrice
-    ) {}
+            BigDecimal flashSaleUnitPrice) {
+    }
 
     private record CheckoutProductLine(
             OrderRequest.OrderItemRequest request,
-            Product product
-    ) {}
+            Product product) {
+    }
 
     private record FlashSaleAllocation(
             UUID flashSaleItemId,
-            BigDecimal flashUnitPrice
-    ) {
+            BigDecimal flashUnitPrice) {
         static FlashSaleAllocation none() {
             return new FlashSaleAllocation(null, null);
         }
@@ -286,8 +283,8 @@ public class OrderService {
     private record StoreOrderGroup(
             UUID storeId,
             List<PreparedOrderItem> items,
-            BigDecimal subtotal
-    ) {}
+            BigDecimal subtotal) {
+    }
 
     private record DiscountApplication(
             String code,
@@ -295,8 +292,7 @@ public class OrderService {
             Map<UUID, BigDecimal> storeDiscounts,
             UUID customerVoucherId,
             Coupon coupon,
-            Voucher voucher
-    ) {
+            Voucher voucher) {
         static DiscountApplication none() {
             return new DiscountApplication(null, BigDecimal.ZERO, Map.of(), null, null, null);
         }
@@ -312,8 +308,8 @@ public class OrderService {
     private record CommissionSnapshot(
             BigDecimal rateApplied,
             BigDecimal baseAmount,
-            BigDecimal feeAmount
-    ) {}
+            BigDecimal feeAmount) {
+    }
 
     // ─── Customer Methods ──────────────────────────────────────────────────────
 
@@ -399,8 +395,7 @@ public class OrderService {
             String keyword,
             LocalDateTime fromDate,
             LocalDateTime toDate,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         String normalizedKeyword = normalizeKeyword(keyword);
         LocalDateTime effectiveFrom = fromDate != null ? fromDate : DEFAULT_FILTER_FROM;
         LocalDateTime effectiveTo = toDate != null ? toDate : DEFAULT_FILTER_TO;
@@ -416,8 +411,7 @@ public class OrderService {
                     normalizedKeyword,
                     effectiveFrom,
                     effectiveTo,
-                    pageable
-            );
+                    pageable);
         }
         if (status == null) {
             return orderRepository.searchByStoreStatuses(
@@ -428,13 +422,11 @@ public class OrderService {
                             Order.OrderStatus.PROCESSING,
                             Order.OrderStatus.SHIPPED,
                             Order.OrderStatus.DELIVERED,
-                            Order.OrderStatus.CANCELLED
-                    ),
+                            Order.OrderStatus.CANCELLED),
                     normalizedKeyword,
                     effectiveFrom,
                     effectiveTo,
-                    pageable
-            );
+                    pageable);
         }
 
         return orderRepository.searchByStore(storeId, status, normalizedKeyword, effectiveFrom, effectiveTo, pageable);
@@ -449,7 +441,8 @@ public class OrderService {
     }
 
     public Order findByCodeForStore(String orderCode, UUID storeId) {
-        return orderRepository.findByOrderCodeAndStoreId(normalizeRequiredText(orderCode, "Order code is required"), storeId)
+        return orderRepository
+                .findByOrderCodeAndStoreId(normalizeRequiredText(orderCode, "Order code is required"), storeId)
                 .orElseThrow(() -> new ForbiddenException("Order not found or you don't have access to it"));
     }
 
@@ -460,8 +453,7 @@ public class OrderService {
             String keyword,
             LocalDateTime fromDate,
             LocalDateTime toDate,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         reconcileVendorConfirmationSlaForRead();
         Page<Order> page = findByStoreIdFiltered(storeId, status, keyword, fromDate, toDate, pageable);
         return VendorOrderPageResponse.builder()
@@ -493,8 +485,7 @@ public class OrderService {
             String keyword,
             LocalDateTime fromDate,
             LocalDateTime toDate,
-            Pageable pageable
-    ) {
+            Pageable pageable) {
         reconcileVendorConfirmationSlaForRead();
         Page<Order> page = findByStoreIdFiltered(storeId, status, keyword, fromDate, toDate, pageable);
         Map<UUID, String> storeNames = buildStoreNameMap(page.getContent());
@@ -515,14 +506,12 @@ public class OrderService {
     public VendorOrderDetailResponse updateVendorDelayNote(UUID orderId, UUID storeId, String warehouseNote) {
         String normalizedNote = normalizeRequiredText(
                 warehouseNote,
-                "Delay reason is required"
-        );
+                "Delay reason is required");
         Order order = findByIdForStore(orderId, storeId);
         if (order.getStatus() == Order.OrderStatus.DELIVERED || order.getStatus() == Order.OrderStatus.CANCELLED) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Cannot add delay note for delivered or cancelled order"
-            );
+                    "Cannot add delay note for delivered or cancelled order");
         }
 
         order.setWarehouseNote(normalizedNote);
@@ -557,7 +546,6 @@ public class OrderService {
         return toAdminOrderResponse(savedOrder);
     }
 
-
     @Transactional
     public void cancelUnpaidOnlinePaymentOrder(UUID orderId, String reason) {
         Order order = findById(orderId);
@@ -582,8 +570,7 @@ public class OrderService {
         List<Order> candidates = orderRepository.findVendorConfirmationDeadlineBreaches(
                 effectiveNow,
                 legacyCutoff,
-                PageRequest.of(0, limit)
-        );
+                PageRequest.of(0, limit));
 
         int cancelled = 0;
         for (Order candidate : candidates) {
@@ -603,8 +590,7 @@ public class OrderService {
                     null,
                     null,
                     vendorConfirmationSlaCancelReason(),
-                    false
-            );
+                    false);
             recordSlaAutoCancelled(saved, missedDeadline);
             notifyCustomerVendorSlaAutoCancelled(saved, parentStatusBefore);
             cancelled++;
@@ -683,14 +669,14 @@ public class OrderService {
         LocalDateTime toDate = LocalDate.now().plusDays(1).atStartOfDay();
 
         return orderRepository.findTopDeliveredProductsByStoreBetween(
-                        storeId,
-                        fromDate,
-                        toDate,
-                        PageRequest.of(0, limit)
-                ).stream()
+                storeId,
+                fromDate,
+                toDate,
+                PageRequest.of(0, limit)).stream()
                 .map(row -> VendorTopProductResponse.builder()
                         .productId(row.getProductId())
-                        .productName((row.getProductName() == null || row.getProductName().isBlank()) ? "Sản phẩm" : row.getProductName())
+                        .productName((row.getProductName() == null || row.getProductName().isBlank()) ? "Sản phẩm"
+                                : row.getProductName())
                         .productImage(row.getProductImage() == null ? "" : row.getProductImage())
                         .soldCount(row.getSoldCount() == null ? 0L : row.getSoldCount())
                         .grossRevenue(row.getGrossRevenue() == null ? BigDecimal.ZERO : row.getGrossRevenue())
@@ -752,7 +738,8 @@ public class OrderService {
         Map<UUID, String> storeNames = buildStoreNameMap(normalizedSubOrders);
 
         List<OrderTreeResponseDto.SubOrderNode> subOrderNodes = normalizedSubOrders.stream()
-                .sorted(Comparator.comparing(Order::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .sorted(Comparator.comparing(Order::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .reversed())
                 .map(order -> toOrderTreeSubOrderNode(order, storeNames))
                 .toList();
 
@@ -783,9 +770,9 @@ public class OrderService {
     }
 
     private AdminOrderResponse toAdminOrderResponse(Order order) {
-        String storeName = order.getStoreId() != null 
-            ? storeRepository.findById(order.getStoreId()).map(Store::getName).orElse("Unknown Store")
-            : "Platform";
+        String storeName = order.getStoreId() != null
+                ? storeRepository.findById(order.getStoreId()).map(Store::getName).orElse("Unknown Store")
+                : "Platform";
 
         return AdminOrderResponse.builder()
                 .id(order.getId())
@@ -822,26 +809,29 @@ public class OrderService {
                         .district(order.getShippingAddress().getDistrict())
                         .city(order.getShippingAddress().getProvince())
                         .build() : null)
-                .items(order.getItems() == null ? List.of() : order.getItems().stream().map(item -> AdminOrderResponse.ItemInfo.builder()
-                        .id(item.getId())
-                        .name(item.getProductName())
-                        .sku(item.getVariant() != null && item.getVariant().getSku() != null ? item.getVariant().getSku() : (item.getId() != null ? item.getId().toString() : ""))
-                        .variant(item.getVariantName())
-                        .price(item.getUnitPrice())
-                        .quantity(item.getQuantity())
-                        .image(item.getProductImage())
-                        .build()).toList())
+                .items(order.getItems() == null ? List.of()
+                        : order.getItems().stream().map(item -> AdminOrderResponse.ItemInfo.builder()
+                                .id(item.getId())
+                                .name(item.getProductName())
+                                .sku(item.getVariant() != null && item.getVariant().getSku() != null
+                                        ? item.getVariant().getSku()
+                                        : (item.getId() != null ? item.getId().toString() : ""))
+                                .variant(item.getVariantName())
+                                .price(item.getUnitPrice())
+                                .quantity(item.getQuantity())
+                                .image(item.getProductImage())
+                                .build()).toList())
                 .build();
     }
 
     private ParentOrderSummaryDto toParentOrderSummaryDto(
             Order rootOrder,
             Map<UUID, List<Order>> subOrdersByParent,
-            Map<UUID, String> storeNames
-    ) {
+            Map<UUID, String> storeNames) {
         List<Order> normalizedSubOrders = resolveSubOrdersForRoot(rootOrder, subOrdersByParent);
         List<SubOrderSummaryDto> subOrderDtos = normalizedSubOrders.stream()
-                .sorted(Comparator.comparing(Order::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .sorted(Comparator.comparing(Order::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                        .reversed())
                 .map(subOrder -> toSubOrderSummaryDto(subOrder, storeNames))
                 .toList();
 
@@ -872,12 +862,17 @@ public class OrderService {
                         .phone(rootOrder.getUser() != null ? rootOrder.getUser().getPhone() : null)
                         .build())
                 .shippingAddress(ParentOrderSummaryDto.Address.builder()
-                        .fullName(rootOrder.getShippingAddress() != null ? rootOrder.getShippingAddress().getFullName() : null)
-                        .phone(rootOrder.getShippingAddress() != null ? rootOrder.getShippingAddress().getPhone() : null)
-                        .address(rootOrder.getShippingAddress() != null ? rootOrder.getShippingAddress().getDetail() : null)
+                        .fullName(rootOrder.getShippingAddress() != null ? rootOrder.getShippingAddress().getFullName()
+                                : null)
+                        .phone(rootOrder.getShippingAddress() != null ? rootOrder.getShippingAddress().getPhone()
+                                : null)
+                        .address(rootOrder.getShippingAddress() != null ? rootOrder.getShippingAddress().getDetail()
+                                : null)
                         .ward(rootOrder.getShippingAddress() != null ? rootOrder.getShippingAddress().getWard() : null)
-                        .district(rootOrder.getShippingAddress() != null ? rootOrder.getShippingAddress().getDistrict() : null)
-                        .city(rootOrder.getShippingAddress() != null ? rootOrder.getShippingAddress().getProvince() : null)
+                        .district(rootOrder.getShippingAddress() != null ? rootOrder.getShippingAddress().getDistrict()
+                                : null)
+                        .city(rootOrder.getShippingAddress() != null ? rootOrder.getShippingAddress().getProvince()
+                                : null)
                         .build())
                 .subOrders(subOrderDtos)
                 .build();
@@ -942,18 +937,20 @@ public class OrderService {
         var primaryProductName = firstItem == null
                 ? null
                 : ((firstItem.getProductName() != null && !firstItem.getProductName().isBlank())
-                    ? firstItem.getProductName()
-                    : (firstItem.getProduct() != null ? firstItem.getProduct().getName() : null));
-        var productMeta = firstItem != null && firstItem.getVariantName() != null && !firstItem.getVariantName().isBlank()
-                ? "Kich thuoc " + firstItem.getVariantName()
-                : null;
+                        ? firstItem.getProductName()
+                        : (firstItem.getProduct() != null ? firstItem.getProduct().getName() : null));
+        var productMeta = firstItem != null && firstItem.getVariantName() != null
+                && !firstItem.getVariantName().isBlank()
+                        ? "Kich thuoc " + firstItem.getVariantName()
+                        : null;
         var productExtra = items != null && items.size() > 1 ? "+" + (items.size() - 1) + " san pham khac" : null;
 
         return SubOrderSummaryDto.builder()
                 .id(subOrder.getId())
                 .code(subOrder.getOrderCode())
                 .vendorId(subOrder.getStoreId())
-                .vendorName(subOrder.getStoreId() == null ? null : storeNames.getOrDefault(subOrder.getStoreId(), "Unknown Store"))
+                .vendorName(subOrder.getStoreId() == null ? null
+                        : storeNames.getOrDefault(subOrder.getStoreId(), "Unknown Store"))
                 .status(subOrder.getStatus())
                 .subtotal(subOrder.getSubtotal())
                 .shippingFee(subOrder.getShippingFee())
@@ -1001,7 +998,8 @@ public class OrderService {
                 .id(subOrder.getId())
                 .code(subOrder.getOrderCode())
                 .vendorId(subOrder.getStoreId())
-                .vendorName(subOrder.getStoreId() == null ? null : storeNames.getOrDefault(subOrder.getStoreId(), "Unknown Store"))
+                .vendorName(subOrder.getStoreId() == null ? null
+                        : storeNames.getOrDefault(subOrder.getStoreId(), "Unknown Store"))
                 .status(subOrder.getStatus())
                 .subtotal(subOrder.getSubtotal())
                 .shippingFee(subOrder.getShippingFee())
@@ -1040,7 +1038,8 @@ public class OrderService {
 
     // ─── Create Order ──────────────────────────────────────────────────────────
 
-    private List<OrderTreeResponseDto.TimelineEntry> buildCustomerTimeline(Order rootOrder, List<Order> normalizedSubOrders) {
+    private List<OrderTreeResponseDto.TimelineEntry> buildCustomerTimeline(Order rootOrder,
+            List<Order> normalizedSubOrders) {
         if (rootOrder == null || rootOrder.getId() == null) {
             return List.of();
         }
@@ -1064,7 +1063,8 @@ public class OrderService {
             return buildFallbackTimeline(rootOrder, scopedOrderList);
         }
 
-        List<OrderStatusLog> logs = orderStatusLogRepository.findByOrderIdInOrderByCreatedAtAsc(new ArrayList<>(scopedOrders.keySet()));
+        List<OrderStatusLog> logs = orderStatusLogRepository
+                .findByOrderIdInOrderByCreatedAtAsc(new ArrayList<>(scopedOrders.keySet()));
         if (logs.isEmpty()) {
             return buildFallbackTimeline(rootOrder, scopedOrderList);
         }
@@ -1074,7 +1074,8 @@ public class OrderService {
                 .toList());
 
         List<OrderTreeResponseDto.TimelineEntry> timeline = logs.stream()
-                .sorted(Comparator.comparing(OrderStatusLog::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+                .sorted(Comparator.comparing(OrderStatusLog::getCreatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
                 .map(log -> toTimelineEntry(log, rootOrder, scopedOrders, storeNames))
                 .filter(entry -> entry != null)
                 .toList();
@@ -1112,7 +1113,8 @@ public class OrderService {
         }
 
         return fallback.stream()
-                .sorted(Comparator.comparing(OrderTreeResponseDto.TimelineEntry::getAt, Comparator.nullsLast(Comparator.naturalOrder())))
+                .sorted(Comparator.comparing(OrderTreeResponseDto.TimelineEntry::getAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
     }
 
@@ -1120,8 +1122,7 @@ public class OrderService {
             OrderStatusLog log,
             Order rootOrder,
             Map<UUID, Order> scopedOrders,
-            Map<UUID, String> storeNames
-    ) {
+            Map<UUID, String> storeNames) {
         if (log == null) {
             return null;
         }
@@ -1181,11 +1182,11 @@ public class OrderService {
                 "success",
                 null,
                 order.getStatus(),
-                "Đơn hàng đã được tạo."
-        );
+                "Đơn hàng đã được tạo.");
     }
 
-    private void recordStatusTransition(Order order, Order.OrderStatus fromStatus, Order.OrderStatus toStatus, String reason) {
+    private void recordStatusTransition(Order order, Order.OrderStatus fromStatus, Order.OrderStatus toStatus,
+            String reason) {
         if (order == null || fromStatus == toStatus) {
             return;
         }
@@ -1200,8 +1201,7 @@ public class OrderService {
                 tone,
                 fromStatus,
                 toStatus,
-                buildStatusTransitionMessage(order, toStatus, reason)
-        );
+                buildStatusTransitionMessage(order, toStatus, reason));
     }
 
     private void recordTrackingUpdated(Order order) {
@@ -1226,8 +1226,7 @@ public class OrderService {
                 "info",
                 order.getStatus(),
                 order.getStatus(),
-                message
-        );
+                message);
     }
 
     private String buildStatusTransitionMessage(Order order, Order.OrderStatus status, String reason) {
@@ -1267,8 +1266,7 @@ public class OrderService {
             String tone,
             Order.OrderStatus statusFrom,
             Order.OrderStatus statusTo,
-            String message
-    ) {
+            String message) {
         if (orderStatusLogRepository == null || order == null || order.getId() == null) {
             return;
         }
@@ -1364,8 +1362,7 @@ public class OrderService {
                 "error",
                 Order.OrderStatus.WAITING_FOR_VENDOR,
                 Order.OrderStatus.CANCELLED,
-                message
-        );
+                message);
     }
 
     private Order.OrderStatus resolveParentStatus(Order order) {
@@ -1394,8 +1391,7 @@ public class OrderService {
                 Notification.NotificationType.ORDER,
                 title,
                 message,
-                buildOrderDetailLink(parent)
-        );
+                buildOrderDetailLink(parent));
     }
 
     private String localizeTimelineMessage(String message) {
@@ -1406,7 +1402,8 @@ public class OrderService {
         return localized
                 .replace("Don hang da duoc tao.", "Đơn hàng đã được tạo.")
                 .replace("Don hang moi duoc tao.", "Đơn hàng mới được tạo.")
-                .replace("Don hang da duoc tiep nhan va cho nguoi ban xac nhan.", "Đơn hàng đã được tiếp nhận và chờ người bán xác nhận.")
+                .replace("Don hang da duoc tiep nhan va cho nguoi ban xac nhan.",
+                        "Đơn hàng đã được tiếp nhận và chờ người bán xác nhận.")
                 .replace("Nguoi ban da xac nhan don hang.", "Người bán đã xác nhận đơn hàng.")
                 .replace("Don hang dang duoc chuan bi.", "Đơn hàng đang được chuẩn bị.")
                 .replace("Don hang da ban giao cho don vi van chuyen.", "Đơn hàng đã bàn giao cho đơn vị vận chuyển.")
@@ -1456,7 +1453,8 @@ public class OrderService {
         try {
             paymentMethod = Order.PaymentMethod.valueOf(request.getPaymentMethod().trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported payment method: " + request.getPaymentMethod());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Unsupported payment method: " + request.getPaymentMethod());
         }
         List<PreparedOrderItem> preparedItems = prepareOrderItems(request.getItems(), user.getStoreId());
         Map<UUID, StoreOrderGroup> groupedByStore = groupItemsByStore(preparedItems);
@@ -1465,20 +1463,19 @@ public class OrderService {
                 && !request.getCouponCode().isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Please apply either customerVoucherId or couponCode, not both"
-            );
+                    "Please apply either customerVoucherId or couponCode, not both");
         }
         DiscountApplication discountApplication = resolveDiscountApplication(
                 userId,
                 request.getCustomerVoucherId(),
                 request.getCouponCode(),
-                groupedByStore
-        );
+                groupedByStore);
 
         if (groupedByStore.size() <= 1) {
             StoreOrderGroup onlyGroup = groupedByStore.values().stream().findFirst()
-                    .orElseThrow(() -> new ResourceNotFoundException("Order must contain at least one valid store item"));
-            
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException("Order must contain at least one valid store item"));
+
             Order created = createStoreScopedOrder(
                     user,
                     address,
@@ -1487,8 +1484,7 @@ public class OrderService {
                     onlyGroup,
                     null,
                     discountApplication,
-                    discountApplication.discountForStore(onlyGroup.storeId())
-            );
+                    discountApplication.discountForStore(onlyGroup.storeId()));
             created = processOrderAfterCheckout(created);
             consumeDiscountUsageIfEligible(created);
             notifyCustomerOrderCreated(created);
@@ -1502,8 +1498,7 @@ public class OrderService {
                 paymentMethod,
                 preparedItems,
                 groupedByStore,
-                discountApplication
-        );
+                discountApplication);
         parent = processOrderAfterCheckout(parent);
         consumeDiscountUsageIfEligible(parent);
         notifyCustomerOrderCreated(parent);
@@ -1516,8 +1511,10 @@ public class OrderService {
     public AdminOrderResponse cancel(UUID orderId, UUID userId, String reason) {
         Order order = findByIdForUser(orderId, userId);
 
-        if (order.getStatus() != Order.OrderStatus.PENDING && order.getStatus() != Order.OrderStatus.WAITING_FOR_VENDOR) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Can only cancel orders waiting for vendor confirmation");
+        if (order.getStatus() != Order.OrderStatus.PENDING
+                && order.getStatus() != Order.OrderStatus.WAITING_FOR_VENDOR) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Can only cancel orders waiting for vendor confirmation");
         }
 
         Order savedOrder = applyStatusUpdate(order, Order.OrderStatus.CANCELLED, null, null, reason, false);
@@ -1555,8 +1552,7 @@ public class OrderService {
                         "ADMIN_UPDATE_STATUS",
                         saved.getId(),
                         true,
-                        "Status " + safeEnumName(previousStatus) + " -> " + safeEnumName(status)
-                );
+                        "Status " + safeEnumName(previousStatus) + " -> " + safeEnumName(status));
             }
             return saved;
         } catch (RuntimeException ex) {
@@ -1568,8 +1564,7 @@ public class OrderService {
                         "ADMIN_UPDATE_STATUS",
                         orderId,
                         false,
-                        ex.getMessage()
-                );
+                        ex.getMessage());
             }
             throw ex;
         }
@@ -1585,8 +1580,7 @@ public class OrderService {
             Order.OrderStatus status,
             String trackingNumber,
             String carrier,
-            String reason
-    ) {
+            String reason) {
         Order order = findByIdForStore(orderId, storeId);
         return applyStatusUpdate(order, status, trackingNumber, carrier, reason, true);
     }
@@ -1598,8 +1592,7 @@ public class OrderService {
             Order.OrderStatus status,
             String trackingNumber,
             String carrier,
-            String reason
-    ) {
+            String reason) {
         Order updated = updateStatusForStore(orderId, storeId, status, trackingNumber, carrier, reason);
         return toVendorOrderDetailResponse(updated);
     }
@@ -1610,8 +1603,7 @@ public class OrderService {
             String trackingNumber,
             String carrier,
             String reason,
-            boolean enforceVendorRules
-    ) {
+            boolean enforceVendorRules) {
         Order.OrderStatus previousStatus = order.getStatus();
         String previousTrackingNumber = normalizeOptionalText(order.getTrackingNumber());
         String previousCarrier = normalizeOptionalText(order.getShippingCarrier());
@@ -1620,18 +1612,16 @@ public class OrderService {
         if (status == Order.OrderStatus.SHIPPED) {
             String normalizedTracking = "ADMIN_FORCE_SHIPPED";
             String normalizedCarrier = "SYSTEM_SYNC";
-            
+
             if (enforceVendorRules) {
                 normalizedTracking = resolveRequiredField(
                         trackingNumber,
                         order.getTrackingNumber(),
-                        "Tracking number is required before shipping"
-                );
+                        "Tracking number is required before shipping");
                 normalizedCarrier = resolveRequiredField(
                         carrier,
                         order.getShippingCarrier(),
-                        "Carrier is required before shipping"
-                );
+                        "Carrier is required before shipping");
             } else if (trackingNumber != null && !trackingNumber.isBlank()) {
                 normalizedTracking = trackingNumber.trim();
                 normalizedCarrier = carrier != null && !carrier.isBlank() ? carrier.trim() : "ADMIN_SYNC";
@@ -1718,17 +1708,19 @@ public class OrderService {
         return savedOrder;
     }
 
-    private boolean cascadeStatusToSubOrders(Order parentOrder, Order.OrderStatus status, String trackingNumber, String carrier, String reason) {
+    private boolean cascadeStatusToSubOrders(Order parentOrder, Order.OrderStatus status, String trackingNumber,
+            String carrier, String reason) {
         List<Order> subOrders = orderRepository.findByParentOrderOrderByCreatedAtDesc(parentOrder);
         if (subOrders == null || subOrders.isEmpty()) {
             return false;
         }
         for (Order subOrder : subOrders) {
-            if (subOrder.getStatus() == status) continue;
+            if (subOrder.getStatus() == status)
+                continue;
 
             String subTracking = trackingNumber == null ? "ADMIN_FORCE_" + status.name() : trackingNumber;
             String subCarrier = carrier == null ? "SYSTEM_SYNC" : carrier;
-            
+
             // Recurse without enforcing vendor rules (since Admin forced it)
             applyStatusUpdate(subOrder, status, subTracking, subCarrier, reason, false);
         }
@@ -1768,7 +1760,8 @@ public class OrderService {
                 if (variantProduct != null && variantProduct.getId() != null) {
                     Product lockedProduct = productRepository.findByIdForUpdate(variantProduct.getId()).orElse(null);
                     if (lockedProduct != null) {
-                        Long activeVariantStock = productVariantRepository.sumActiveStockByProductId(lockedProduct.getId());
+                        Long activeVariantStock = productVariantRepository
+                                .sumActiveStockByProductId(lockedProduct.getId());
                         int productStock = activeVariantStock == null ? 0 : Math.max(0, activeVariantStock.intValue());
                         lockedProduct.setStockQuantity(productStock);
                     }
@@ -1792,7 +1785,8 @@ public class OrderService {
         if (flashSaleItemRepository == null || item == null || item.getFlashSaleItemId() == null || quantity <= 0) {
             return;
         }
-        FlashSaleItem lockedFlashItem = flashSaleItemRepository.findByIdForUpdate(item.getFlashSaleItemId()).orElse(null);
+        FlashSaleItem lockedFlashItem = flashSaleItemRepository.findByIdForUpdate(item.getFlashSaleItemId())
+                .orElse(null);
         if (lockedFlashItem == null) {
             return;
         }
@@ -1801,7 +1795,8 @@ public class OrderService {
         flashSaleItemRepository.save(lockedFlashItem);
     }
 
-    private void validateStatusTransition(Order.OrderStatus current, Order.OrderStatus next, boolean enforceVendorRules) {
+    private void validateStatusTransition(Order.OrderStatus current, Order.OrderStatus next,
+            boolean enforceVendorRules) {
         if (current == next) {
             return;
         }
@@ -1821,8 +1816,7 @@ public class OrderService {
         if (!allowed) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    String.format("Invalid status transition: %s -> %s", current, next)
-            );
+                    String.format("Invalid status transition: %s -> %s", current, next));
         }
     }
 
@@ -1871,8 +1865,7 @@ public class OrderService {
         if (!TRACKING_UPDATABLE_STATUSES.contains(order.getStatus())) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Tracking can only be updated when order is PROCESSING or SHIPPED"
-            );
+                    "Tracking can only be updated when order is PROCESSING or SHIPPED");
         }
         String previousTracking = normalizeOptionalText(order.getTrackingNumber());
         order.setTrackingNumber(normalizeRequiredText(trackingNumber, "Tracking number is required"));
@@ -1889,14 +1882,12 @@ public class OrderService {
         if (order.isParentOrder()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Cannot update tracking for parent marketplace order"
-            );
+                    "Cannot update tracking for parent marketplace order");
         }
         if (order.getStatus() == Order.OrderStatus.CANCELLED) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Cannot update tracking for cancelled order"
-            );
+                    "Cannot update tracking for cancelled order");
         }
 
         String previousTracking = normalizeOptionalText(order.getTrackingNumber());
@@ -1922,10 +1913,10 @@ public class OrderService {
         var productMeta = firstItem != null
                 ? Stream.of(
                         firstItem.getVariantName() != null ? "Kích thước " + firstItem.getVariantName() : null,
-                        firstItem.getProductName() != null ? null : (firstItem.getProduct() != null ? firstItem.getProduct().getName() : null)
-                    )
-                    .filter(s -> s != null && !s.isBlank())
-                    .collect(Collectors.joining(" • "))
+                        firstItem.getProductName() != null ? null
+                                : (firstItem.getProduct() != null ? firstItem.getProduct().getName() : null))
+                        .filter(s -> s != null && !s.isBlank())
+                        .collect(Collectors.joining(" • "))
                 : null;
         var productExtra = items != null && items.size() > 1 ? "+" + (items.size() - 1) + " sản phẩm khác" : null;
 
@@ -2020,8 +2011,10 @@ public class OrderService {
 
             // Always resolve price server-side to prevent client-side price tampering.
             BigDecimal fallbackUnitPrice = resolveUnitPrice(product, variant);
-            FlashSaleAllocation flashSaleAllocation = tryApplyFlashSaleAllocation(product, variant, itemReq.getQuantity());
-            BigDecimal unitPrice = flashSaleAllocation.applied() ? flashSaleAllocation.flashUnitPrice() : fallbackUnitPrice;
+            FlashSaleAllocation flashSaleAllocation = tryApplyFlashSaleAllocation(product, variant,
+                    itemReq.getQuantity());
+            BigDecimal unitPrice = flashSaleAllocation.applied() ? flashSaleAllocation.flashUnitPrice()
+                    : fallbackUnitPrice;
             BigDecimal totalPrice = unitPrice.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
 
             preparedItems.add(new PreparedOrderItem(
@@ -2035,8 +2028,7 @@ public class OrderService {
                     buildVariantName(variant),
                     resolvePrimaryImage(product),
                     flashSaleAllocation.flashSaleItemId(),
-                    flashSaleAllocation.applied() ? flashSaleAllocation.flashUnitPrice() : null
-            ));
+                    flashSaleAllocation.applied() ? flashSaleAllocation.flashUnitPrice() : null));
         }
 
         return preparedItems;
@@ -2044,8 +2036,7 @@ public class OrderService {
 
     private List<CheckoutProductLine> resolveCheckoutProductLines(
             List<OrderRequest.OrderItemRequest> items,
-            UUID buyerStoreId
-    ) {
+            UUID buyerStoreId) {
         List<CheckoutProductLine> checkoutLines = new ArrayList<>();
 
         for (OrderRequest.OrderItemRequest itemReq : items) {
@@ -2138,16 +2129,14 @@ public class OrderService {
                     variant.getId(),
                     FlashSaleItem.ItemStatus.ACTIVE,
                     FlashSaleCampaign.CampaignStatus.RUNNING,
-                    now
-            ));
+                    now));
         }
         if (candidate == null) {
             candidate = firstOrNull(flashSaleItemRepository.findActiveProductItemForUpdate(
                     product.getId(),
                     FlashSaleItem.ItemStatus.ACTIVE,
                     FlashSaleCampaign.CampaignStatus.RUNNING,
-                    now
-            ));
+                    now));
         }
         if (candidate == null) {
             return FlashSaleAllocation.none();
@@ -2181,7 +2170,8 @@ public class OrderService {
 
         Map<UUID, StoreOrderGroup> result = new LinkedHashMap<>();
         for (Map.Entry<UUID, List<PreparedOrderItem>> entry : grouped.entrySet()) {
-            BigDecimal subtotal = entry.getValue().stream().map(PreparedOrderItem::totalPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal subtotal = entry.getValue().stream().map(PreparedOrderItem::totalPrice).reduce(BigDecimal.ZERO,
+                    BigDecimal::add);
             result.put(entry.getKey(), new StoreOrderGroup(entry.getKey(), entry.getValue(), subtotal));
         }
         return result;
@@ -2191,8 +2181,7 @@ public class OrderService {
             UUID userId,
             UUID customerVoucherId,
             String rawCode,
-            Map<UUID, StoreOrderGroup> groupedByStore
-    ) {
+            Map<UUID, StoreOrderGroup> groupedByStore) {
         if (customerVoucherId != null) {
             return resolveCustomerWalletVoucherDiscount(userId, customerVoucherId, groupedByStore);
         }
@@ -2218,8 +2207,7 @@ public class OrderService {
     private DiscountApplication resolveCustomerWalletVoucherDiscount(
             UUID userId,
             UUID customerVoucherId,
-            Map<UUID, StoreOrderGroup> groupedByStore
-    ) {
+            Map<UUID, StoreOrderGroup> groupedByStore) {
         if (customerVoucherRepository == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Customer voucher wallet is not available");
         }
@@ -2228,7 +2216,8 @@ public class OrderService {
         }
 
         CustomerVoucher walletVoucher = customerVoucherRepository.findByIdAndUserIdForUpdate(customerVoucherId, userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Customer voucher not found in wallet"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Customer voucher not found in wallet"));
 
         if (walletVoucher.getWalletStatus() != CustomerVoucher.WalletStatus.AVAILABLE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Customer voucher is no longer available");
@@ -2254,30 +2243,26 @@ public class OrderService {
                 byStore,
                 walletVoucher.getId(),
                 null,
-                voucher
-        );
+                voucher);
     }
 
     private DiscountApplication resolveVoucherDiscount(
             String normalizedCode,
-            Map<UUID, StoreOrderGroup> groupedByStore
-    ) {
+            Map<UUID, StoreOrderGroup> groupedByStore) {
         if (groupedByStore.isEmpty()) {
             return null;
         }
 
         List<Voucher> matchedVouchers = voucherRepository.findByCodeAndStoreIds(
                 normalizedCode,
-                groupedByStore.keySet()
-        );
+                groupedByStore.keySet());
         if (matchedVouchers.isEmpty()) {
             return null;
         }
         if (matchedVouchers.size() > 1) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Voucher code is duplicated across multiple stores in cart"
-            );
+                    "Voucher code is duplicated across multiple stores in cart");
         }
 
         Voucher voucher = matchedVouchers.get(0);
@@ -2299,8 +2284,7 @@ public class OrderService {
 
     private DiscountApplication resolveLegacyCouponDiscount(
             String normalizedCode,
-            Map<UUID, StoreOrderGroup> groupedByStore
-    ) {
+            Map<UUID, StoreOrderGroup> groupedByStore) {
         Coupon coupon = couponRepository.findByCode(normalizedCode).orElse(null);
         if (coupon == null) {
             return null;
@@ -2346,8 +2330,7 @@ public class OrderService {
         if (storeSubtotal.compareTo(minOrderValue) < 0) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Order does not meet minimum value required for this voucher"
-            );
+                    "Order does not meet minimum value required for this voucher");
         }
     }
 
@@ -2362,8 +2345,7 @@ public class OrderService {
 
     private Map<UUID, BigDecimal> allocateDiscountByStore(
             Map<UUID, StoreOrderGroup> groupedByStore,
-            BigDecimal totalDiscount
-    ) {
+            BigDecimal totalDiscount) {
         Map<UUID, BigDecimal> byStore = new LinkedHashMap<>();
         if (groupedByStore.isEmpty() || totalDiscount.compareTo(BigDecimal.ZERO) <= 0) {
             return byStore;
@@ -2460,10 +2442,10 @@ public class OrderService {
         }
 
         CustomerVoucher walletVoucher = customerVoucherRepository.findByIdAndUserIdForUpdate(
-                        rootOrder.getCustomerVoucherId(),
-                        userId
-                )
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "Customer voucher not found in wallet"));
+                rootOrder.getCustomerVoucherId(),
+                userId)
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.CONFLICT, "Customer voucher not found in wallet"));
 
         if (walletVoucher.getWalletStatus() == CustomerVoucher.WalletStatus.USED) {
             if (rootOrder.getId() != null && rootOrder.getId().equals(walletVoucher.getUsedOrderId())) {
@@ -2590,10 +2572,12 @@ public class OrderService {
             Order.PaymentMethod paymentMethod,
             List<PreparedOrderItem> preparedItems,
             Map<UUID, StoreOrderGroup> groupedByStore,
-            DiscountApplication discountApplication
-    ) {
-        BigDecimal subtotal = preparedItems.stream().map(PreparedOrderItem::totalPrice).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal shippingFee = groupedByStore.values().stream().map(this::calculateShippingFee).reduce(BigDecimal.ZERO, BigDecimal::add);
+            DiscountApplication discountApplication) {
+        BigDecimal subtotal = preparedItems.stream().map(PreparedOrderItem::totalPrice).reduce(BigDecimal.ZERO,
+                BigDecimal::add);
+        BigDecimal shippingFee = groupedByStore.values().stream()
+                .map(g -> this.calculateShippingFee(address, g))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         CommissionSnapshot parentCommission = aggregateCommissionSnapshot(groupedByStore.values());
         BigDecimal commissionFee = parentCommission.feeAmount();
 
@@ -2638,8 +2622,7 @@ public class OrderService {
                     group,
                     persistedParent,
                     discountApplication,
-                    storeDiscount
-            );
+                    storeDiscount);
         }
 
         return persistedParent;
@@ -2653,9 +2636,8 @@ public class OrderService {
             StoreOrderGroup group,
             Order parentOrder,
             DiscountApplication discountApplication,
-            BigDecimal preCalculatedDiscount
-    ) {
-        BigDecimal shippingFee = calculateShippingFee(group);
+            BigDecimal preCalculatedDiscount) {
+        BigDecimal shippingFee = calculateShippingFee(address, group);
         CommissionSnapshot commissionSnapshot = calculateCommissionSnapshot(group);
         BigDecimal commissionFee = commissionSnapshot.feeAmount();
         BigDecimal discount = preCalculatedDiscount;
@@ -2709,8 +2691,47 @@ public class OrderService {
                 .build();
     }
 
-    private BigDecimal calculateShippingFee(StoreOrderGroup group) {
-        return group.subtotal().compareTo(FREE_SHIPPING_THRESHOLD) >= 0 ? BigDecimal.ZERO : DEFAULT_SHIPPING_FEE;
+    private BigDecimal calculateShippingFee(Address address, StoreOrderGroup group) {
+        if (group.subtotal().compareTo(FREE_SHIPPING_THRESHOLD) >= 0) {
+            return BigDecimal.ZERO;
+        }
+
+        if (address != null && address.getGhnDistrictId() != null && address.getGhnWardCode() != null
+                && ghnService != null) {
+            Integer fromDistrictId = 1450;
+            try {
+                Store store = storeRepository.findById(group.storeId()).orElse(null);
+                if (store != null && store.getGhnDistrictId() != null) {
+                    fromDistrictId = store.getGhnDistrictId();
+                } else if (ghnService.getDefaultFromDistrictId() != null) {
+                    fromDistrictId = ghnService.getDefaultFromDistrictId();
+                }
+            } catch (Exception e) {
+                org.slf4j.LoggerFactory.getLogger(OrderService.class).warn(
+                        "Could not retrieve store warehouse address, using global default from district. Error: {}",
+                        e.getMessage());
+            }
+
+            int totalWeight = group.items().stream()
+                    .mapToInt(item -> item.quantity() * 300)
+                    .sum();
+            if (totalWeight <= 0) {
+                totalWeight = 500;
+            }
+
+            BigDecimal fee = ghnService.calculateShippingFee(
+                    fromDistrictId,
+                    address.getGhnDistrictId(),
+                    address.getGhnWardCode(),
+                    totalWeight,
+                    group.subtotal());
+
+            if (fee != null) {
+                return fee;
+            }
+        }
+
+        return DEFAULT_SHIPPING_FEE;
     }
 
     private BigDecimal calculateCommissionFee(StoreOrderGroup group) {
@@ -2832,8 +2853,7 @@ public class OrderService {
                 subOrder.getStoreId(),
                 subOrder.getOrderCode(),
                 paymentMethod,
-                message
-        ));
+                message));
     }
 
     private BigDecimal resolveUnitPrice(Product product, ProductVariant variant) {
@@ -2849,7 +2869,8 @@ public class OrderService {
             return null;
         }
         return product.getImages().stream()
-                .sorted((left, right) -> Boolean.compare(Boolean.TRUE.equals(right.getIsPrimary()), Boolean.TRUE.equals(left.getIsPrimary())))
+                .sorted((left, right) -> Boolean.compare(Boolean.TRUE.equals(right.getIsPrimary()),
+                        Boolean.TRUE.equals(left.getIsPrimary())))
                 .map(ProductImage::getUrl)
                 .findFirst()
                 .orElse(null);
@@ -2889,9 +2910,12 @@ public class OrderService {
         Order.OrderStatus aggregateStatus = deriveParentStatus(subOrders);
         parentOrder.setStatus(aggregateStatus);
 
-        boolean allDelivered = subOrders.stream().allMatch(subOrder -> subOrder.getStatus() == Order.OrderStatus.DELIVERED);
-        boolean allCancelled = subOrders.stream().allMatch(subOrder -> subOrder.getStatus() == Order.OrderStatus.CANCELLED);
-        boolean anyCancelled = subOrders.stream().anyMatch(subOrder -> subOrder.getStatus() == Order.OrderStatus.CANCELLED);
+        boolean allDelivered = subOrders.stream()
+                .allMatch(subOrder -> subOrder.getStatus() == Order.OrderStatus.DELIVERED);
+        boolean allCancelled = subOrders.stream()
+                .allMatch(subOrder -> subOrder.getStatus() == Order.OrderStatus.CANCELLED);
+        boolean anyCancelled = subOrders.stream()
+                .anyMatch(subOrder -> subOrder.getStatus() == Order.OrderStatus.CANCELLED);
 
         if (allDelivered) {
             parentOrder.setPaymentStatus(Order.PaymentStatus.PAID);
@@ -2923,7 +2947,8 @@ public class OrderService {
     }
 
     private Order.OrderStatus deriveParentStatus(List<Order> subOrders) {
-        boolean allCancelled = subOrders.stream().allMatch(subOrder -> subOrder.getStatus() == Order.OrderStatus.CANCELLED);
+        boolean allCancelled = subOrders.stream()
+                .allMatch(subOrder -> subOrder.getStatus() == Order.OrderStatus.CANCELLED);
         if (allCancelled) {
             return Order.OrderStatus.CANCELLED;
         }
@@ -2976,8 +3001,7 @@ public class OrderService {
                 Notification.NotificationType.ORDER,
                 title,
                 message,
-                buildOrderDetailLink(order)
-        );
+                buildOrderDetailLink(order));
     }
 
     private void notifyCustomerPaymentSuccess(Order order) {
@@ -2995,18 +3019,19 @@ public class OrderService {
                 Notification.NotificationType.ORDER,
                 title,
                 message,
-                buildOrderDetailLink(order)
-        );
+                buildOrderDetailLink(order));
     }
 
-    private void notifyCustomerOrderStatusChanged(Order order, Order.OrderStatus previousStatus, Order.OrderStatus currentStatus) {
+    private void notifyCustomerOrderStatusChanged(Order order, Order.OrderStatus previousStatus,
+            Order.OrderStatus currentStatus) {
         if (notificationDomainService == null || order == null || order.getUser() == null) {
             return;
         }
         if (order.getParentOrder() != null) {
             return;
         }
-        if (previousStatus == currentStatus || currentStatus == null || !CUSTOMER_NOTIFICATION_STATUSES.contains(currentStatus)) {
+        if (previousStatus == currentStatus || currentStatus == null
+                || !CUSTOMER_NOTIFICATION_STATUSES.contains(currentStatus)) {
             return;
         }
 
@@ -3018,8 +3043,7 @@ public class OrderService {
                 Notification.NotificationType.ORDER,
                 title,
                 message,
-                buildOrderDetailLink(order)
-        );
+                buildOrderDetailLink(order));
     }
 
     private String customerStatusTitle(Order order, Order.OrderStatus status) {
@@ -3039,7 +3063,8 @@ public class OrderService {
 
     private String customerStatusMessage(Order order, Order.OrderStatus status) {
         if (status == Order.OrderStatus.CANCELLED && hasVendorSlaCancelReason(order)) {
-            return "Đơn tự hủy do shop không xử lý quá " + vendorConfirmationSlaDays() + " ngày. Nếu đã thanh toán, hệ thống sẽ chuyển sang trạng thái chờ hoàn tiền.";
+            return "Đơn tự hủy do shop không xử lý quá " + vendorConfirmationSlaDays()
+                    + " ngày. Nếu đã thanh toán, hệ thống sẽ chuyển sang trạng thái chờ hoàn tiền.";
         }
         return switch (status) {
             case WAITING_FOR_VENDOR -> "Người bán sẽ xác nhận đơn của bạn trong thời gian sớm nhất.";
@@ -3085,9 +3110,9 @@ public class OrderService {
             String action,
             UUID targetId,
             boolean success,
-            String note
-    ) {
-        if (adminAuditLogService == null) return;
+            String note) {
+        if (adminAuditLogService == null)
+            return;
         adminAuditLogService.logAction(actorId, actorEmail, domain, action, targetId, success, note);
     }
 
@@ -3102,4 +3127,3 @@ public class OrderService {
         }
     }
 }
-

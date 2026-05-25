@@ -125,6 +125,11 @@ app:
         batch-size: ${APP_ORDER_VENDOR_CONFIRMATION_BATCH_SIZE:100}
         cron: ${APP_ORDER_VENDOR_CONFIRMATION_CRON:0 */15 * * * *}
 
+ghn:
+  api-url: ${GHN_API_URL:https://dev-online-gateway.ghn.vn/shiip/public-api}
+  token: ${GHN_API_TOKEN:}
+  default-from-district-id: ${GHN_DEFAULT_FROM_DISTRICT_ID:1450}
+
 springdoc:
   api-docs:
     enabled: ${APP_SWAGGER_ENABLED:false}

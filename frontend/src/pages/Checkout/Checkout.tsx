@@ -45,6 +45,22 @@ const Checkout = () => {
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
 
   const {
+    addressLocation,
+    formValues,
+    formErrors,
+    saveAddressToBook,
+    setSaveAddressToBook,
+    isAddressFromBook,
+    handleFieldChange,
+    handleProvinceChange,
+    handleDistrictChange,
+    handleWardChange,
+    handleAddressSelect,
+    validateForm,
+    resolveBackendAddress,
+  } = useCheckoutFormState();
+
+  const {
     checkoutItems,
     checkoutStoreIds,
     checkoutStoreKey,
@@ -60,6 +76,8 @@ const Checkout = () => {
     updateQuantity,
     removeFromCart,
     clearCart,
+    toDistrictCode: addressLocation.selectedDistrictCode,
+    toWardCode: addressLocation.selectedWardCode,
   });
 
   const {
@@ -83,22 +101,6 @@ const Checkout = () => {
     subtotal,
     addToast,
   });
-
-  const {
-    addressLocation,
-    formValues,
-    formErrors,
-    saveAddressToBook,
-    setSaveAddressToBook,
-    isAddressFromBook,
-    handleFieldChange,
-    handleProvinceChange,
-    handleDistrictChange,
-    handleWardChange,
-    handleAddressSelect,
-    validateForm,
-    resolveBackendAddress,
-  } = useCheckoutFormState();
 
   usePendingVnpayReconcile({ clearCartByMarker });
 
