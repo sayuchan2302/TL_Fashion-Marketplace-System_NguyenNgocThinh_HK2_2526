@@ -9,15 +9,18 @@ const t = CLIENT_TEXT.checkout;
 
 interface CheckoutStoreItemsListProps {
   checkoutItems: CartItem[];
+  subtotal: number;
   onRemoveItem: (cartId: string) => void;
   onQuantityChange: (cartId: string, delta: number) => void;
 }
 
-const CheckoutStoreItemsList = ({ checkoutItems, onRemoveItem, onQuantityChange }: CheckoutStoreItemsListProps) => (
+const CheckoutStoreItemsList = ({ checkoutItems, subtotal, onRemoveItem, onQuantityChange }: CheckoutStoreItemsListProps) => (
   <>
-    <div className="freeship-alert">
-      <Check size={18} /> {t.freeshipAlert}
-    </div>
+    {subtotal >= 500000 && (
+      <div className="freeship-alert">
+        <Check size={18} /> {t.freeshipAlert}
+      </div>
+    )}
 
     <div className="cart-header-actions">
       <span className="cart-item-count">{t.cartItemCount.replace('{count}', String(checkoutItems.length))}</span>

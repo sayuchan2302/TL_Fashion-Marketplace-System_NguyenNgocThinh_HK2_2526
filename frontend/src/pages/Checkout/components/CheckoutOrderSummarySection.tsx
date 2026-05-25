@@ -8,7 +8,7 @@ const t = CLIENT_TEXT.checkout;
 interface CheckoutOrderSummarySectionProps {
   appliedCoupon: CheckoutCoupon | null;
   subtotal: number;
-  shippingFee: number;
+  shippingFee: number | null;
   discount: number;
   total: number;
   savings: number;
@@ -25,7 +25,7 @@ const CheckoutOrderSummarySection = ({ appliedCoupon, subtotal, shippingFee, dis
 
     <div className="calc-row">
       <span className="calc-label">{t.shippingCost}</span>
-      <span>{shippingFee === 0 ? t.free : formatPrice(shippingFee)}</span>
+      <span>{shippingFee === null ? '---' : (shippingFee === 0 ? t.free : formatPrice(shippingFee))}</span>
     </div>
 
     {appliedCoupon && discount > 0 && (

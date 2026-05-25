@@ -111,7 +111,7 @@ const Checkout = () => {
     }
   }, [addToast, navigate]);
 
-  const total = subtotal + shippingFee - discount;
+  const total = subtotal + (shippingFee !== null ? shippingFee : 0) - discount;
 
   const handlePlaceOrder = useCallback(async (event?: { preventDefault?: () => void }) => {
     event?.preventDefault?.();
@@ -310,6 +310,7 @@ const Checkout = () => {
               <div className="checkout-summary-wrapper">
                 <CheckoutStoreItemsList
                   checkoutItems={checkoutItems}
+                  subtotal={subtotal}
                   onRemoveItem={handleRemoveItem}
                   onQuantityChange={handleQuantityChange}
                 />

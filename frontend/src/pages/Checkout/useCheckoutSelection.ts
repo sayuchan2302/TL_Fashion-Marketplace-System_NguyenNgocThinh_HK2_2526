@@ -14,7 +14,7 @@ import {
 export interface CheckoutStoreGroup extends Omit<StoreGroup, 'items' | 'subtotal' | 'shippingFee'> {
   items: CartItem[];
   subtotal: number;
-  shippingFee: number;
+  shippingFee: number | null;
 }
 
 interface UseCheckoutSelectionArgs {
@@ -61,11 +61,13 @@ export const useCheckoutSelection = ({
         }
 
         const subtotal = groupItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        let fee = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : DEFAULT_SHIPPING_FEE;
+        let fee: number | null = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : null;
 
         if (toDistrictCode && toWardCode && subtotal < FREE_SHIPPING_THRESHOLD) {
           if (group.storeId in dynamicFees) {
             fee = dynamicFees[group.storeId];
+          } else {
+            fee = DEFAULT_SHIPPING_FEE;
           }
         }
 
@@ -104,7 +106,16 @@ export const useCheckoutSelection = ({
   );
 
   const shippingFee = useMemo(
-    () => storeGroups.reduce((sum, group) => sum + group.shippingFee, 0),
+    () => {
+      let totalFee = 0;
+      for (const group of storeGroups) {
+        if (group.shippingFee === null) {
+          return null;
+        }
+        totalFee += group.shippingFee;
+      }
+      return totalFee;
+    },
     [storeGroups],
   );
 
