@@ -67,6 +67,7 @@ const Checkout = () => {
     storeSubtotals,
     subtotal,
     shippingFee,
+    isCalculatingShipping,
     clearCartByMarker,
     handleQuantityChange,
     handleRemoveItem,
@@ -119,6 +120,11 @@ const Checkout = () => {
     const errors = validateForm();
     if (Object.keys(errors).length > 0) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (isCalculatingShipping || shippingFee === null) {
+      addToast('Đang tính phí vận chuyển, vui lòng chờ trong giây lát.', 'error');
       return;
     }
 
@@ -267,10 +273,12 @@ const Checkout = () => {
     clearCartByMarker,
     consumeAppliedCoupon,
     formValues,
+    isCalculatingShipping,
     navigate,
     paymentMethod,
     resolveBackendAddress,
     saveAddressToBook,
+    shippingFee,
     validateForm,
   ]);
 
@@ -345,8 +353,8 @@ const Checkout = () => {
             appliedCoupon={appliedCoupon}
             total={total}
             savings={savings}
-            isLoading={isLoading}
-            disabled={checkoutItems.length === 0}
+            isLoading={isLoading || isCalculatingShipping}
+            disabled={checkoutItems.length === 0 || shippingFee === null}
             onPlaceOrder={handlePlaceOrderClick}
           />
 

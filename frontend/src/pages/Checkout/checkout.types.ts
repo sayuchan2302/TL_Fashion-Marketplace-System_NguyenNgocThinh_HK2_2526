@@ -9,6 +9,9 @@ export interface BackendAddressPayload {
   district?: string;
   province?: string;
   isDefault?: boolean;
+  ghnProvinceId?: number | null;
+  ghnDistrictId?: number | null;
+  ghnWardCode?: string | null;
 }
 
 export interface FormErrors {

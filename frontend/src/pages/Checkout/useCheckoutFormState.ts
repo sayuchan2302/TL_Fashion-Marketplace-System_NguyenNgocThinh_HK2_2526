@@ -131,6 +131,20 @@ export const useCheckoutFormState = () => {
 
   const resolveBackendAddress = useCallback(async () => {
     const normalizedPhone = normalizeVietnamesePhone(formValues.phone);
+    const ghnProvinceId = selectedProvinceCode ? Number(selectedProvinceCode) : undefined;
+    const ghnDistrictId = selectedDistrictCode ? Number(selectedDistrictCode) : undefined;
+    const ghnWardCode = selectedWardCode || undefined;
+    const addressPayload = {
+      fullName: formValues.name.trim(),
+      phone: normalizedPhone,
+      detail: formValues.address.trim(),
+      ward: formValues.ward.trim(),
+      district: formValues.district.trim(),
+      province: formValues.province.trim(),
+      ghnProvinceId,
+      ghnDistrictId,
+      ghnWardCode,
+    };
     const addresses = await apiRequest<BackendAddressPayload[]>('/api/addresses', {}, { auth: true });
     const matching = addresses.find((address) =>
       (address.fullName || '').trim() === formValues.name.trim() &&
@@ -142,22 +156,28 @@ export const useCheckoutFormState = () => {
     );
 
     if (matching) {
+      const hasGhnSelection = ghnProvinceId !== undefined && ghnDistrictId !== undefined && Boolean(ghnWardCode);
+      const needsGhnSync = hasGhnSelection && (
+        Number(matching.ghnProvinceId || 0) !== ghnProvinceId ||
+        Number(matching.ghnDistrictId || 0) !== ghnDistrictId ||
+        (matching.ghnWardCode || '') !== ghnWardCode
+      );
+
+      if (needsGhnSync) {
+        return apiRequest<BackendAddressPayload>(`/api/addresses/${matching.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(addressPayload),
+        }, { auth: true });
+      }
+
       return matching;
     }
 
     return apiRequest<BackendAddressPayload>('/api/addresses', {
       method: 'POST',
       body: JSON.stringify({
-        fullName: formValues.name.trim(),
-        phone: normalizedPhone,
-        detail: formValues.address.trim(),
-        ward: formValues.ward.trim(),
-        district: formValues.district.trim(),
-        province: formValues.province.trim(),
+        ...addressPayload,
         isDefault: false,
-        ghnProvinceId: selectedProvinceCode ? Number(selectedProvinceCode) : undefined,
-        ghnDistrictId: selectedDistrictCode ? Number(selectedDistrictCode) : undefined,
-        ghnWardCode: selectedWardCode || undefined,
       }),
     }, { auth: true });
   }, [formValues, selectedDistrictCode, selectedProvinceCode, selectedWardCode]);

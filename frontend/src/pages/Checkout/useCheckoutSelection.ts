@@ -17,6 +17,8 @@ export interface CheckoutStoreGroup extends Omit<StoreGroup, 'items' | 'subtotal
   shippingFee: number | null;
 }
 
+type ShippingCalculationGroup = Omit<CheckoutStoreGroup, 'shippingFee'>;
+
 interface UseCheckoutSelectionArgs {
   items: CartItem[];
   groupedByStore: () => StoreGroup[];
@@ -51,35 +53,39 @@ export const useCheckoutSelection = ({
     return items.filter((item) => selectedSet.has(item.cartId));
   }, [hasExplicitSelection, items, selectedCartIds]);
 
-  const storeGroups = useMemo(() => {
+  const shippingCalculationGroups = useMemo(() => {
     const selectedSet = new Set(checkoutItems.map((item) => item.cartId));
     return groupedByStore()
-      .map((group) => {
+      .flatMap((group): ShippingCalculationGroup[] => {
         const groupItems = group.items.filter((item) => selectedSet.has(item.cartId));
         if (groupItems.length === 0) {
-          return null;
+          return [];
         }
 
         const subtotal = groupItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        let fee: number | null = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : null;
 
-        if (toDistrictCode && toWardCode && subtotal < FREE_SHIPPING_THRESHOLD) {
-          if (group.storeId in dynamicFees) {
-            fee = dynamicFees[group.storeId];
-          } else {
-            fee = DEFAULT_SHIPPING_FEE;
-          }
-        }
-
-        return {
+        return [{
           ...group,
           items: groupItems,
           subtotal,
-          shippingFee: fee,
-        } satisfies CheckoutStoreGroup;
-      })
-      .filter((group): group is CheckoutStoreGroup => Boolean(group));
-  }, [checkoutItems, groupedByStore, dynamicFees, toDistrictCode, toWardCode]);
+        }];
+      });
+  }, [checkoutItems, groupedByStore]);
+
+  const storeGroups = useMemo(() => (
+    shippingCalculationGroups.map((group) => {
+      let fee: number | null = group.subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : null;
+
+      if (toDistrictCode && toWardCode && group.subtotal < FREE_SHIPPING_THRESHOLD) {
+        fee = group.storeId in dynamicFees ? dynamicFees[group.storeId] : DEFAULT_SHIPPING_FEE;
+      }
+
+      return {
+        ...group,
+        shippingFee: fee,
+      } satisfies CheckoutStoreGroup;
+    })
+  ), [dynamicFees, shippingCalculationGroups, toDistrictCode, toWardCode]);
 
   const checkoutStoreIds = useMemo(
     () => Array.from(new Set(
@@ -120,7 +126,7 @@ export const useCheckoutSelection = ({
   );
 
   useEffect(() => {
-    if (!toDistrictCode || !toWardCode || storeGroups.length === 0) {
+    if (!toDistrictCode || !toWardCode || shippingCalculationGroups.length === 0) {
       setDynamicFees({});
       return;
     }
@@ -132,7 +138,7 @@ export const useCheckoutSelection = ({
 
       try {
         await Promise.all(
-          storeGroups.map(async (group) => {
+          shippingCalculationGroups.map(async (group) => {
             if (group.subtotal >= FREE_SHIPPING_THRESHOLD) {
               nextFees[group.storeId] = 0;
               return;
@@ -180,7 +186,7 @@ export const useCheckoutSelection = ({
     return () => {
       isMounted = false;
     };
-  }, [toDistrictCode, toWardCode, checkoutStoreKey]);
+  }, [toDistrictCode, toWardCode, shippingCalculationGroups]);
 
   const clearCartByMarker = useCallback((cartIds: string[]) => {
     const selected = Array.from(new Set(cartIds.map((value) => value.trim()).filter(Boolean)));
