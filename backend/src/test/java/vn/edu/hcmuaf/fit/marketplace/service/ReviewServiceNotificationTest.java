@@ -58,8 +58,7 @@ class ReviewServiceNotificationTest {
                 userRepository,
                 orderRepository,
                 storeRepository,
-                notificationDomainService
-        );
+                notificationDomainService);
     }
 
     @Test
@@ -81,7 +80,7 @@ class ReviewServiceNotificationTest {
         assertEquals(Notification.NotificationType.REVIEW, call.type());
         assertEquals("Shop đã phản hồi đánh giá của bạn", call.title());
         assertEquals("Đánh giá cho sản phẩm Áo khoác đã có phản hồi mới.", call.message());
-        assertEquals("/profile?tab=reviews", call.link());
+        assertEquals("/product/" + review.getProduct().getId() + "?reviewId=" + review.getId(), call.link());
     }
 
     @Test
@@ -102,7 +101,7 @@ class ReviewServiceNotificationTest {
         assertEquals(Notification.NotificationType.REVIEW, call.type());
         assertEquals("Hệ thống đã phản hồi đánh giá của bạn", call.title());
         assertEquals("Đánh giá cho sản phẩm Áo khoác đã có phản hồi mới.", call.message());
-        assertEquals("/profile?tab=reviews", call.link());
+        assertEquals("/product/" + review.getProduct().getId() + "?reviewId=" + review.getId(), call.link());
     }
 
     @Test
@@ -116,8 +115,7 @@ class ReviewServiceNotificationTest {
                 storeId,
                 customerId,
                 Review.ReviewStatus.APPROVED,
-                "Shop phản hồi trước đó"
-        );
+                "Shop phản hồi trước đó");
         when(reviewRepository.findById(reviewId)).thenReturn(Optional.of(review));
         when(reviewRepository.save(any(Review.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -148,8 +146,7 @@ class ReviewServiceNotificationTest {
             UUID storeId,
             UUID customerId,
             Review.ReviewStatus status,
-            String existingReply
-    ) {
+            String existingReply) {
         User customer = User.builder()
                 .id(customerId)
                 .email("customer@test.local")
@@ -182,8 +179,8 @@ class ReviewServiceNotificationTest {
             Notification.NotificationType type,
             String title,
             String message,
-            String link
-    ) {}
+            String link) {
+    }
 
     private static final class CapturingNotificationDomainService extends NotificationDomainService {
         private final List<NotificationInvocation> invocations = new ArrayList<>();
@@ -198,8 +195,7 @@ class ReviewServiceNotificationTest {
                 Notification.NotificationType type,
                 String title,
                 String message,
-                String link
-        ) {
+                String link) {
             invocations.add(new NotificationInvocation(userId, type, title, message, link));
             return null;
         }
