@@ -6927,8 +6927,25 @@ textarea:focus-visible {
     width: 100%;
     justify-content: center;
   }
-
   .image-vision-last-search {
     white-space: normal;
   }
+}
+
+/* Custom Admin Links */
+.admin-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: var(--admin-font-strong);
+  transition: color 0.15s ease-in-out;
+}
+
+.admin-link:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+/* Ensure the URL cell truncates cleanly */
+.image-vision-url-cell {
+  max-width: 250px;
 }

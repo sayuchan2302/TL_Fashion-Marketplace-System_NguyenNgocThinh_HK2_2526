@@ -96,7 +96,7 @@ public class AdminVisionService {
                 .jobId(emptyToDefault(payload.jobId(), "manual-" + Instant.now().toEpochMilli()))
                 .status(VisionSyncRun.Status.RUNNING)
                 .startedAt(parseInstant(payload.startedAt(), Instant.now()))
-                .message("Dang dong bo catalog")
+                .message("Đang đồng bộ catalog")
                 .build();
         syncRunRepository.save(run);
         return getOverview();
@@ -157,7 +157,7 @@ public class AdminVisionService {
         run.setStatus(VisionSyncRun.Status.SUCCESS);
         run.setFinishedAt(parseInstant(job.finishedAt(), Instant.now()));
         run.setDurationMs(resolveDurationMs(run));
-        run.setMessage("Dong bo catalog hoan tat");
+        run.setMessage("Đồng bộ catalog hoàn tất");
         run.setError(null);
     }
 
@@ -191,7 +191,7 @@ public class AdminVisionService {
                 .imageUrl(valueAsString(failure.get("image_url")))
                 .reason(reason)
                 .note(emptyToDefault(valueAsString(failure.get("error")),
-                        "Khong co mo ta loi"))
+                        "Không có mô tả lỗi"))
                 .status(failureStatus(reason))
                 .build();
     }
@@ -227,17 +227,17 @@ public class AdminVisionService {
             Optional<VisionAdminClient.ReadyPayload> ready) {
         if (health.isEmpty()) {
             return healthItem("engine", "Vision Engine", "Down",
-                    "Khong goi duoc vision-engine tai " + safeBaseUrl(),
+                    "Không gọi được vision-engine tại " + safeBaseUrl(),
                     "down");
         }
         if (!Boolean.TRUE.equals(ready.map(VisionAdminClient.ReadyPayload::ready)
                 .orElse(false))) {
             return healthItem("engine", "Vision Engine", "Not ready",
-                    "Service phan hoi nhung model hoac database chua san sang",
+                    "Service phản hồi nhưng model hoặc database chưa sẵn sàng",
                     "warning");
         }
         return healthItem("engine", "Vision Engine", "Ready",
-                "Service " + safeBaseUrl() + " san sang nhan search",
+                "Service " + safeBaseUrl() + " sẵn sàng nhận search",
                 "ready");
     }
 
@@ -245,12 +245,12 @@ public class AdminVisionService {
             Optional<VisionAdminClient.ReadyPayload> ready) {
         if (ready.isEmpty()) {
             return healthItem("database", "Vector DB", "Unknown",
-                    "Khong kiem tra duoc ket noi pgvector tu vision-engine",
+                    "Không kiểm tra được kết nối pgvector từ vision-engine",
                     "down");
         }
         if (!Boolean.TRUE.equals(ready.get().ready())) {
             return healthItem("database", "Vector DB", "Not ready",
-                    "Vision readiness chua xac nhan duoc database/model",
+                    "Vision readiness chưa xác nhận được database/model",
                     "warning");
         }
         return healthItem("database", "Vector DB", "Connected",
@@ -260,21 +260,21 @@ public class AdminVisionService {
     private AdminVisionOverviewResponse.HealthItem buildBackendConfigHealth() {
         if (!visionSearchProperties.isEnabled()) {
             return healthItem("backend", "Backend Vision", "Disabled",
-                    "APP_VISION_ENABLED dang tat", "down");
+                    "APP_VISION_ENABLED đang tắt", "down");
         }
         if (visionSearchProperties.getBaseUrl() == null
                 || visionSearchProperties.getBaseUrl().isBlank()) {
             return healthItem("backend", "Backend Vision", "Missing base URL",
-                    "APP_VISION_BASE_URL chua duoc cau hinh", "down");
+                    "APP_VISION_BASE_URL chưa được cấu hình", "down");
         }
         if (visionSearchProperties.getInternalSecret() == null
                 || visionSearchProperties.getInternalSecret().isBlank()) {
             return healthItem("backend", "Backend Vision", "Missing secret",
-                    "APP_VISION_INTERNAL_SECRET chua duoc cau hinh",
+                    "APP_VISION_INTERNAL_SECRET chưa được cấu hình",
                     "warning");
         }
         return healthItem("backend", "Backend Vision", "Enabled",
-                "Public image search dang bat qua marketplace API", "ready");
+                "Public image search đang bật qua marketplace API", "ready");
     }
 
     private AdminVisionOverviewResponse.HealthItem buildCatalogHealth(
@@ -282,22 +282,22 @@ public class AdminVisionService {
             List<AdminVisionOverviewResponse.SyncFailure> failures) {
         if ("syncing".equals(syncSummary.getStatus())) {
             return healthItem("catalog", "Catalog Guard", "Syncing",
-                    "Dang dong bo anh san pham sang vector index", "warning");
+                    "Đang đồng bộ ảnh sản phẩm sang vector index", "warning");
         }
         if ("error".equals(syncSummary.getStatus())) {
             return healthItem("catalog", "Catalog Guard", "Sync error",
                     emptyToDefault(syncSummary.getMessage(),
-                            "Lan dong bo gan nhat bi loi"),
+                            "Lần đồng bộ gần nhất bị lỗi"),
                     "down");
         }
         if (!failures.isEmpty()) {
             return healthItem("catalog", "Catalog Guard",
-                    failures.size() + " canh bao",
-                    "Mot so anh bi bo qua hoac loi khi sync catalog",
+                    failures.size() + " cảnh báo",
+                    "Một số ảnh bị bỏ qua hoặc lỗi khi sync catalog",
                     "warning");
         }
         return healthItem("catalog", "Catalog Guard", "Clean",
-                "Chua ghi nhan loi sync catalog gan day",
+                "Chưa ghi nhận lỗi sync catalog gần đây",
                 "ready");
     }
 
@@ -309,7 +309,8 @@ public class AdminVisionService {
         return AdminVisionOverviewResponse.IndexSummary.builder()
                 .modelName(index == null ? "unknown" : emptyToDefault(index.modelName(), "unknown"))
                 .modelPretrained(index == null ? "unknown" : emptyToDefault(index.modelPretrained(), "unknown"))
-                .embeddingDimension(index == null || index.embeddingDimension() == null ? 0 : index.embeddingDimension())
+                .embeddingDimension(
+                        index == null || index.embeddingDimension() == null ? 0 : index.embeddingDimension())
                 .activeImageCount(index == null ? 0L : nullToZero(index.activeImageCount()))
                 .activeProductCount(index == null ? 0L : nullToZero(index.activeProductCount()))
                 .indexVersion(indexVersion)
@@ -379,7 +380,7 @@ public class AdminVisionService {
                 .skippedUnchanged(0L)
                 .failedImages(0L)
                 .deactivatedRows(0L)
-                .message("Chua chay sync catalog")
+                .message("Chưa chạy sync catalog")
                 .build();
     }
 
@@ -460,7 +461,7 @@ public class AdminVisionService {
     }
 
     private String safeBaseUrl() {
-        return emptyToDefault(visionSearchProperties.getBaseUrl(), "chua cau hinh");
+        return emptyToDefault(visionSearchProperties.getBaseUrl(), "chưa cấu hình");
     }
 
     private String valueAsString(Object value) {

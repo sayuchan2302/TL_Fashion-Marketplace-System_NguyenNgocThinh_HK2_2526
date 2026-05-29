@@ -1,5 +1,6 @@
 import './Admin.css';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Activity,
   AlertTriangle,
@@ -211,13 +212,13 @@ const AdminImageVision = () => {
     setSyncState('syncing');
     setOverview((current) => current
       ? {
-          ...current,
-          syncSummary: {
-            ...current.syncSummary,
-            status: 'syncing',
-            message: 'Đang đồng bộ catalog',
-          },
-        }
+        ...current,
+        syncSummary: {
+          ...current.syncSummary,
+          status: 'syncing',
+          message: 'Đang đồng bộ catalog',
+        },
+      }
       : current);
 
     try {
@@ -463,7 +464,15 @@ const AdminImageVision = () => {
                 <div className="image-vision-empty-row">Chưa có lỗi sync gần đây.</div>
               ) : data.failures.map((failure) => (
                 <div className="admin-table-row image-vision-failure-row" role="row" key={`${failure.productId}-${failure.reason}-${failure.imageUrl}`}>
-                  <div role="cell" className="admin-bold">{failure.productId || 'unknown'}</div>
+                  <div role="cell" className="admin-bold">
+                    {failure.productId ? (
+                      <Link to={`/admin/products?search=${failure.productId}`} className="admin-bold admin-link">
+                        {failure.productId}
+                      </Link>
+                    ) : (
+                      'unknown'
+                    )}
+                  </div>
                   <div role="cell">
                     <span className={`image-vision-pill ${failure.status}`}>{failure.status}</span>
                   </div>
