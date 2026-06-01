@@ -17,6 +17,9 @@ WORKDIR /app
 # Copy the built jar from Stage 1
 COPY --from=build /app/target/*.jar app.jar
 
+# Copy database seed directories for GapProductImportRunner
+COPY --from=build /app/src/main/resources/product /app/backend/src/main/resources/product
+
 # Spring Boot Environment Variables configuration
 ENV JAVA_OPTS="-Xms256m -Xmx384m -XX:ActiveProcessorCount=1 -Djava.security.egd=file:/dev/./urandom"
 ENV SPRING_PROFILES_ACTIVE=prod

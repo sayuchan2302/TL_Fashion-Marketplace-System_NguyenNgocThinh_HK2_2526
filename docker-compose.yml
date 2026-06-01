@@ -72,6 +72,8 @@ services:
       - MicrosoftAppTenantId=${MicrosoftAppTenantId:-00000000-0000-0000-0000-000000000000}
       - MicrosoftAppType=${MicrosoftAppType:-SingleTenant}
       - AZURE_BOT_AUTH_ENABLED=${AZURE_BOT_AUTH_ENABLED:-false}
+      - APP_SEED_ENABLED=${APP_SEED_ENABLED:-false}
+      - APP_SEED_GAP_ENABLED=${APP_SEED_GAP_ENABLED:-false}
     expose:
       - "8080"
     depends_on:
