@@ -64,27 +64,32 @@ newgrp docker
 ## BƯỚC 3: Đồng Bộ Mã Nguồn Lên VPS & Tạo File Môi Trường `.env`
 
 1. Clone git hoặc copy toàn bộ thư mục project (`backend`, `frontend`, `vision-engine`, `nginx`, `docker-compose.yml`) lên thư mục nào đó trên VPS (ví dụ `/home/ubuntu/fashion-ecommerce`).
-2. Tại thư mục gốc của dự án trên VPS, bạn tạo tệp tin `.env` để bảo mật thông tin:
+2. Tại thư mục gốc của dự án trên VPS, bạn copy-paste toàn bộ khối lệnh dưới đây và bấm Enter để tự động tạo tệp tin `.env`:
    ```bash
-   nano .env
-   ```
-3. Copy và dán nội dung cấu hình sau vào `.env` (thay thế các thông tin bí mật thực tế của bạn):
-   ```ini
-   # Database configuration
+   cat << 'EOF' > .env
+   # Database configuration (chạy PostgreSQL container)
    DB_NAME=marketplace
    DB_USER=postgres
-   DB_PASSWORD=YOUR_STRONG_PASSWORD_HERE
+   DB_PASSWORD=phomac_strong_db_pass_2026
 
-   # Payment gateways Sandbox
+   # JWT Security Signature (ít nhất 32 ký tự ngẫu nhiên)
+   JWT_SECRET=change_me_to_a_long_random_string_at_least_32_chars
+
+   # Vision AI Internal Secret
+   APP_VISION_INTERNAL_SECRET=your_vision_secret
+
+   # Payment gateways Sandbox (MoMo)
    MOMO_PARTNER_CODE=your_momo_partner_code
    MOMO_ACCESS_KEY=your_momo_access_key
    MOMO_SECRET_KEY=your_momo_secret_key
+
+   # Payment gateways Sandbox (VNPAY)
    VNPAY_TMN_CODE=your_vnpay_tmn_code
    VNPAY_HASH_SECRET=your_vnpay_hash_secret
 
-   # Shipping providers Sandbox
+   # Shipping providers Sandbox (Giao Hàng Nhanh)
    GHN_TOKEN=your_ghn_api_token
-   GHN_CLIENT_ID=your_ghn_client_id
+   EOF
    ```
 
 ---

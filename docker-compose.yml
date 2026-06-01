@@ -50,18 +50,28 @@ services:
     container_name: marketplace-backend
     restart: always
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/${DB_NAME:-marketplace}
-      - SPRING_DATASOURCE_USERNAME=${DB_USER:-postgres}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-your_db_password}
+      - DB_URL=jdbc:postgresql://db:5432/${DB_NAME:-marketplace}
+      - DB_USERNAME=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-your_db_password}
+      - JWT_SECRET=${JWT_SECRET:-change_me_to_a_long_random_string_at_least_32_chars}
+      - APP_CORS_ALLOWED_ORIGINS=http://pho-mac.bond,https://pho-mac.bond,http://www.pho-mac.bond,https://www.pho-mac.bond
+      - APP_FRONTEND_BASE_URL=https://pho-mac.bond
       - APP_VISION_BASE_URL=http://ai-service:8001
       - APP_VISION_ENABLED=true
+      - APP_VISION_INTERNAL_SECRET=${APP_VISION_INTERNAL_SECRET:-your_vision_secret}
       - MO_MO_PARTNER_CODE=${MOMO_PARTNER_CODE}
       - MO_MO_ACCESS_KEY=${MOMO_ACCESS_KEY}
       - MO_MO_SECRET_KEY=${MOMO_SECRET_KEY}
-      - VN_PAY_TMN_CODE=${VNPAY_TMN_CODE}
-      - VN_PAY_HASH_SECRET=${VNPAY_HASH_SECRET}
+      - MOMO_RETURN_URL=https://pho-mac.bond/payment-result
+      - VNPAY_TMN_CODE=${VNPAY_TMN_CODE}
+      - VNPAY_HASH_SECRET=${VNPAY_HASH_SECRET}
+      - VNPAY_RETURN_URL=https://pho-mac.bond/payment-result
       - GHN_API_TOKEN=${GHN_TOKEN}
-      - GHN_CLIENT_CLIENT_ID=${GHN_CLIENT_ID}
+      - MicrosoftAppId=${MicrosoftAppId:-00000000-0000-0000-0000-000000000000}
+      - MicrosoftAppPassword=${MicrosoftAppPassword:-dummy-secret}
+      - MicrosoftAppTenantId=${MicrosoftAppTenantId:-00000000-0000-0000-0000-000000000000}
+      - MicrosoftAppType=${MicrosoftAppType:-SingleTenant}
+      - AZURE_BOT_AUTH_ENABLED=${AZURE_BOT_AUTH_ENABLED:-false}
     expose:
       - "8080"
     depends_on:
