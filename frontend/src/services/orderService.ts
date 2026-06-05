@@ -94,7 +94,6 @@ interface BackendOrderTreeSubOrder {
   status?: string;
   totalAmount?: number;
   trackingNumber?: string;
-  warehouseNote?: string;
   createdAt?: string;
   updatedAt?: string;
   vendorConfirmationDeadlineAt?: string;
@@ -177,6 +176,7 @@ const backendStatusToClientStatus = (status?: string): ClientOrderStatus => {
     case 'SHIPPED':
       return 'shipping';
     case 'DELIVERED':
+    case 'RETURNING':
       return 'delivered';
     case 'CANCELLED':
       return 'cancelled';
@@ -361,9 +361,6 @@ const mapBackendOrderTreeToShared = (order: BackendOrderTreeResponse): SharedOrd
     }));
 
   const firstTracking = subOrders.find((subOrder) => Boolean(subOrder.trackingNumber))?.trackingNumber || '';
-  const delayNotes = subOrders
-    .map((subOrder) => subOrder.warehouseNote || '')
-    .filter((value) => Boolean(value && value.trim()));
 
   return {
     id: order.id,
@@ -377,7 +374,7 @@ const mapBackendOrderTreeToShared = (order: BackendOrderTreeResponse): SharedOrd
     address: formatBackendAddress(order.shippingAddress),
     shipMethod: 'Marketplace delivery',
     tracking: firstTracking,
-    note: delayNotes.length > 0 ? delayNotes.join(' | ') : '',
+    note: '',
     paymentMethod: order.paymentMethod || 'COD',
     paymentStatus: backendPaymentStatusToClient(order.paymentStatus, order.paymentMethod),
     fulfillment: clientStatusToFulfillment(backendStatusToClientStatus(order.status)),

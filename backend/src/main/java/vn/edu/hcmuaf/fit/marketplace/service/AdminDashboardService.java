@@ -51,8 +51,7 @@ public class AdminDashboardService {
             VoucherRepository voucherRepository,
             ReturnRequestRepository returnRequestRepository,
             CategoryRepository categoryRepository,
-            ProductRepository productRepository
-    ) {
+            ProductRepository productRepository) {
         this.orderRepository = orderRepository;
         this.storeRepository = storeRepository;
         this.userRepository = userRepository;
@@ -68,7 +67,7 @@ public class AdminDashboardService {
         long lockedUsers = userRepository.countByIsActiveFalse();
         long totalCustomers = userRepository.countByRole(User.Role.CUSTOMER);
         long runningCampaigns = voucherRepository.countByStatus(Voucher.VoucherStatus.RUNNING);
-        long pendingReturns = returnRequestRepository.countByStatus(ReturnRequest.ReturnStatus.DISPUTED);
+        long pendingReturns = returnRequestRepository.countByStatus(ReturnRequest.ReturnStatus.DISPUTING);
         long categoriesNeedReview = categoryRepository.countByIsVisibleFalse();
         long parentOrdersNeedAttention = countParentOrdersNeedAttention();
 
@@ -140,10 +139,10 @@ public class AdminDashboardService {
         List<Order.OrderStatus> queueStatuses = List.of(
                 Order.OrderStatus.PENDING,
                 Order.OrderStatus.CONFIRMED,
-                Order.OrderStatus.PROCESSING
-        );
+                Order.OrderStatus.PROCESSING);
 
-        return orderRepository.findParentOrdersByStatusInOrderByCreatedAtAsc(queueStatuses, PageRequest.of(0, PARENT_QUEUE_LIMIT))
+        return orderRepository
+                .findParentOrdersByStatusInOrderByCreatedAtAsc(queueStatuses, PageRequest.of(0, PARENT_QUEUE_LIMIT))
                 .stream()
                 .map(order -> {
                     long waitMinutes = order.getCreatedAt() == null

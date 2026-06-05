@@ -569,7 +569,6 @@ const Header = () => {
           <Link to="/wishlist" onClick={closeMobileMenu}><Heart size={18} /> Yêu thích {wishlistCount > 0 && `(${wishlistCount})`}</Link>
           <Link to={isAuthenticated ? '/profile?tab=orders' : '/login'} onClick={closeMobileMenu}><Search size={18} /> Đơn hàng</Link>
           <Link to="/order-tracking" onClick={closeMobileMenu}><Search size={18} /> Theo dõi đơn</Link>
-          <Link to="/returns" onClick={closeMobileMenu}><Search size={18} /> Đổi / Trả hàng</Link>
         </div>
       </div>
       <HeaderImageSearchModal

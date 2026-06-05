@@ -40,6 +40,15 @@ const ProductActions = ({ product, selectedColor, selectedSize }: ProductActions
   const isWished = isInWishlist(String(product.id));
 
   const handleBuyNow = async (e: React.MouseEvent) => {
+    // Trigger animation immediately for instant feedback
+    const mainImg = document.querySelector('.gallery-main-image .main-image') as HTMLImageElement | null;
+    triggerAnimation({
+      imgSrc: product.image,
+      imageRect: mainImg?.getBoundingClientRect() || null,
+      fallbackPoint: { x: e.clientX, y: e.clientY },
+    });
+    setAdded(true);
+
     const localVariantId = product.variants?.find((variant) => (
       variant.color.toLowerCase() === selectedColor.toLowerCase()
       && variant.size.toLowerCase() === selectedSize.toLowerCase()
@@ -55,10 +64,12 @@ const ProductActions = ({ product, selectedColor, selectedSize }: ProductActions
 
     if (!purchaseReference.backendProductId) {
       addToast('Sản phẩm chưa đồng bộ backend, vui lòng thử lại.', 'error');
+      setAdded(false);
       return;
     }
     if (!purchaseReference.backendVariantId && (purchaseReference.activeVariantCount || 0) > 1) {
       addToast('Vui lòng chọn đúng màu/size trước khi thêm vào giỏ.', 'error');
+      setAdded(false);
       return;
     }
 
@@ -77,13 +88,6 @@ const ProductActions = ({ product, selectedColor, selectedSize }: ProductActions
       isOfficialStore: product.isOfficialStore,
       quantity,
     });
-    const mainImg = document.querySelector('.gallery-main-image .main-image') as HTMLImageElement | null;
-    triggerAnimation({
-      imgSrc: product.image,
-      imageRect: mainImg?.getBoundingClientRect() || null,
-      fallbackPoint: { x: e.clientX, y: e.clientY },
-    });
-    setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
 

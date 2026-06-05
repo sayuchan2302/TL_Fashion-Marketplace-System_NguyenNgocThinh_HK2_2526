@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { vendorProductService, type VendorProductRecord } from '../../services/vendorProductService';
 import { getUiErrorMessage } from '../../utils/errorMessage';
 import type { ToastType } from '../../contexts/ToastContext';
-import type { DeleteConfirmState } from './vendorProducts.types';
+import type { DeleteConfirmState, VisibilityConfirmState } from './vendorProducts.types';
 
 interface UseVendorProductBulkActionsOptions {
   products: VendorProductRecord[];
@@ -23,6 +23,7 @@ export const useVendorProductBulkActions = ({
 }: UseVendorProductBulkActionsOptions) => {
   const [working, setWorking] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirmState | null>(null);
+  const [visibilityConfirm, setVisibilityConfirm] = useState<VisibilityConfirmState | null>(null);
 
   const applyVisibility = useCallback(async (ids: string[], visible: boolean) => {
     const allowedIds = ids.filter((id) => products.some((product) => product.id === id && product.canToggleVisibility && product.status !== 'banned'));
@@ -31,11 +32,26 @@ export const useVendorProductBulkActions = ({
       return;
     }
 
+    if (!visible) {
+      const items = products.filter((product) => allowedIds.includes(product.id));
+      setVisibilityConfirm({
+        ids: allowedIds,
+        visible,
+        selectedItems: items.map((item) => item.name),
+        title: allowedIds.length > 1 ? 'Ẩn các sản phẩm đã chọn' : 'Ẩn sản phẩm',
+        description: allowedIds.length > 1
+          ? 'Các sản phẩm này sẽ bị ẩn khỏi cửa hàng và không thể tìm thấy bởi người mua.'
+          : 'Sản phẩm này sẽ bị ẩn khỏi cửa hàng và không thể tìm thấy bởi người mua.',
+        confirmLabel: allowedIds.length > 1 ? 'Ẩn sản phẩm' : 'Ẩn ngay',
+      });
+      return;
+    }
+
     setWorking(true);
     try {
       await Promise.all(allowedIds.map((id) => vendorProductService.setVisibility(id, visible)));
       clearSelection();
-      pushToast(visible ? 'Đã mở hiển thị các sản phẩm đã chọn' : 'Đã ẩn các sản phẩm đã chọn');
+      pushToast('Đã mở hiển thị các sản phẩm đã chọn');
       await loadProducts();
     } catch (error: unknown) {
       addToast(getUiErrorMessage(error, 'Không thể cập nhật trạng thái hiển thị'), 'error');
@@ -43,6 +59,25 @@ export const useVendorProductBulkActions = ({
       setWorking(false);
     }
   }, [addToast, clearSelection, loadProducts, products, pushToast]);
+
+  const confirmVisibility = useCallback(async () => {
+    if (!visibilityConfirm) {
+      return;
+    }
+
+    setWorking(true);
+    try {
+      await Promise.all(visibilityConfirm.ids.map((id) => vendorProductService.setVisibility(id, visibilityConfirm.visible)));
+      clearSelection();
+      pushToast(visibilityConfirm.visible ? 'Đã mở hiển thị các sản phẩm đã chọn' : 'Đã ẩn các sản phẩm đã chọn');
+      setVisibilityConfirm(null);
+      await loadProducts();
+    } catch (error: unknown) {
+      addToast(getUiErrorMessage(error, 'Không thể cập nhật trạng thái hiển thị'), 'error');
+    } finally {
+      setWorking(false);
+    }
+  }, [addToast, clearSelection, loadProducts, pushToast, visibilityConfirm]);
 
   const requestDelete = useCallback((ids: string[]) => {
     const items = products.filter((product) => ids.includes(product.id) && product.status !== 'banned');
@@ -90,7 +125,10 @@ export const useVendorProductBulkActions = ({
     working,
     deleteConfirm,
     setDeleteConfirm,
+    visibilityConfirm,
+    setVisibilityConfirm,
     applyVisibility,
+    confirmVisibility,
     requestDelete,
     confirmDelete,
   };

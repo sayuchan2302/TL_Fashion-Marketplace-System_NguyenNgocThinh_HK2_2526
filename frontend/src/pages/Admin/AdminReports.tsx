@@ -1,5 +1,5 @@
 import './Admin.css';
-import { Eye, ShieldBan, CheckCircle2 } from 'lucide-react';
+import { Eye, Ban, CheckCircle2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import AdminLayout from './AdminLayout';
@@ -412,7 +412,7 @@ const AdminReports = ({ withinProductGovernance = false }: AdminReportsProps) =>
                                                         aria-label={`Chặn sản phẩm ${report.productName}`}
                                                         onClick={() => setProcessTarget({ id: report.id, name: report.productName, action: 'BAN' })}
                                                     >
-                                                        <ShieldBan size={16} />
+                                                        <Ban size={16} />
                                                     </button>
                                                     <button
                                                         type="button"
@@ -646,7 +646,7 @@ const AdminReports = ({ withinProductGovernance = false }: AdminReportsProps) =>
                                         className="admin-ghost-btn danger"
                                         onClick={() => setProcessTarget({ id: drawerReport.id, name: drawerReport.productName, action: 'BAN' })}
                                     >
-                                        <ShieldBan size={16} /> Cấm SP
+                                        <Ban size={16} /> Cấm SP
                                     </button>
                                 </div>
                             )}

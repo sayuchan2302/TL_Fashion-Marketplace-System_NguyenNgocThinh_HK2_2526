@@ -201,12 +201,11 @@ const AdminReviews = () => {
       try {
         const updated = await adminReviewService.hide(id);
         setAllReviews((prev) => prev.map((item) => (item.id === id ? updated : item)));
-        pushToast('Đã ẩn đánh giá.');
       } catch {
-        pushToast('Không thể ẩn đánh giá.');
+        // silently fail
       }
     },
-    [pushToast],
+    [],
   );
 
   const confirmDelete = useCallback(async () => {
@@ -214,17 +213,16 @@ const AdminReviews = () => {
     try {
       await Promise.all(deleteTarget.ids.map((id) => adminReviewService.delete(id)));
       setAllReviews((prev) => prev.filter((item) => !deleteTarget.ids.includes(item.id)));
-      pushToast('Đã xóa đánh giá.');
       if (drawerReview && deleteTarget.ids.includes(drawerReview.id)) {
         setDrawerReview(null);
       }
     } catch {
-      pushToast('Lỗi khi xóa đánh giá.');
+      // silently fail
     } finally {
       setSelected(new Set());
       setDeleteTarget(null);
     }
-  }, [deleteTarget, drawerReview, pushToast]);
+  }, [deleteTarget, drawerReview]);
 
   const resetCurrentView = () => {
     view.resetCurrentView();

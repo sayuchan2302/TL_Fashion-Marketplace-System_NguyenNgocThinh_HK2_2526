@@ -411,7 +411,7 @@ const VendorDashboard = () => {
                         onClick={() => void handleConfirmOrder(order)}
                         disabled={updatingId === order.id}
                       >
-                        {updatingId === order.id ? 'Đang xử lý...' : 'Xác nhận đơn'}
+                        {updatingId === order.id ? 'Đang xử lý...' : 'Xác nhận'}
                       </button>
                     )}
                     <Link

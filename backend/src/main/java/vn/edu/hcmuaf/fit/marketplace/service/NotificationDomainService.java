@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
@@ -84,7 +85,7 @@ public class NotificationDomainService {
         notificationRepository.delete(notification);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public NotificationResponse createAndPush(
             UUID userId,
             Notification.NotificationType type,
@@ -95,7 +96,7 @@ public class NotificationDomainService {
         return createAndPushInternal(userId, type, title, message, link, true);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public NotificationResponse createAndPushStrict(
             UUID userId,
             Notification.NotificationType type,

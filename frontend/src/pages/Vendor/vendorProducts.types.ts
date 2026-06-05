@@ -15,6 +15,15 @@ export interface DeleteConfirmState {
   confirmLabel: string;
 }
 
+export interface VisibilityConfirmState {
+  ids: string[];
+  visible: boolean;
+  selectedItems: string[];
+  title: string;
+  description: string;
+  confirmLabel: string;
+}
+
 export interface ProductFormState {
   id?: string;
   slug?: string;

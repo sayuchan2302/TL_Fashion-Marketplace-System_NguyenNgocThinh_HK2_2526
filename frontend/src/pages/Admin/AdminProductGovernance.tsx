@@ -417,7 +417,7 @@ const AdminProductGovernance = () => {
                       </button>
                       {product.approvalStatus === 'BANNED' ? (
                         <button
-                          className="admin-icon-btn subtle moderation-icon-approve"
+                          className="admin-icon-btn subtle moderation-icon-approve success-icon"
                           title="Gỡ chặn"
                           onClick={() => {
                             void handleUnblock(product);
@@ -485,7 +485,7 @@ const AdminProductGovernance = () => {
                       </button>
                       {product.approvalStatus === 'BANNED' ? (
                         <button
-                          className="admin-icon-btn subtle moderation-icon-approve"
+                          className="admin-icon-btn subtle moderation-icon-approve success-icon"
                           title="Gỡ chặn"
                           aria-label="Gỡ chặn"
                           onClick={() => {

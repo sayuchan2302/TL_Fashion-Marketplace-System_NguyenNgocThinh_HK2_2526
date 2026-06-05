@@ -470,7 +470,7 @@ const AdminUsers = () => {
           ) : (
             <>
               <div className="admin-table admin-responsive-table" role="table" aria-label="Bảng người dùng hệ sinh thái">
-<div className="admin-table-row users admin-table-head" role="row">
+                <div className="admin-table-row users admin-table-head" role="row">
                   <div role="columnheader">
                     <input
                       type="checkbox"
@@ -539,7 +539,7 @@ const AdminUsers = () => {
                         {canManageUser(user) &&
                           (user.status === 'LOCKED' ? (
                             <button
-                              className="admin-icon-btn subtle"
+                              className="admin-icon-btn subtle success-icon"
                               title="Mở khóa tài khoản"
                               aria-label="Mở khóa tài khoản"
                               onClick={() => openConfirm('unlock', [user.id])}
@@ -601,7 +601,7 @@ const AdminUsers = () => {
                       </button>
                       {canManageUser(user) &&
                         (user.status === 'LOCKED' ? (
-                          <button className="admin-icon-btn subtle" title="Mở khóa tài khoản" aria-label="Mở khóa tài khoản" onClick={() => openConfirm('unlock', [user.id])}>
+                          <button className="admin-icon-btn subtle success-icon" title="Mở khóa tài khoản" aria-label="Mở khóa tài khoản" onClick={() => openConfirm('unlock', [user.id])}>
                             <CheckCircle2 size={16} />
                           </button>
                         ) : (

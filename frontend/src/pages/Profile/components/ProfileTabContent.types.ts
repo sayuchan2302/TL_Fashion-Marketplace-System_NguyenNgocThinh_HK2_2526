@@ -43,9 +43,10 @@ export interface ProfileTabContentProps {
   orderPage: number;
   ordersPerPage: number;
   onOrderPageChange: ProfilePageChangeHandler;
-  orderStatusLabelMap: Record<string, string>;
+  orderStatusLabelMap?: Record<string, string>;
   onOpenOrderDetail: (order: Order) => void;
   onRequestCancelOrder: (orderId: string) => void;
+  onRequestCancelReturn: (returnId: string) => void;
   onOpenReturnDrawer: (order: Order) => void;
   onOpenReviewForOrder: (order: Order) => void;
   vouchers: CustomerWalletVoucher[];

@@ -32,12 +32,10 @@ const Footer = () => {
         <div className="footer-column">
           <h3 className="footer-title">CHÍNH SÁCH MUA HÀNG</h3>
           <ul className="footer-links">
-            <li><Link to="/policy/doi-tra">Chính sách đổi trả 60 ngày</Link></li>
             <li><Link to="/policy/khuyen-mai">Chính sách khuyến mãi</Link></li>
             <li><Link to="/policy/bao-mat">Chính sách bảo mật</Link></li>
             <li><Link to="/policy/giao-hang">Chính sách giao hàng</Link></li>
             <li><Link to="/order-tracking">Theo dõi đơn hàng</Link></li>
-            <li><Link to="/returns">Đổi/Trả hàng</Link></li>
             <li><Link to="/payment-result?status=pending">Kết quả thanh toán</Link></li>
           </ul>
         </div>

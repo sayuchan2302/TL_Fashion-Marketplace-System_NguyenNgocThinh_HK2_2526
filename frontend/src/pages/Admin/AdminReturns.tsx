@@ -1,7 +1,8 @@
 ﻿import './Admin.css';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Eye, ShieldAlert, XCircle } from 'lucide-react';
+import { CheckCircle2, Eye, ShieldAlert, XCircle, X } from 'lucide-react';
 import AdminLayout from './AdminLayout';
 import AdminConfirmDialog from './AdminConfirmDialog';
 import { AdminStateBlock } from './AdminStateBlocks';
@@ -23,13 +24,12 @@ import { ADMIN_VIEW_KEYS } from './adminListView';
 import { useAdminViewState } from './useAdminViewState';
 
 const statusConfig: Record<ReturnStatus, { label: string; pillClass: string }> = {
-  PENDING_VENDOR: { label: 'Chờ vendor xử lý', pillClass: 'admin-pill pending' },
-  ACCEPTED: { label: 'Đã chấp nhận', pillClass: 'admin-pill neutral' },
-  SHIPPING: { label: 'Đang hoàn gửi', pillClass: 'admin-pill neutral' },
-  RECEIVED: { label: 'Vendor đang kiểm', pillClass: 'admin-pill warning' },
-  COMPLETED: { label: 'Đã hoàn tiền', pillClass: 'admin-pill success' },
-  REJECTED: { label: 'Từ chối', pillClass: 'admin-pill error' },
-  DISPUTED: { label: 'Tranh chấp', pillClass: 'admin-pill error' },
+  REQUESTED: { label: 'Chờ lấy hàng', pillClass: 'admin-pill neutral' },
+  IN_TRANSIT: { label: 'Đang vận chuyển', pillClass: 'admin-pill neutral' },
+  DELIVERED_TO_SELLER: { label: 'Chờ vendor xử lý (48h)', pillClass: 'admin-pill pending' },
+  REFUND_SUCCESS: { label: 'Đã hoàn tiền', pillClass: 'admin-pill success' },
+  DISPUTING: { label: 'Tranh chấp', pillClass: 'admin-pill error' },
+  RETURN_REJECTED: { label: 'Từ chối', pillClass: 'admin-pill error' },
   CANCELLED: { label: 'Đã hủy', pillClass: 'admin-pill neutral' },
 };
 
@@ -60,11 +60,11 @@ const PAGE_SIZE = 8;
 
 const TAB_STATUS_MAP: Record<TabKey, ReturnStatus[] | undefined> = {
   all: undefined,
-  disputed: ['DISPUTED'],
-  pendingVendor: ['PENDING_VENDOR'],
-  inProgress: ['ACCEPTED', 'SHIPPING', 'RECEIVED'],
-  completed: ['COMPLETED'],
-  rejected: ['REJECTED'],
+  disputed: ['DISPUTING'],
+  pendingVendor: ['DELIVERED_TO_SELLER'],
+  inProgress: ['REQUESTED', 'IN_TRANSIT'],
+  completed: ['REFUND_SUCCESS'],
+  rejected: ['RETURN_REJECTED', 'CANCELLED'],
 };
 
 const formatVnd = (value: number) =>
@@ -117,6 +117,14 @@ const getInitials = (name: string) => {
   if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 };
+
+const resolveEvidenceUrl = (path?: string) => {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+  return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+};
+
 const AdminReturns = () => {
   const { pushToast } = useAdminToast();
   const [rows, setRows] = useState<ReturnRequest[]>([]);
@@ -128,6 +136,7 @@ const AdminReturns = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [drawerItem, setDrawerItem] = useState<ReturnRequest | null>(null);
   const [drawerNote, setDrawerNote] = useState('');
+  const [activeEnlargedImage, setActiveEnlargedImage] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [verdictConfirm, setVerdictConfirm] = useState<VerdictConfirmState | null>(null);
   const view = useAdminViewState({
@@ -149,11 +158,11 @@ const AdminReturns = () => {
     try {
       const [all, disputed, pendingVendor, inProgress, completed, rejected] = await Promise.all([
         returnService.listAdmin({ page: 0, size: 1 }),
-        returnService.listAdmin({ status: 'DISPUTED', page: 0, size: 1 }),
-        returnService.listAdmin({ status: 'PENDING_VENDOR', page: 0, size: 1 }),
-        returnService.listAdmin({ statuses: ['ACCEPTED', 'SHIPPING', 'RECEIVED'], page: 0, size: 1 }),
-        returnService.listAdmin({ status: 'COMPLETED', page: 0, size: 1 }),
-        returnService.listAdmin({ status: 'REJECTED', page: 0, size: 1 }),
+        returnService.listAdmin({ statuses: ['DISPUTING'], page: 0, size: 1 }),
+        returnService.listAdmin({ statuses: ['DELIVERED_TO_SELLER'], page: 0, size: 1 }),
+        returnService.listAdmin({ statuses: ['REQUESTED', 'IN_TRANSIT'], page: 0, size: 1 }),
+        returnService.listAdmin({ statuses: ['REFUND_SUCCESS'], page: 0, size: 1 }),
+        returnService.listAdmin({ statuses: ['RETURN_REJECTED', 'CANCELLED'], page: 0, size: 1 }),
       ]);
 
       setTabCounts({
@@ -398,7 +407,7 @@ const AdminReturns = () => {
                 {rows.map((item, index) => (
                   <motion.div
                     key={item.id}
-                    className={`admin-table-row returns-row returns-grid ${item.status === 'DISPUTED' ? 'returns-row-disputed' : ''}`}
+                    className={`admin-table-row returns-row returns-grid ${item.status === 'DISPUTING' ? 'returns-row-disputed' : ''}`}
                     role="row"
                     whileHover={{ y: -1 }}
                     onClick={() => setDrawerItem(item)}
@@ -461,23 +470,23 @@ const AdminReturns = () => {
                       <button className="admin-icon-btn subtle" title="Xem chi tiết" onClick={() => setDrawerItem(item)}>
                         <Eye size={16} />
                       </button>
-                      {item.status === 'DISPUTED' && (
+                      {item.status === 'DISPUTING' && (
                         <>
                           <button
-                            className="admin-icon-btn subtle"
+                            className="admin-icon-btn subtle danger-icon"
                             title="Hoàn tiền cho khách"
                             disabled={actionLoading}
                             onClick={() => openVerdictConfirm(item, 'REFUND_TO_CUSTOMER')}
                           >
-                            <CheckCircle2 size={16} />
+                            <XCircle size={16} />
                           </button>
                           <button
-                            className="admin-icon-btn subtle danger-icon"
+                            className="admin-icon-btn subtle success-icon"
                             title="Giữ tiền cho vendor"
                             disabled={actionLoading}
                             onClick={() => openVerdictConfirm(item, 'RELEASE_TO_VENDOR')}
                           >
-                            <XCircle size={16} />
+                            <CheckCircle2 size={16} />
                           </button>
                         </>
                       )}
@@ -522,25 +531,25 @@ const AdminReturns = () => {
                         <Eye size={16} />
                         Xem chi tiết
                       </button>
-                      {item.status === 'DISPUTED' && (
+                      {item.status === 'DISPUTING' && (
                         <>
                           <button
-                            className="admin-icon-btn subtle"
+                            className="admin-icon-btn subtle danger-icon"
                             title="Hoàn tiền cho khách"
                             aria-label="Hoàn tiền cho khách"
                             disabled={actionLoading}
                             onClick={() => openVerdictConfirm(item, 'REFUND_TO_CUSTOMER')}
                           >
-                            <CheckCircle2 size={16} />
+                            <XCircle size={16} />
                           </button>
                           <button
-                            className="admin-icon-btn subtle danger-icon"
+                            className="admin-icon-btn subtle success-icon"
                             title="Giữ tiền cho vendor"
                             aria-label="Giữ tiền cho vendor"
                             disabled={actionLoading}
                             onClick={() => openVerdictConfirm(item, 'RELEASE_TO_VENDOR')}
                           >
-                            <XCircle size={16} />
+                            <CheckCircle2 size={16} />
                           </button>
                         </>
                       )}
@@ -575,7 +584,7 @@ const AdminReturns = () => {
         {drawerItem ? (
           <>
             <PanelDrawerHeader
-              eyebrow={drawerItem.status === 'DISPUTED' ? 'Tranh chấp cần phán quyết' : 'Yêu cầu hoàn trả'}
+              eyebrow={drawerItem.status === 'DISPUTING' ? 'Tranh chấp cần phán quyết' : 'Yêu cầu hoàn trả'}
               title={toDisplayReturnCode(drawerItem.code)}
               onClose={() => {
                 setDrawerItem(null);
@@ -630,58 +639,167 @@ const AdminReturns = () => {
                 </div>
               </PanelDrawerSection>
 
-              <PanelDrawerSection title="Lý do & diễn biến">
-                <div className="returns-reason-box" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div className="admin-card-row" style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-                    <span className="admin-bold" style={{ fontWeight: 700, color: '#0f172a' }}>Lý do từ khách hàng:</span>
-                    <span className="admin-muted" style={{ color: '#475569' }}>{reasonLabel[drawerItem.reason] || drawerItem.reason}</span>
-                  </div>
-                  <div className="admin-card-row" style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-                    <span className="admin-bold" style={{ fontWeight: 700, color: '#0f172a' }}>Ghi chú bổ sung từ khách:</span>
-                    <p className="admin-muted" style={{ color: '#475569', fontSize: '13px', whiteSpace: 'pre-wrap', margin: 0 }}>{drawerItem.note?.trim() || 'Không có ghi chú bổ sung'}</p>
-                  </div>
-                  <div className="admin-card-row" style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-                    <span className="admin-bold" style={{ fontWeight: 700, color: '#0f172a' }}>Lý do từ chối từ vendor:</span>
-                    <p className="admin-muted" style={{ color: '#475569', fontSize: '13px', whiteSpace: 'pre-wrap', margin: 0 }}>{drawerItem.vendorReason?.trim() || 'Chưa phản hồi lý do'}</p>
-                  </div>
-                  <div className="admin-card-row" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span className="admin-bold" style={{ fontWeight: 700, color: '#0f172a' }}>Lý do tranh chấp từ khách:</span>
-                    <p className="admin-muted" style={{ color: '#475569', fontSize: '13px', whiteSpace: 'pre-wrap', margin: 0 }}>{drawerItem.disputeReason?.trim() || 'Chưa khai báo tranh chấp'}</p>
-                  </div>
-                </div>
-              </PanelDrawerSection>
-
               {drawerItem.items.length > 0 && (
                 <PanelDrawerSection title={`Sản phẩm trả lại (${drawerItemCount})`}>
                   <div className="returns-items-list">
                     {drawerItem.items.map((item) => (
-                      <article key={item.orderItemId} className="returns-item-card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#ffffff', marginBottom: '8px' }}>
-                        {item.imageUrl ? (
-                          <img src={item.imageUrl} alt={item.productName} className="returns-item-image" style={{ width: '48px', height: '48px', borderRadius: '8px', border: '1px solid #e2e8f0', objectFit: 'cover', flexShrink: 0 }} />
-                        ) : (
-                          <div className="returns-item-image placeholder" style={{ width: '48px', height: '48px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', color: '#94a3b8', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>SP</div>
-                        )}
-                        <div className="returns-item-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                          <strong className="returns-item-name returns-ellipsis" style={{ fontSize: '13px', color: '#0f172a', fontWeight: 700 }}>{item.productName}</strong>
-                          {item.variantName ? (
-                            <small className="admin-muted" style={{ fontSize: '11px', color: '#64748b' }}>{item.variantName}</small>
-                          ) : null}
-                          <div className="returns-item-meta" style={{ display: 'flex', gap: '12px', fontSize: '12px', marginTop: '4px' }}>
-                            <span style={{ color: '#64748b' }}>Số lượng: <strong>x{item.quantity}</strong></span>
-                            <span style={{ color: '#64748b' }}>Đơn giá: <strong>{formatVnd(item.unitPrice)}</strong></span>
-                            <span style={{ color: '#0f172a', marginLeft: 'auto', fontWeight: 800 }}>Tạm tính: {formatVnd(item.unitPrice * item.quantity)}</span>
+                      <article key={item.orderItemId} className="returns-item-card" style={{ display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'stretch', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#ffffff', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt={item.productName} className="returns-item-image" style={{ width: '64px', height: '64px', borderRadius: '8px', border: '1px solid #e2e8f0', objectFit: 'cover', flexShrink: 0 }} />
+                          ) : (
+                            <div className="returns-item-image placeholder" style={{ width: '64px', height: '64px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', color: '#94a3b8', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>SP</div>
+                          )}
+                          <div className="returns-item-content" style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                            <strong className="returns-item-name returns-ellipsis" style={{ fontSize: '14px', color: '#0f172a', fontWeight: 700 }}>{item.productName}</strong>
+                            {item.variantName ? (
+                              <small className="admin-muted" style={{ fontSize: '11px', color: '#64748b' }}>{item.variantName}</small>
+                            ) : null}
+                            <div className="returns-item-meta" style={{ display: 'flex', gap: '16px', fontSize: '13px', marginTop: '6px' }}>
+                              <span style={{ color: '#64748b' }}>Số lượng: <strong>x{item.quantity}</strong></span>
+                              <span style={{ color: '#64748b' }}>Đơn giá: <strong>{formatVnd(item.unitPrice)}</strong></span>
+                            </div>
                           </div>
-                          {item.evidenceUrl ? (
-                            <a className="admin-link" href={item.evidenceUrl} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#3b82f6', textDecoration: 'underline', width: 'fit-content', marginTop: '6px' }}>
-                              Xem evidence từ khách
-                            </a>
-                          ) : null}
                         </div>
+                        {item.evidenceUrl ? (
+                          <div style={{ marginTop: '6px', borderTop: '1px dashed #e2e8f0', paddingTop: '10px' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '8px' }}>
+                              Ảnh minh chứng sản phẩm (bấm để xem lớn):
+                            </span>
+                            <div
+                              onClick={() => setActiveEnlargedImage(resolveEvidenceUrl(item.evidenceUrl))}
+                              style={{
+                                width: '80px',
+                                height: '80px',
+                                borderRadius: '8px',
+                                overflow: 'hidden',
+                                border: '1px solid #cbd5e1',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                              }}
+                              className="returns-evidence-thumbnail-hover"
+                            >
+                              <img
+                                src={resolveEvidenceUrl(item.evidenceUrl)}
+                                alt="Product Evidence Thumbnail"
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover',
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ) : null}
                       </article>
                     ))}
                   </div>
                 </PanelDrawerSection>
               )}
+
+
+              <PanelDrawerSection title="Khách hàng khiếu nại">
+                <div className="returns-reason-box" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div className="admin-card-row" style={{ display: 'block', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px', lineHeight: '1.6' }}>
+                    <span className="admin-bold" style={{ fontWeight: 700, color: '#0f172a', marginRight: '6px', fontSize: '13px' }}>Lý do từ khách hàng:</span>
+                    <span className="admin-muted" style={{ color: '#475569', fontSize: '13px' }}>{reasonLabel[drawerItem.reason] || drawerItem.reason}</span>
+                  </div>
+                  <div className="admin-card-row" style={{ display: 'block', lineHeight: '1.6' }}>
+                    <span className="admin-bold" style={{ fontWeight: 700, color: '#0f172a', marginRight: '6px', fontSize: '13px' }}>Ghi chú bổ sung từ khách:</span>
+                    <span className="admin-muted" style={{ color: '#475569', fontSize: '13px', whiteSpace: 'pre-wrap' }}>{drawerItem.note?.trim() || 'Không có ghi chú bổ sung'}</span>
+                  </div>
+
+                  {drawerItem.items.some((item) => item.evidenceUrl) && (
+                    <div style={{ marginTop: '4px', borderTop: '1px dashed #cbd5e1', paddingTop: '10px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '8px' }}>
+                        Ảnh minh chứng của khách hàng (bấm để xem lớn):
+                      </span>
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        {drawerItem.items.map((item, idx) =>
+                          item.evidenceUrl ? (
+                            <div
+                              key={idx}
+                              onClick={() => setActiveEnlargedImage(resolveEvidenceUrl(item.evidenceUrl))}
+                              style={{
+                                width: '80px',
+                                height: '80px',
+                                borderRadius: '8px',
+                                overflow: 'hidden',
+                                border: '1px solid #cbd5e1',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                              }}
+                              className="returns-evidence-thumbnail-hover"
+                            >
+                              <img
+                                src={resolveEvidenceUrl(item.evidenceUrl)}
+                                alt="Customer Evidence Thumbnail"
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover',
+                                }}
+                              />
+                            </div>
+                          ) : null
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </PanelDrawerSection>
+
+              {(drawerItem.vendorReason || drawerItem.disputeReason || drawerItem.disputeEvidenceUrl) && (
+                <PanelDrawerSection title="Vendor phản hồi & Tố cáo">
+                  <div className="returns-reason-box" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#f8fafc', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {drawerItem.vendorReason && (
+                      <div className="admin-card-row" style={{ display: 'block', lineHeight: '1.6', borderBottom: (drawerItem.disputeReason || drawerItem.disputeEvidenceUrl) ? '1px solid #e2e8f0' : 'none', paddingBottom: (drawerItem.disputeReason || drawerItem.disputeEvidenceUrl) ? '8px' : '0' }}>
+                        <span className="admin-bold" style={{ fontWeight: 700, color: '#0f172a', marginRight: '6px', fontSize: '13px' }}>Lý do từ chối từ vendor:</span>
+                        <span className="admin-muted" style={{ color: '#475569', fontSize: '13px', whiteSpace: 'pre-wrap' }}>{drawerItem.vendorReason}</span>
+                      </div>
+                    )}
+                    {drawerItem.disputeReason && (
+                      <div className="admin-card-row" style={{ display: 'block', lineHeight: '1.6' }}>
+                        <span className="admin-bold" style={{ fontWeight: 700, color: '#0f172a', marginRight: '6px', fontSize: '13px' }}>Lý do tố cáo từ vendor:</span>
+                        <span className="admin-muted" style={{ color: '#475569', fontSize: '13px', whiteSpace: 'pre-wrap' }}>{drawerItem.disputeReason}</span>
+                      </div>
+                    )}
+
+                    {drawerItem.disputeEvidenceUrl && (
+                      <div style={{ marginTop: '4px', borderTop: '1px dashed #cbd5e1', paddingTop: '10px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '8px' }}>
+                          Ảnh minh chứng tố cáo từ vendor (bấm để xem lớn):
+                        </span>
+                        <div
+                          onClick={() => setActiveEnlargedImage(resolveEvidenceUrl(drawerItem.disputeEvidenceUrl))}
+                          style={{
+                            width: '80px',
+                            height: '80px',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            border: '1px solid #cbd5e1',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          className="returns-evidence-thumbnail-hover"
+                        >
+                          <img
+                            src={resolveEvidenceUrl(drawerItem.disputeEvidenceUrl)}
+                            alt="Vendor Evidence Thumbnail"
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </PanelDrawerSection>
+              )}
+
+
 
               <PanelDrawerSection title="Ghi chú trọng tài">
                 <div className="returns-note-box" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fffbeb', borderLeft: '4px solid #f59e0b', padding: '12px', marginBottom: '14px' }}>
@@ -715,23 +833,23 @@ const AdminReturns = () => {
                 Đóng
               </button>
 
-              {drawerItem.status === 'DISPUTED' && (
+              {drawerItem.status === 'DISPUTING' && (
                 <>
                   <button
                     className="admin-ghost-btn danger"
                     disabled={actionLoading}
-                    onClick={() => openVerdictConfirm(drawerItem, 'RELEASE_TO_VENDOR')}
+                    onClick={() => openVerdictConfirm(drawerItem, 'REFUND_TO_CUSTOMER')}
                   >
                     <XCircle size={14} />
-                    Giữ tiền vendor
+                    Hoàn tiền khách
                   </button>
                   <button
                     className="admin-primary-btn"
                     disabled={actionLoading}
-                    onClick={() => openVerdictConfirm(drawerItem, 'REFUND_TO_CUSTOMER')}
+                    onClick={() => openVerdictConfirm(drawerItem, 'RELEASE_TO_VENDOR')}
                   >
                     <CheckCircle2 size={14} />
-                    Hoàn tiền khách
+                    Giữ tiền vendor
                   </button>
                 </>
               )}
@@ -739,6 +857,71 @@ const AdminReturns = () => {
           </>
         ) : null}
       </Drawer>
+      {activeEnlargedImage && createPortal(
+        <div
+          className="admin-modal-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.82)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            cursor: 'zoom-out',
+          }}
+          onClick={() => setActiveEnlargedImage(null)}
+        >
+          <div
+            style={{
+              position: 'relative',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setActiveEnlargedImage(null)}
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                background: 'rgba(15, 23, 42, 0.75)',
+                border: 'none',
+                color: '#ffffff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '8px',
+                borderRadius: '50%',
+                zIndex: 100000,
+              }}
+              aria-label="Đóng ảnh phóng to"
+            >
+              <X size={20} />
+            </button>
+            <img
+              src={activeEnlargedImage}
+              alt="Phóng to ảnh minh chứng"
+              style={{
+                maxWidth: '90vw',
+                maxHeight: '90vh',
+                borderRadius: '12px',
+                objectFit: 'contain',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                border: '1px solid rgba(255, 255, 255, 0.18)',
+              }}
+            />
+          </div>
+        </div>,
+        document.body
+      )}
 
       <AdminConfirmDialog
         open={Boolean(verdictConfirm)}

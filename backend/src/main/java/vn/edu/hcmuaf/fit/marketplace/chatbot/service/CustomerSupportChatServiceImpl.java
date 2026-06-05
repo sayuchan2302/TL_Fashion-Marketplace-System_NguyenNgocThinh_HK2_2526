@@ -41,8 +41,7 @@ public class CustomerSupportChatServiceImpl implements CustomerSupportChatServic
             if (shippingDigits.length() < 4 || !shippingDigits.endsWith(normalizedPhone4)) {
                 return new OrderLookupResult(
                         false,
-                        "Không xác minh được đơn hàng. Vui lòng kiểm tra lại mã đơn hoặc 4 số cuối SDT."
-                );
+                        "Không xác minh được đơn hàng. Vui lòng kiểm tra lại mã đơn hoặc 4 số cuối SDT.");
             }
 
             String statusLabel = switch (order.getStatus()) {
@@ -53,6 +52,8 @@ public class CustomerSupportChatServiceImpl implements CustomerSupportChatServic
                 case SHIPPED -> "Đơn đang giao";
                 case DELIVERED -> "Đơn đã giao thành công";
                 case CANCELLED -> "Đơn đã hủy";
+                case RETURNING -> "Đơn đang yêu cầu hoàn trả";
+                case COMPLETED -> "Đơn hàng đã hoàn thành";
             };
 
             String paymentLabel = order.getPaymentStatus() == null
@@ -61,8 +62,8 @@ public class CustomerSupportChatServiceImpl implements CustomerSupportChatServic
 
             return new OrderLookupResult(
                     true,
-                    "Đơn " + order.getOrderCode() + " hiện ở trạng thái: " + statusLabel + ". Thanh toán: " + paymentLabel + "."
-            );
+                    "Đơn " + order.getOrderCode() + " hiện ở trạng thái: " + statusLabel + ". Thanh toán: "
+                            + paymentLabel + ".");
         } catch (ResourceNotFoundException ex) {
             return new OrderLookupResult(false, "Không tìm thấy đơn hàng. Bạn kiểm tra lại mã đơn giúp mình nhé.");
         }
@@ -86,8 +87,7 @@ public class CustomerSupportChatServiceImpl implements CustomerSupportChatServic
         return new SizeAdviceResult(
                 suggestedSize,
                 "Với chiều cao " + heightCm + "cm và cân nặng " + weightKg + "kg, size gợi ý là "
-                        + suggestedSize + ". Bạn nên ưu tiên bảng size theo từng sản phẩm để chính xác hơn."
-        );
+                        + suggestedSize + ". Bạn nên ưu tiên bảng size theo từng sản phẩm để chính xác hơn.");
     }
 
     @Override

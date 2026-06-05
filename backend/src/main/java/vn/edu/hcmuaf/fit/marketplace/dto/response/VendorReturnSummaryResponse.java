@@ -15,4 +15,5 @@ public class VendorReturnSummaryResponse {
     private long inTransit;
     private long toInspect;
     private long disputed;
+    private long completed;
 }

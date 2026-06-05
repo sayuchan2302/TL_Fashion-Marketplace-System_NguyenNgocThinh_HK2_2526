@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(python *)",
+      "Bash(dir \"D:\\\\Project\\\\SRS\" /s /b)",
+      "Bash(py -3 -X utf8 -c ' *)",
+      "Bash(py -3 -X utf8 edit_srs.py)",
+      "Bash(git checkout *)",
+      "Bash(mv \"activity/19_Payout_Request.drawio\" \"activity/20_Payout_Request.drawio\")",
+      "Bash(mv \"activity/19_Payout_Request.png\" \"activity/20_Payout_Request.png\")",
+      "Bash(mv \"activity/18_Admin_xu_ly_bao_cao.drawio\" \"activity/19_Admin_xu_ly_bao_cao.drawio\")",
+      "Bash(mv \"activity/18_Admin_xu_ly_bao_cao.png\" \"activity/19_Admin_xu_ly_bao_cao.png\")",
+      "Bash(mv \"activity/17_Admin_kiem_duyet_san_pham.drawio\" \"activity/18_Admin_kiem_duyet_san_pham.drawio\")",
+      "Bash(py -3 generate_diagrams.py)",
+      "Bash(npx --yes drawio)",
+      "Read(//c/Program Files/draw.io/**)",
+      "Bash(npx --yes drawio --help)",
+      "Bash(npx --yes drawio --version)",
+      "Bash(npx --yes drawio-export --help)",
+      "Bash(npx --yes @dynamoose/drawio-export --help)",
+      "Read(//c/Users/Sayu/AppData/Local/Programs/draw.io/**)",
+      "Read(//c/Users/Sayu/AppData/Local/draw.io/**)",
+      "Bash(py -3 export_drawio_png_10px.py \"../drawio/activity/01_Dang_ky_tai_khoan.drawio\" -o \"../drawio/activity/test_export.png\")",
+      "Bash(py -3 batch_export_png.py)",
+      "Bash(py -3 -c 'import xml.etree.ElementTree as ET; ET.parse\\('\\\\''__TRACKED_VAR__'\\\\''\\); print\\('\\\\''OK'\\\\''\\)')",
+      "Bash(py -3 -c ' *)",
+      "Bash(py -3 insert_new_diagrams.py)"
+    ]
+  }
+}

@@ -23,6 +23,7 @@ import { reviewService, type EligibleReviewItem, type Review } from '../../servi
 import ReviewModal from '../../components/ReviewModal/ReviewModal';
 import { formatPrice } from '../../utils/formatters';
 import { toDisplayOrderCode } from '../../utils/displayCode';
+import ConfirmModal from '../../components/ConfirmModal/ConfirmModal';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { CLIENT_TEXT } from '../../utils/texts';
 import type { Order } from '../../types';
@@ -125,6 +126,8 @@ const OrderDetail = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isResolvingReview, setIsResolvingReview] = useState(false);
+  const [pendingCancelReturnId, setPendingCancelReturnId] = useState<string | null>(null);
+  const [isCancellingReturn, setIsCancellingReturn] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isReturnDrawerOpen, setIsReturnDrawerOpen] = useState(false);
   const [reviewProduct, setReviewProduct] = useState<ReviewProduct | null>(null);
@@ -145,6 +148,21 @@ const OrderDetail = () => {
     []
   );
   usePageTitle(pageOrderCode ? `Đơn hàng #${toDisplayOrderCode(pageOrderCode)}` : 'Chi tiết đơn hàng');
+
+  const handleCancelReturn = async (returnId: string) => {
+    if (isCancellingReturn) return;
+    setIsCancellingReturn(true);
+    try {
+      await returnService.cancelByCustomer(returnId, 'Khách hàng tự hủy yêu cầu');
+      window.location.reload();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Không thể hủy yêu cầu đổi/trả.';
+      addToast(message, 'error');
+    } finally {
+      setIsCancellingReturn(false);
+      setPendingCancelReturnId(null);
+    }
+  };
 
   const loadOrderReviews = useCallback(
     async (orderId: string, options?: { silent?: boolean }) => {
@@ -333,8 +351,6 @@ const OrderDetail = () => {
           <Link to="/">Trang chủ</Link>
           <ChevronRight size={14} />
           <Link to="/profile">Tài khoản</Link>
-          <ChevronRight size={14} />
-          <span>Đơn hàng #{order.code || order.id}</span>
         </div>
 
         <div className="od-header">
@@ -349,25 +365,25 @@ const OrderDetail = () => {
             if (activeReturn) {
               const getReturnStatusBadgeLabel = (status: string) => {
                 switch (status) {
-                  case 'PENDING_VENDOR':
-                    return 'Đang đổi/trả';
-                  case 'ACCEPTED':
-                    return 'Chờ gửi hàng';
-                  case 'SHIPPING':
+                  case 'REQUESTED':
+                    return 'Đã yêu cầu';
+                  case 'IN_TRANSIT':
                     return 'Đang vận chuyển';
-                  case 'RECEIVED':
-                    return 'Shop đã nhận';
-                  case 'COMPLETED':
+                  case 'DELIVERED_TO_SELLER':
+                    return 'Shop đang xử lý';
+                  case 'REFUND_SUCCESS':
                     return 'Trả hàng thành công';
-                  case 'REJECTED':
+                  case 'RETURN_REJECTED':
                     return 'Yêu cầu bị từ chối';
-                  case 'DISPUTED':
+                  case 'DISPUTING':
                     return 'Tranh chấp';
+                  case 'CANCELLED':
+                    return 'Đã hủy';
                   default:
-                    return 'Đang đổi/trả';
+                    return 'Đang xử lý';
                 }
               };
-              const displayStatusClass = activeReturn.status === 'COMPLETED' ? 'status-refunded' : 'status-returning';
+              const displayStatusClass = activeReturn.status === 'REFUND_SUCCESS' ? 'status-refunded' : 'status-returning';
               return (
                 <span className={`od-status-badge ${displayStatusClass}`}>
                   {getReturnStatusBadgeLabel(activeReturn.status)}
@@ -592,22 +608,29 @@ const OrderDetail = () => {
                   {(() => {
                     const activeReq = returnRequests.find((req) => req.status !== 'CANCELLED');
                     if (activeReq) {
+                      if (activeReq.status === 'REQUESTED' || activeReq.status === 'IN_TRANSIT') {
+                        return (
+                          <button className="od-action-btn od-btn-danger" onClick={() => setPendingCancelReturnId(activeReq.id)}>
+                            Hủy yêu cầu
+                          </button>
+                        );
+                      }
                       const getReturnStatusLabel = (req: ReturnRequest) => {
                         switch (req.status) {
-                          case 'PENDING_VENDOR':
-                            return 'Chờ shop duyệt';
-                          case 'ACCEPTED':
-                            return 'Gửi hàng về';
-                          case 'SHIPPING':
+                          case 'REQUESTED':
+                            return 'Đang yêu cầu';
+                          case 'IN_TRANSIT':
                             return 'Đang vận chuyển';
-                          case 'RECEIVED':
+                          case 'DELIVERED_TO_SELLER':
                             return 'Shop đã nhận';
-                          case 'COMPLETED':
+                          case 'REFUND_SUCCESS':
                             return 'Hoàn thành';
-                          case 'REJECTED':
+                          case 'RETURN_REJECTED':
                             return 'Bị từ chối';
-                          case 'DISPUTED':
+                          case 'DISPUTING':
                             return 'Tranh chấp';
+                          case 'CANCELLED':
+                            return 'Đã hủy';
                           default:
                             return 'Đang xử lý';
                         }
@@ -620,7 +643,7 @@ const OrderDetail = () => {
                     }
                     return (
                       <button className="od-action-btn od-btn-outline" onClick={() => setIsReturnDrawerOpen(true)}>
-                        <RotateCcw size={16} /> Đổi / trả hàng
+                        <RotateCcw size={16} /> Hoàn đơn
                       </button>
                     );
                   })()}
@@ -723,6 +746,19 @@ const OrderDetail = () => {
             void loadReturnRequests(id);
           }
         }}
+      />
+
+      {/* Confirm Cancel Return Modal */}
+      <ConfirmModal
+        isOpen={Boolean(pendingCancelReturnId)}
+        onClose={() => setPendingCancelReturnId(null)}
+        onConfirm={() => pendingCancelReturnId && void handleCancelReturn(pendingCancelReturnId)}
+        title="Hủy yêu cầu đổi/trả"
+        message="Bạn có chắc chắn muốn hủy yêu cầu đổi/trả này? Sau khi hủy, yêu cầu sẽ không thể khôi phục."
+        confirmText="Hủy yêu cầu"
+        cancelText="Giữ yêu cầu"
+        variant="danger"
+        isLoading={isCancellingReturn}
       />
     </div>
   );

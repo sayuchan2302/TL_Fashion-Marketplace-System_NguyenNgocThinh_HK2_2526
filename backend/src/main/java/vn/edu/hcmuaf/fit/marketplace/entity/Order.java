@@ -21,7 +21,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Check(constraints = "status IN ('PENDING', 'WAITING_FOR_VENDOR', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED')")
+@Check(constraints = "status IN ('PENDING', 'WAITING_FOR_VENDOR', 'CONFIRMED', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'COMPLETED', 'CANCELLED', 'RETURNING')")
 @Table(name = "orders", indexes = {
         @Index(name = "idx_orders_order_code", columnList = "order_code", unique = true),
         @Index(name = "idx_orders_store_id", columnList = "store_id"),
@@ -121,6 +121,12 @@ public class Order extends BaseEntity {
     @Column(name = "delivered_at")
     private LocalDateTime deliveredAt;
 
+    @Column(name = "escrow_deadline_at")
+    private LocalDateTime escrowDeadlineAt;
+
+    @Column(name = "escrow_remaining_seconds")
+    private Long escrowRemainingSeconds;
+
     @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
@@ -134,7 +140,7 @@ public class Order extends BaseEntity {
     }
 
     public enum OrderStatus {
-        PENDING, WAITING_FOR_VENDOR, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED
+        PENDING, WAITING_FOR_VENDOR, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, COMPLETED, CANCELLED, RETURNING
     }
 
     public enum PaymentMethod {

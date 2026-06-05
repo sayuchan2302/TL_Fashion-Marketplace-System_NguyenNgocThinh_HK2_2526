@@ -76,7 +76,6 @@ interface BackendSubOrderSummary {
   status?: string;
   total?: number;
   trackingNumber?: string;
-  warehouseNote?: string;
   itemCount?: number;
   createdAt?: string;
   customer?: {
@@ -114,7 +113,6 @@ export interface AdminSubOrderSummary {
   total: number;
   itemCount: number;
   trackingNumber: string;
-  warehouseNote: string;
   createdAt: string;
   customerName: string;
 }
@@ -283,7 +281,6 @@ export const listAdminParentOrders = async (): Promise<AdminParentOrderSummary[]
       total: Number(sub.total || 0),
       itemCount: Number(sub.itemCount || 0),
       trackingNumber: sub.trackingNumber || '',
-      warehouseNote: sub.warehouseNote || '',
       createdAt: sub.createdAt || parent.createdAt || new Date().toISOString(),
       customerName: sub.customer?.name || parent.customer?.name || 'Khách hàng',
     })),

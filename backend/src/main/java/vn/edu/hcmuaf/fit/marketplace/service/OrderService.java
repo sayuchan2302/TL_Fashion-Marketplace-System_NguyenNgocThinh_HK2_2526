@@ -503,30 +503,6 @@ public class OrderService {
     }
 
     @Transactional
-    public VendorOrderDetailResponse updateVendorDelayNote(UUID orderId, UUID storeId, String warehouseNote) {
-        String normalizedNote = normalizeRequiredText(
-                warehouseNote,
-                "Delay reason is required");
-        Order order = findByIdForStore(orderId, storeId);
-        if (order.getStatus() == Order.OrderStatus.DELIVERED || order.getStatus() == Order.OrderStatus.CANCELLED) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Cannot add delay note for delivered or cancelled order");
-        }
-
-        order.setWarehouseNote(normalizedNote);
-        String delayAuditNote = "Delay note: " + normalizedNote;
-        String currentNote = order.getNote() == null ? "" : order.getNote().trim();
-        order.setNote(currentNote.isEmpty() ? delayAuditNote : currentNote + "\n" + delayAuditNote);
-
-        Order saved = orderRepository.save(order);
-        if (saved.isSubOrder()) {
-            syncParentOrderStatus(saved.getParentOrder().getId());
-        }
-        return toVendorOrderDetailResponse(saved);
-    }
-
-    @Transactional
     public AdminOrderResponse markOrderPaid(UUID orderId) {
         Order order = findById(orderId);
         order.setPaymentStatus(Order.PaymentStatus.PAID);
@@ -1169,6 +1145,8 @@ public class OrderService {
             case SHIPPED -> "Đơn hàng đang được giao";
             case DELIVERED -> "Đơn hàng đã giao thành công";
             case CANCELLED -> "Đơn hàng đã bị hủy";
+            case RETURNING -> "Đơn hàng đang yêu cầu hoàn trả";
+            case COMPLETED -> "Đơn hàng đã hoàn thành";
         };
     }
 
@@ -1238,6 +1216,8 @@ public class OrderService {
             case SHIPPED -> "Đơn hàng đã bàn giao cho đơn vị vận chuyển.";
             case DELIVERED -> "Đơn hàng đã giao thành công.";
             case CANCELLED -> "Đơn hàng đã bị hủy.";
+            case RETURNING -> "Đơn hàng đang yêu cầu trả hàng.";
+            case COMPLETED -> "Đơn hàng đã hoàn thành.";
         };
 
         if (status == Order.OrderStatus.SHIPPED && order != null) {
@@ -1660,6 +1640,9 @@ public class OrderService {
             }
             order.setPaidAt(LocalDateTime.now());
             order.setPaymentStatus(Order.PaymentStatus.PAID);
+            if (order.getEscrowDeadlineAt() == null) {
+                order.setEscrowDeadlineAt(LocalDateTime.now().plusDays(7));
+            }
         } else if (status != Order.OrderStatus.DELIVERED) {
             order.setDeliveredAt(null);
         }
@@ -1810,7 +1793,10 @@ public class OrderService {
             case CONFIRMED -> next == Order.OrderStatus.PROCESSING || next == Order.OrderStatus.CANCELLED;
             case PROCESSING -> next == Order.OrderStatus.SHIPPED || next == Order.OrderStatus.CANCELLED;
             case SHIPPED -> next == Order.OrderStatus.DELIVERED;
-            case DELIVERED, CANCELLED -> false;
+            case DELIVERED -> next == Order.OrderStatus.RETURNING || next == Order.OrderStatus.COMPLETED;
+            case RETURNING -> next == Order.OrderStatus.DELIVERED || next == Order.OrderStatus.CANCELLED;
+            case COMPLETED -> false;
+            case CANCELLED -> false;
         };
 
         if (!allowed) {

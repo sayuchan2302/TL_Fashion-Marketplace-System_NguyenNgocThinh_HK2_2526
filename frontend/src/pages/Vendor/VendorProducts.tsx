@@ -16,6 +16,7 @@ import VendorProductsStats from './components/products/VendorProductsStats';
 import VendorProductsTable from './components/products/VendorProductsTable';
 import VendorProductDrawer from './components/products/VendorProductDrawer';
 import VendorProductsDeleteDialog from './components/products/VendorProductsDeleteDialog';
+import VendorProductsVisibilityDialog from './components/products/VendorProductsVisibilityDialog';
 
 const SORT_ITEMS = [
   { key: 'createdAt:desc', label: 'Mới nhất' },
@@ -269,6 +270,12 @@ const VendorProducts = () => {
         state={bulkActions.deleteConfirm}
         onCancel={() => bulkActions.setDeleteConfirm(null)}
         onConfirm={bulkActions.confirmDelete}
+      />
+
+      <VendorProductsVisibilityDialog
+        state={bulkActions.visibilityConfirm}
+        onCancel={() => bulkActions.setVisibilityConfirm(null)}
+        onConfirm={bulkActions.confirmVisibility}
       />
 
       <VendorProductDrawer

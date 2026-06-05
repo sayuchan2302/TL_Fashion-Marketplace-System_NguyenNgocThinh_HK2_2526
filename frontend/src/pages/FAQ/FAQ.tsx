@@ -1,6 +1,6 @@
 import './FAQ.css';
 import { Link } from 'react-router-dom';
-import { MessageCircle, Package, ShieldCheck, Search, CreditCard, Ruler } from 'lucide-react';
+import { MessageCircle, ShieldCheck, Search, CreditCard, Ruler } from 'lucide-react';
 
 const BRAND_NAME = 'Phố Mặc';
 
@@ -31,7 +31,7 @@ const faqGroups = [
       },
       {
         q: 'Quy trình đổi trả ra sao?',
-        a: 'Tạo yêu cầu tại /returns hoặc liên hệ CSKH. Đóng gói sản phẩm, gửi về điểm nhận. Sau khi kiểm tra, chúng tôi gửi sản phẩm mới hoặc hoàn tiền theo yêu cầu.'
+        a: 'Liên hệ CSKH để tạo yêu cầu đổi trả. Đóng gói sản phẩm, gửi về điểm nhận. Sau khi kiểm tra, chúng tôi gửi sản phẩm mới hoặc hoàn tiền theo yêu cầu.'
       },
       {
         q: 'Hoàn tiền mất bao lâu?',
@@ -69,7 +69,6 @@ const faqGroups = [
 
 const quickLinks = [
   { icon: <Search size={18} />, label: 'Theo dõi đơn', to: '/order-tracking' },
-  { icon: <Package size={18} />, label: 'Đổi trả online', to: '/returns' },
   { icon: <ShieldCheck size={18} />, label: 'Chính sách', to: '/policy/shipping' },
   { icon: <CreditCard size={18} />, label: 'Kết quả thanh toán', to: '/payment-result?status=pending' },
   { icon: <Ruler size={18} />, label: 'Bảng size', to: '/size-guide' },
@@ -88,7 +87,6 @@ const FAQ = () => {
             <p className="faq-subtitle">Xem nhanh hướng dẫn vận chuyển, đổi trả, thanh toán hoặc liên hệ CSKH {BRAND_NAME}. Thời gian hỗ trợ: 8:00 - 22:00 mỗi ngày.</p>
             <div className="faq-cta-row">
               <Link to="/contact" className="faq-primary">Chat với CSKH</Link>
-              <Link to="/returns" className="faq-secondary">Tạo yêu cầu đổi trả</Link>
             </div>
           </div>
           <div className="faq-quick-grid">

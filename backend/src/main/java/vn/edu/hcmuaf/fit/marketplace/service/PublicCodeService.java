@@ -4,12 +4,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.hcmuaf.fit.marketplace.entity.Order;
-import vn.edu.hcmuaf.fit.marketplace.entity.PublicCodeCounter;
 import vn.edu.hcmuaf.fit.marketplace.entity.PublicCodeType;
 import vn.edu.hcmuaf.fit.marketplace.entity.ReturnRequest;
 import vn.edu.hcmuaf.fit.marketplace.entity.WalletTransaction;
 import vn.edu.hcmuaf.fit.marketplace.repository.OrderRepository;
-import vn.edu.hcmuaf.fit.marketplace.repository.PublicCodeCounterRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.ReturnRequestRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.WalletTransactionRepository;
 
@@ -25,21 +23,20 @@ public class PublicCodeService {
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyMMdd");
     private static final int MAX_SEQUENCE_RETRY = 5;
 
-    private final PublicCodeCounterRepository publicCodeCounterRepository;
     private final OrderRepository orderRepository;
     private final ReturnRequestRepository returnRequestRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final PublicCodeCounterService publicCodeCounterService;
 
     public PublicCodeService(
-            PublicCodeCounterRepository publicCodeCounterRepository,
             OrderRepository orderRepository,
             ReturnRequestRepository returnRequestRepository,
-            WalletTransactionRepository walletTransactionRepository
-    ) {
-        this.publicCodeCounterRepository = publicCodeCounterRepository;
+            WalletTransactionRepository walletTransactionRepository,
+            PublicCodeCounterService publicCodeCounterService) {
         this.orderRepository = orderRepository;
         this.returnRequestRepository = returnRequestRepository;
         this.walletTransactionRepository = walletTransactionRepository;
+        this.publicCodeCounterService = publicCodeCounterService;
     }
 
     @Transactional
@@ -110,20 +107,12 @@ public class PublicCodeService {
     }
 
     private long reserveSequence(PublicCodeType type, LocalDate codeDate) {
+        long defaultValue = resolveExistingMaxSequence(type, codeDate);
         for (int attempt = 0; attempt < MAX_SEQUENCE_RETRY; attempt++) {
             try {
-                PublicCodeCounter counter = publicCodeCounterRepository.findByCodeTypeAndCodeDate(type, codeDate)
-                        .orElseGet(() -> PublicCodeCounter.builder()
-                                .codeType(type)
-                                .codeDate(codeDate)
-                                .lastValue(resolveExistingMaxSequence(type, codeDate))
-                                .build());
-                long nextValue = counter.getLastValue() + 1L;
-                counter.setLastValue(nextValue);
-                publicCodeCounterRepository.saveAndFlush(counter);
-                return nextValue;
+                return publicCodeCounterService.reserve(type, codeDate, defaultValue);
             } catch (DataIntegrityViolationException ex) {
-                // Row created concurrently by another transaction, retry with lock.
+                // Row created concurrently by another transaction, catch and retry with lock.
             }
         }
         throw new IllegalStateException("Unable to allocate public code sequence for " + type + " at " + codeDate);
@@ -132,19 +121,24 @@ public class PublicCodeService {
     private long resolveExistingMaxSequence(PublicCodeType type, LocalDate codeDate) {
         String prefixWithDate = "%s-%s-".formatted(prefix(type), codeDate.format(DATE_FORMATTER));
         switch (type) {
-            case ORDER: return orderRepository.findTopByOrderCodeStartingWithOrderByOrderCodeDesc(prefixWithDate)
-                    .map(Order::getOrderCode)
-                    .map(this::parseSequence)
-                    .orElse(0L);
-            case RETURN: return returnRequestRepository.findTopByReturnCodeStartingWithOrderByReturnCodeDesc(prefixWithDate)
-                    .map(ReturnRequest::getReturnCode)
-                    .map(this::parseSequence)
-                    .orElse(0L);
-            case TRANSACTION: return walletTransactionRepository.findTopByTransactionCodeStartingWithOrderByTransactionCodeDesc(prefixWithDate)
-                    .map(WalletTransaction::getTransactionCode)
-                    .map(this::parseSequence)
-                    .orElse(0L);
-            default: throw new IllegalArgumentException("Unknown type: " + type);
+            case ORDER:
+                return orderRepository.findTopByOrderCodeStartingWithOrderByOrderCodeDesc(prefixWithDate)
+                        .map(Order::getOrderCode)
+                        .map(this::parseSequence)
+                        .orElse(0L);
+            case RETURN:
+                return returnRequestRepository.findTopByReturnCodeStartingWithOrderByReturnCodeDesc(prefixWithDate)
+                        .map(ReturnRequest::getReturnCode)
+                        .map(this::parseSequence)
+                        .orElse(0L);
+            case TRANSACTION:
+                return walletTransactionRepository
+                        .findTopByTransactionCodeStartingWithOrderByTransactionCodeDesc(prefixWithDate)
+                        .map(WalletTransaction::getTransactionCode)
+                        .map(this::parseSequence)
+                        .orElse(0L);
+            default:
+                throw new IllegalArgumentException("Unknown type: " + type);
         }
     }
 
@@ -165,10 +159,14 @@ public class PublicCodeService {
 
     private String prefix(PublicCodeType type) {
         switch (type) {
-            case ORDER: return "DH";
-            case RETURN: return "TH";
-            case TRANSACTION: return "GD";
-            default: throw new IllegalArgumentException("Unknown type: " + type);
+            case ORDER:
+                return "DH";
+            case RETURN:
+                return "TH";
+            case TRANSACTION:
+                return "GD";
+            default:
+                throw new IllegalArgumentException("Unknown type: " + type);
         }
     }
 

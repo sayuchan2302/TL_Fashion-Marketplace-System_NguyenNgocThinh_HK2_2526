@@ -1,7 +1,7 @@
 import './Vendor.css';
 import { startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Check, Clock, Eye, Truck, XCircle, PackageCheck } from 'lucide-react';
+import { CheckCircle2, Clock, Eye, Truck, XCircle, PackageCheck } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import VendorLayout from './VendorLayout';
 import {
@@ -46,11 +46,6 @@ type PendingAction = {
   selectedItems: string[];
   requireTracking?: boolean;
   requireReason?: boolean;
-};
-
-type DelayAction = {
-  ids: string[];
-  selectedItems: string[];
 };
 
 const PAGE_SIZE = 8;
@@ -199,11 +194,9 @@ const VendorOrders = () => {
   const [updating, setUpdating] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
-  const [delayAction, setDelayAction] = useState<DelayAction | null>(null);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [carrier, setCarrier] = useState('');
   const [cancelReason, setCancelReason] = useState('');
-  const [delayReason, setDelayReason] = useState('');
 
   const updateQuery = useCallback(
     (mutate: (query: URLSearchParams) => void, replace = false) => {
@@ -423,42 +416,6 @@ const VendorOrders = () => {
     }
   };
 
-  const requestDelayNotice = (ids: string[]) => {
-    if (ids.length === 0) return;
-    const selectedOrders = paginatedOrders.filter((order) => ids.includes(order.id));
-    if (selectedOrders.length === 0) {
-      return;
-    }
-
-    setDelayReason('');
-    setDelayAction({
-      ids,
-      selectedItems: selectedOrders.map((order) => toDisplayOrderCode(order.code)),
-    });
-  };
-
-  const confirmDelayNotice = async () => {
-    if (!delayAction) return;
-
-    const note = delayReason.trim();
-    if (!note) {
-      addToast('Cần nhập lý do để gửi cảnh báo trễ đơn.', 'error');
-      return;
-    }
-
-    setUpdating(true);
-    try {
-      await Promise.all(delayAction.ids.map((id) => vendorPortalService.notifyDelay(id, note)));
-      setDelayAction(null);
-      setDelayReason('');
-      addToast('Đã gửi ghi chú trễ đơn cho các đơn đã chọn.', 'success');
-      await loadOrders();
-    } catch (err: unknown) {
-      addToast(getUiErrorMessage(err, 'Không thể gửi ghi chú trễ đơn'), 'error');
-    } finally {
-      setUpdating(false);
-    }
-  };
 
   const statItems = [
     {
@@ -503,7 +460,6 @@ const VendorOrders = () => {
   const isPendingConfirmDisabled = updating
     || Boolean(pendingAction?.requireTracking && (!trackingNumber.trim() || !carrier.trim()))
     || Boolean(pendingAction?.requireReason && !cancelReason.trim());
-  const isDelayConfirmDisabled = updating || !delayReason.trim();
 
   const renderOrderActions = (order: VendorOrderSummary) => (
     <div className="admin-actions vendor-order-actions">
@@ -512,13 +468,13 @@ const VendorOrders = () => {
       </Link>
       {order.status === 'pending' && (
         <button
-          className="admin-icon-btn subtle vendor-action-confirm"
+          className="admin-icon-btn subtle vendor-action-confirm success-icon"
           title="Xác nhận đơn"
           aria-label={`Xác nhận đơn ${toDisplayOrderCode(order.code)}`}
           onClick={() => askStatusUpdate([order.id], 'CONFIRMED')}
           disabled={updating}
         >
-          <Check size={16} />
+          <CheckCircle2 size={16} />
         </button>
       )}
       {order.status === 'confirmed' && (
@@ -569,19 +525,6 @@ const VendorOrders = () => {
           disabled={updating}
         >
           <XCircle size={16} />
-        </button>
-      ) : (
-        <span className="vendor-order-action-slot" aria-hidden="true" />
-      )}
-      {(order.status === 'pending' || order.status === 'confirmed' || order.status === 'processing' || order.status === 'shipped') ? (
-        <button
-          className="admin-icon-btn subtle vendor-action-delay"
-          title="Báo đơn trễ"
-          aria-label={`Báo đơn trễ ${toDisplayOrderCode(order.code)}`}
-          onClick={() => requestDelayNotice([order.id])}
-          disabled={updating}
-        >
-          <AlertTriangle size={16} />
         </button>
       ) : (
         <span className="vendor-order-action-slot" aria-hidden="true" />
@@ -901,36 +844,6 @@ const VendorOrders = () => {
             />
           </label>
         )}
-      </AdminConfirmDialog>
-
-      <AdminConfirmDialog
-        open={Boolean(delayAction)}
-        title="Báo đơn trễ"
-        description="Nhập lý do chậm xử lý hoặc giao hàng để lưu audit và thông báo cho khách."
-        selectedItems={delayAction?.selectedItems}
-        selectedNoun="đơn"
-        confirmLabel={updating ? 'Đang gửi...' : 'Gửi ghi chú'}
-        confirmDisabled={isDelayConfirmDisabled}
-        cancelDisabled={updating}
-        variant="vendor"
-        onCancel={() => {
-          if (!updating) {
-            setDelayAction(null);
-            setDelayReason('');
-          }
-        }}
-        onConfirm={() => void confirmDelayNotice()}
-      >
-        <label className="form-field full">
-          <span>Lý do trễ đơn</span>
-          <textarea
-            rows={4}
-            value={delayReason}
-            onChange={(event) => setDelayReason(event.target.value)}
-            placeholder="VD: Shop cần thêm thời gian đóng gói do thiếu hàng tạm thời"
-            autoFocus
-          />
-        </label>
       </AdminConfirmDialog>
     </VendorLayout>
   );

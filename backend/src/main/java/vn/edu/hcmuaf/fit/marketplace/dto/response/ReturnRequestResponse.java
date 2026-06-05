@@ -30,12 +30,14 @@ public class ReturnRequestResponse {
     private BigDecimal refundAmount;
     private String vendorReason;
     private String disputeReason;
+    private String disputeEvidenceUrl;
     private String shippingTrackingNumber;
     private String shippingCarrier;
     private String adminNote;
     private String updatedBy;
     private LocalDateTime shippedAt;
     private LocalDateTime receivedAt;
+    private LocalDateTime sellerDeadlineAt;
     private LocalDateTime completedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

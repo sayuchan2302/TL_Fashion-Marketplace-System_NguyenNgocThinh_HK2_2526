@@ -1,5 +1,7 @@
 package vn.edu.hcmuaf.fit.marketplace.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -23,6 +25,7 @@ import vn.edu.hcmuaf.fit.marketplace.repository.StoreRepository;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -36,6 +39,9 @@ import java.util.stream.Collectors;
 
 @Service
 public class ReturnRequestService {
+    private static final Logger log = LoggerFactory.getLogger(ReturnRequestService.class);
+    private static final String MOCK_REVERSE_CARRIER = "MOCK_REVERSE_SHIPPER";
+    private static final String SYSTEM_REVERSE_LOGISTICS = "SYSTEM_REVERSE_LOGISTICS";
 
     private final ReturnRequestRepository returnRequestRepository;
     private final OrderRepository orderRepository;
@@ -94,62 +100,108 @@ public class ReturnRequestService {
         if (order.getStatus() != Order.OrderStatus.DELIVERED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Returns are only allowed for delivered orders");
         }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime deadline = order.getEscrowDeadlineAt();
+        if (deadline == null || !deadline.isAfter(now)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Escrow period has expired or order is completed");
+        }
+
+        long remainingSeconds = Duration.between(now, deadline).toSeconds();
+        if (remainingSeconds <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Escrow period has expired");
+        }
         if (payload.getItems() == null || payload.getItems().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Return request must include at least one item");
         }
+        if (!hasCustomerEvidence(payload)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Return evidence is required");
+        }
 
-        Map<UUID, OrderItem> orderItemMap = order.getItems().stream()
-                .collect(Collectors.toMap(OrderItem::getId, oi -> oi));
-        Set<UUID> requestedOrderItemIds = new HashSet<>();
+        // Ensure no duplicates in request payload and match whole order
+        if (payload.getItems() != null) {
+            Set<UUID> duplicateItemCheck = new java.util.HashSet<>();
+            Set<UUID> orderItemIds = order.getItems().stream().map(OrderItem::getId).collect(Collectors.toSet());
+            for (ReturnSubmitRequest.ReturnItemPayload item : payload.getItems()) {
+                if (item.getOrderItemId() == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "OrderItem ID is required");
+                }
+                if (!orderItemIds.contains(item.getOrderItemId())) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Item does not belong to this order");
+                }
+                if (!duplicateItemCheck.add(item.getOrderItemId())) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate order item in return request");
+                }
+            }
+            if (duplicateItemCheck.size() != order.getItems().size()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Must return all items in the order");
+            }
+        }
 
-        List<ReturnRequest.ReturnItemSnapshot> snapshots = payload.getItems().stream().map(itemPayload -> {
-            if (itemPayload == null || itemPayload.getOrderItemId() == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order item is required");
-            }
-            if (!requestedOrderItemIds.add(itemPayload.getOrderItemId())) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Duplicate order item in return request");
-            }
-            OrderItem matched = orderItemMap.get(itemPayload.getOrderItemId());
-            if (matched == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid order item");
-            }
-            if (matched.getStoreId() == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Return item does not belong to a vendor store");
-            }
+        // Check for active open returns on these items to prevent conflicts
+        Set<UUID> requestedOrderItemIds = order.getItems().stream()
+                .map(OrderItem::getId)
+                .collect(Collectors.toSet());
+        assertNoOpenReturnConflict(order.getId(), requestedOrderItemIds);
 
-            int requestedQty = itemPayload.getQuantity() == null ? matched.getQuantity() : itemPayload.getQuantity();
-            if (requestedQty <= 0 || requestedQty > matched.getQuantity()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid return quantity");
-            }
+        // Pause 7-day escrow timer
+        order.setEscrowRemainingSeconds(remainingSeconds);
+        order.setEscrowDeadlineAt(null);
+        order.setStatus(Order.OrderStatus.RETURNING);
+        orderRepository.save(order);
 
-            String evidenceUrl = normalizeOptionalText(itemPayload.getEvidenceUrl());
-            if (evidenceUrl.isEmpty()) {
-                evidenceUrl = normalizeOptionalText(itemPayload.getAdminImageUrl());
+        // Whole-order return logic: automatically construct ReturnItemSnapshot for all
+        // items in the order
+        List<ReturnRequest.ReturnItemSnapshot> snapshots = order.getItems().stream().map(orderItem -> {
+            String evidenceUrl = null;
+            if (payload.getItems() != null) {
+                evidenceUrl = payload.getItems().stream()
+                        .filter(i -> i != null && orderItem.getId().equals(i.getOrderItemId()))
+                        .map(i -> normalizeOptionalText(i.getEvidenceUrl()))
+                        .filter(url -> !url.isEmpty())
+                        .findFirst()
+                        .orElse(null);
+                if (evidenceUrl == null) {
+                    evidenceUrl = payload.getItems().stream()
+                            .filter(i -> i != null && orderItem.getId().equals(i.getOrderItemId()))
+                            .map(i -> normalizeOptionalText(i.getAdminImageUrl()))
+                            .filter(url -> !url.isEmpty())
+                            .findFirst()
+                            .orElse(null);
+                }
             }
-
             return new ReturnRequest.ReturnItemSnapshot(
-                    matched.getId(),
-                    matched.getProductName(),
-                    matched.getVariantName(),
-                    matched.getProductImage(),
-                    evidenceUrl.isEmpty() ? null : evidenceUrl,
-                    requestedQty,
-                    safeAmount(matched.getUnitPrice()));
+                    orderItem.getId(),
+                    orderItem.getProductName(),
+                    orderItem.getVariantName(),
+                    orderItem.getProductImage(),
+                    evidenceUrl,
+                    orderItem.getQuantity(),
+                    safeAmount(orderItem.getUnitPrice()));
         }).toList();
 
-        assertNoOpenReturnConflict(order.getId(), requestedOrderItemIds);
-        UUID storeId = resolveSingleStoreId(snapshots, orderItemMap);
+        UUID storeId = order.getStoreId();
+        if (storeId == null && !snapshots.isEmpty()) {
+            Map<UUID, OrderItem> orderItemMap = order.getItems().stream()
+                    .collect(Collectors.toMap(OrderItem::getId, oi -> oi));
+            storeId = resolveSingleStoreId(snapshots, orderItemMap);
+        }
 
+        String returnCode = publicCodeService.nextReturnCode();
         ReturnRequest request = ReturnRequest.builder()
-                .returnCode(publicCodeService.nextReturnCode())
+                .returnCode(returnCode)
                 .order(order)
                 .user(order.getUser())
                 .storeId(storeId)
                 .reason(payload.getReason())
                 .note(payload.getNote())
                 .resolution(payload.getResolution())
-                .status(ReturnRequest.ReturnStatus.PENDING_VENDOR)
+                .status(ReturnRequest.ReturnStatus.DELIVERED_TO_SELLER)
+                .shippingTrackingNumber(buildMockTrackingNumber(returnCode))
+                .shippingCarrier(MOCK_REVERSE_CARRIER)
+                .shippedAt(LocalDateTime.now())
+                .receivedAt(LocalDateTime.now())
                 .items(snapshots)
                 .adminFinalized(false)
                 .updatedBy(userId.toString())
@@ -218,17 +270,21 @@ public class ReturnRequestService {
                         ReturnRequestRepository.ReturnStatusCountProjection::getTotal));
 
         long total = countsByStatus.values().stream().mapToLong(Long::longValue).sum();
-        long pendingVendor = countsByStatus.getOrDefault(ReturnRequest.ReturnStatus.PENDING_VENDOR, 0L);
-        long received = countsByStatus.getOrDefault(ReturnRequest.ReturnStatus.RECEIVED, 0L);
-        long shipping = countsByStatus.getOrDefault(ReturnRequest.ReturnStatus.SHIPPING, 0L);
-        long disputed = countsByStatus.getOrDefault(ReturnRequest.ReturnStatus.DISPUTED, 0L);
+        long requested = countsByStatus.getOrDefault(ReturnRequest.ReturnStatus.REQUESTED, 0L);
+        long inTransit = countsByStatus.getOrDefault(ReturnRequest.ReturnStatus.IN_TRANSIT, 0L);
+        long deliveredToSeller = countsByStatus.getOrDefault(ReturnRequest.ReturnStatus.DELIVERED_TO_SELLER, 0L);
+        long disputing = countsByStatus.getOrDefault(ReturnRequest.ReturnStatus.DISPUTING, 0L);
+        long refundSuccess = countsByStatus.getOrDefault(ReturnRequest.ReturnStatus.REFUND_SUCCESS, 0L);
+        long returnRejected = countsByStatus.getOrDefault(ReturnRequest.ReturnStatus.RETURN_REJECTED, 0L);
+        long cancelled = countsByStatus.getOrDefault(ReturnRequest.ReturnStatus.CANCELLED, 0L);
 
         return VendorReturnSummaryResponse.builder()
                 .all(total)
-                .needsAction(pendingVendor + received)
-                .inTransit(shipping)
-                .toInspect(received)
-                .disputed(disputed)
+                .needsAction(deliveredToSeller) // Only DELIVERED_TO_SELLER requires action within 48h
+                .inTransit(requested + inTransit) // Items on the way back to vendor
+                .toInspect(deliveredToSeller) // Items waiting for vendor decision
+                .disputed(disputing) // Items in dispute requiring admin
+                .completed(refundSuccess + returnRejected + cancelled) // All finalized returns
                 .build();
     }
 
@@ -245,81 +301,63 @@ public class ReturnRequestService {
     }
 
     @Transactional
-    public ReturnRequestResponse acceptReturn(UUID returnId, UUID storeId, String actor) {
-        ReturnRequest request = findById(returnId);
-        assertStoreOwnership(request, storeId);
-        assertStatus(request, ReturnRequest.ReturnStatus.PENDING_VENDOR);
-
-        request.setStatus(ReturnRequest.ReturnStatus.ACCEPTED);
-        request.setVendorReason(null);
-        request.setUpdatedBy(actor);
-        ReturnRequest saved = returnRequestRepository.save(request);
-        notifyCustomerReturnStatusChanged(saved);
-        return toResponse(saved);
+    public ReturnRequestResponse mockPickupReturn(UUID returnId) {
+        return mockPickupReturn(returnId, SYSTEM_REVERSE_LOGISTICS);
     }
 
     @Transactional
-    public ReturnRequestResponse rejectReturn(UUID returnId, UUID storeId, String reason, String actor) {
-        String normalizedReason = normalizeRequiredText(reason, "Reject reason is required");
+    public ReturnRequestResponse mockPickupReturn(UUID returnId, String actor) {
         ReturnRequest request = findById(returnId);
-        assertStoreOwnership(request, storeId);
-        if (request.getStatus() != ReturnRequest.ReturnStatus.PENDING_VENDOR
-                && request.getStatus() != ReturnRequest.ReturnStatus.RECEIVED) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Reject action only allowed for pending or received requests");
-        }
+        assertStatus(request, ReturnRequest.ReturnStatus.REQUESTED);
 
-        request.setStatus(ReturnRequest.ReturnStatus.REJECTED);
-        request.setVendorReason(normalizedReason);
-        request.setAdminFinalized(false);
-        request.setUpdatedBy(actor);
-        ReturnRequest saved = returnRequestRepository.save(request);
-        notifyCustomerReturnStatusChanged(saved);
-        return toResponse(saved);
-    }
-
-    @Transactional
-    public ReturnRequestResponse markShipping(UUID returnId, UUID userId, String trackingNumber, String carrier,
-            String actor) {
-        ReturnRequest request = findById(returnId);
-        assertCustomerOwnership(request, userId);
-        assertStatus(request, ReturnRequest.ReturnStatus.ACCEPTED);
-
-        request.setStatus(ReturnRequest.ReturnStatus.SHIPPING);
-        request.setShippingTrackingNumber(normalizeRequiredText(trackingNumber, "Tracking number is required"));
-        request.setShippingCarrier(normalizeRequiredText(carrier, "Carrier is required"));
+        request.setStatus(ReturnRequest.ReturnStatus.IN_TRANSIT);
         request.setShippedAt(LocalDateTime.now());
         request.setUpdatedBy(actor);
-        return toResponse(returnRequestRepository.save(request));
-    }
-
-    @Transactional
-    public ReturnRequestResponse markReceived(UUID returnId, UUID storeId, String actor) {
-        ReturnRequest request = findById(returnId);
-        assertStoreOwnership(request, storeId);
-        assertStatus(request, ReturnRequest.ReturnStatus.SHIPPING);
-
-        request.setStatus(ReturnRequest.ReturnStatus.RECEIVED);
-        request.setReceivedAt(LocalDateTime.now());
-        request.setUpdatedBy(actor);
         ReturnRequest saved = returnRequestRepository.save(request);
+
         notifyCustomerReturnStatusChanged(saved);
         return toResponse(saved);
     }
 
     @Transactional
-    public ReturnRequestResponse confirmReceipt(UUID returnId, UUID storeId, String actor) {
+    public ReturnRequestResponse mockDeliverReturnToSeller(UUID returnId) {
+        return mockDeliverReturnToSeller(returnId, SYSTEM_REVERSE_LOGISTICS);
+    }
+
+    @Transactional
+    public ReturnRequestResponse mockDeliverReturnToSeller(UUID returnId, String actor) {
+        ReturnRequest request = findById(returnId);
+        assertStatus(request, ReturnRequest.ReturnStatus.IN_TRANSIT);
+
+        request.setStatus(ReturnRequest.ReturnStatus.DELIVERED_TO_SELLER);
+        request.setReceivedAt(LocalDateTime.now());
+        // Seller has 48 hours to approve or dispute the return
+        // If no action taken, system will auto-approve refund to customer
+        request.setSellerDeadlineAt(LocalDateTime.now().plusHours(48));
+        request.setUpdatedBy(actor);
+        ReturnRequest saved = returnRequestRepository.save(request);
+
+        notifyCustomerReturnStatusChanged(saved);
+        return toResponse(saved);
+    }
+
+    @Transactional
+    public ReturnRequestResponse sellerApproveReturn(UUID returnId, UUID storeId, String actor) {
         ReturnRequest request = findById(returnId);
         assertStoreOwnership(request, storeId);
-        assertStatus(request, ReturnRequest.ReturnStatus.RECEIVED);
+
+        // Seller can approve after requested, in-transit, or delivered to seller
+        if (!isOpenStatus(request.getStatus()) || request.getStatus() == ReturnRequest.ReturnStatus.DISPUTING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Return can only be approved when requested, in transit or delivered to seller");
+        }
 
         BigDecimal refundAmount = calculateRefundAmount(request);
         if (refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Refund amount must be greater than zero");
         }
 
-        request.setStatus(ReturnRequest.ReturnStatus.COMPLETED);
+        request.setStatus(ReturnRequest.ReturnStatus.REFUND_SUCCESS);
         request.setCompletedAt(LocalDateTime.now());
         request.setUpdatedBy(actor);
         ReturnRequest saved = returnRequestRepository.save(request);
@@ -334,68 +372,106 @@ public class ReturnRequestService {
                 saved.getOrder(),
                 refundAmount,
                 "Refund for return " + resolveReturnCode(saved));
+
+        Order order = saved.getOrder();
+        order.setPaymentStatus(Order.PaymentStatus.REFUNDED);
+        order.setStatus(Order.OrderStatus.CANCELLED);
+        orderRepository.save(order);
+
+        notifyCustomerReturnStatusChanged(saved);
+        return toResponse(saved);
+    }
+
+    @Transactional
+    public ReturnRequestResponse sellerDisputeReturn(UUID returnId, UUID storeId, String disputeReason,
+            String disputeEvidenceUrl, String actor) {
+        String normalizedReason = normalizeRequiredText(disputeReason, "Dispute reason is required");
+        String normalizedEvidenceUrl = normalizeRequiredText(disputeEvidenceUrl, "Dispute evidence is required");
+        ReturnRequest request = findById(returnId);
+        assertStoreOwnership(request, storeId);
+
+        if (!isOpenStatus(request.getStatus()) || request.getStatus() == ReturnRequest.ReturnStatus.DISPUTING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Invalid status transition: Return can only be disputed when requested, in transit or delivered to seller");
+        }
+
+        request.setStatus(ReturnRequest.ReturnStatus.DISPUTING);
+        request.setDisputeReason(normalizedReason);
+        request.setDisputeEvidenceUrl(normalizedEvidenceUrl);
+        request.setAdminFinalized(false);
+        request.setUpdatedBy(actor);
+        ReturnRequest saved = returnRequestRepository.save(request);
+
         notifyCustomerReturnStatusChanged(saved);
         return toResponse(saved);
     }
 
     @Transactional
     public ReturnRequestResponse openDispute(UUID returnId, UUID userId, String reason, String actor) {
+        String normalizedReason = normalizeRequiredText(reason, "Dispute reason is required");
         ReturnRequest request = findById(returnId);
         assertCustomerOwnership(request, userId);
-        assertStatus(request, ReturnRequest.ReturnStatus.REJECTED);
+
         if (Boolean.TRUE.equals(request.getAdminFinalized())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Return request has been finalized by admin");
+            throw new IllegalArgumentException("Cannot dispute a finalized return request");
+        }
+        if (request.getStatus() != ReturnRequest.ReturnStatus.RETURN_REJECTED
+                && request.getStatus() != ReturnRequest.ReturnStatus.DISPUTING) {
+            throw new IllegalArgumentException("Can only dispute a rejected return request");
         }
 
-        request.setStatus(ReturnRequest.ReturnStatus.DISPUTED);
-        request.setDisputeReason(normalizeRequiredText(reason, "Dispute reason is required"));
+        request.setStatus(ReturnRequest.ReturnStatus.DISPUTING);
+        request.setDisputeReason(normalizedReason);
         request.setUpdatedBy(actor);
-        return toResponse(returnRequestRepository.save(request));
+        ReturnRequest saved = returnRequestRepository.save(request);
+
+        notifyCustomerReturnStatusChanged(saved);
+        return toResponse(saved);
     }
 
     @Transactional
-    public ReturnRequestResponse cancelByCustomer(UUID returnId, UUID userId, String reason, String actor) {
+    public ReturnRequestResponse cancelReturnByCustomer(UUID returnId, UUID userId, String actor) {
         ReturnRequest request = findById(returnId);
         assertCustomerOwnership(request, userId);
-        if (request.getStatus() != ReturnRequest.ReturnStatus.PENDING_VENDOR
-                && request.getStatus() != ReturnRequest.ReturnStatus.ACCEPTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Return request can no longer be cancelled");
-        }
+        assertOpenReturnCanBeCancelled(request);
 
         request.setStatus(ReturnRequest.ReturnStatus.CANCELLED);
-        String normalizedReason = normalizeOptionalText(reason);
-        if (!normalizedReason.isEmpty()) {
-            String baseNote = normalizeOptionalText(request.getNote());
-            String cancelNote = "Customer cancelled request: " + normalizedReason;
-            request.setNote(baseNote.isEmpty() ? cancelNote : baseNote + "\n" + cancelNote);
-        }
         request.setUpdatedBy(actor);
-        return toResponse(returnRequestRepository.save(request));
+        ReturnRequest saved = returnRequestRepository.save(request);
+
+        Order order = saved.getOrder();
+        order.setStatus(Order.OrderStatus.DELIVERED);
+        if (order.getEscrowRemainingSeconds() != null) {
+            order.setEscrowDeadlineAt(LocalDateTime.now().plusSeconds(order.getEscrowRemainingSeconds()));
+        } else {
+            order.setEscrowDeadlineAt(LocalDateTime.now().plusDays(7));
+        }
+        order.setEscrowRemainingSeconds(null);
+        orderRepository.save(order);
+
+        notifyCustomerReturnStatusChanged(saved);
+        return toResponse(saved);
     }
 
     @Transactional
-    public ReturnRequestResponse finalVerdict(
+    public ReturnRequestResponse adminResolveDispute(
             UUID returnId,
-            ReturnAdminVerdictRequest.VerdictAction action,
+            String winner,
             String adminNote,
             UUID adminId,
             String adminEmail) {
-        if (action == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Verdict action is required");
-        }
+        String normalizedWinner = normalizeRequiredText(winner, "Winner is required").toLowerCase();
+        ReturnRequest request = findById(returnId);
+        assertStatus(request, ReturnRequest.ReturnStatus.DISPUTING);
 
-        ReturnAdminVerdictRequest.VerdictAction safeAction = action;
         try {
-            ReturnRequest request = findById(returnId);
-            assertStatus(request, ReturnRequest.ReturnStatus.DISPUTED);
-
-            if (safeAction == ReturnAdminVerdictRequest.VerdictAction.REFUND_TO_CUSTOMER) {
+            if ("customer".equals(normalizedWinner)) {
                 BigDecimal refundAmount = calculateRefundAmount(request);
                 if (refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                             "Refund amount must be greater than zero");
                 }
-                request.setStatus(ReturnRequest.ReturnStatus.COMPLETED);
+                request.setStatus(ReturnRequest.ReturnStatus.REFUND_SUCCESS);
                 request.setCompletedAt(LocalDateTime.now());
                 request.setAdminNote(normalizeOptionalText(adminNote));
                 request.setAdminFinalized(true);
@@ -413,47 +489,41 @@ public class ReturnRequestService {
                         refundAmount,
                         "Dispute refund for return " + resolveReturnCode(saved));
 
-                writeAdminAuditLog(
-                        adminId,
-                        adminEmail,
-                        "RETURN",
-                        "FINAL_VERDICT_REFUND_TO_CUSTOMER",
-                        saved.getId(),
-                        true,
-                        normalizeOptionalText(adminNote));
+                Order order = saved.getOrder();
+                order.setPaymentStatus(Order.PaymentStatus.REFUNDED);
+                order.setStatus(Order.OrderStatus.CANCELLED);
+                orderRepository.save(order);
+
+                writeAdminAuditLog(adminId, adminEmail, "RETURN", "ADMIN_RESOLVE_DISPUTE_CUSTOMER_WIN", saved.getId(),
+                        true, adminNote);
                 notifyCustomerReturnStatusChanged(saved);
                 return toResponse(saved);
-            }
+            } else if ("seller".equals(normalizedWinner)) {
+                request.setStatus(ReturnRequest.ReturnStatus.RETURN_REJECTED);
+                request.setCompletedAt(LocalDateTime.now());
+                request.setAdminNote(normalizeOptionalText(adminNote));
+                request.setAdminFinalized(true);
+                request.setUpdatedBy(adminEmail);
+                ReturnRequest saved = returnRequestRepository.save(request);
 
-            request.setStatus(ReturnRequest.ReturnStatus.REJECTED);
-            String normalizedAdminNote = normalizeOptionalText(adminNote);
-            if (normalizedAdminNote.isEmpty()) {
-                normalizedAdminNote = "Final verdict: release to vendor";
+                Order order = saved.getOrder();
+                walletService.releaseEscrowToAvailable(order.getStoreId(), order.getId(), order.getVendorPayout());
+
+                order.setStatus(Order.OrderStatus.DELIVERED);
+                order.setEscrowDeadlineAt(null);
+                order.setEscrowRemainingSeconds(null);
+                orderRepository.save(order);
+
+                writeAdminAuditLog(adminId, adminEmail, "RETURN", "ADMIN_RESOLVE_DISPUTE_SELLER_WIN", saved.getId(),
+                        true, adminNote);
+                notifyCustomerReturnStatusChanged(saved);
+                return toResponse(saved);
+            } else {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Invalid winner: must be 'seller' or 'customer'");
             }
-            request.setAdminNote(normalizedAdminNote);
-            request.setAdminFinalized(true);
-            request.setUpdatedBy(adminEmail);
-            ReturnRequest saved = returnRequestRepository.save(request);
-            writeAdminAuditLog(
-                    adminId,
-                    adminEmail,
-                    "RETURN",
-                    "FINAL_VERDICT_RELEASE_TO_VENDOR",
-                    saved.getId(),
-                    true,
-                    normalizedAdminNote);
-            notifyCustomerReturnStatusChanged(saved);
-            return toResponse(saved);
         } catch (RuntimeException ex) {
-            writeAdminAuditLog(
-                    adminId,
-                    adminEmail,
-                    "RETURN",
-                    safeAction == ReturnAdminVerdictRequest.VerdictAction.REFUND_TO_CUSTOMER
-                            ? "FINAL_VERDICT_REFUND_TO_CUSTOMER"
-                            : "FINAL_VERDICT_RELEASE_TO_VENDOR",
-                    returnId,
-                    false,
+            writeAdminAuditLog(adminId, adminEmail, "RETURN", "ADMIN_RESOLVE_DISPUTE_FAILED", returnId, false,
                     ex.getMessage());
             throw ex;
         }
@@ -464,15 +534,21 @@ public class ReturnRequestService {
                 || request.getUser().getId() == null) {
             return;
         }
-        String code = resolveReturnCode(request);
-        String title = "Yêu cầu #" + code + " đã được tạo";
-        String message = "Yêu cầu đổi/trả của bạn đã được gửi tới người bán.";
-        notificationDomainService.createAndPush(
-                request.getUser().getId(),
-                Notification.NotificationType.SYSTEM,
-                title,
-                message,
-                buildReturnDetailLink(request));
+        try {
+            String code = resolveReturnCode(request);
+            String title = "Yêu cầu #" + code + " đã được tạo";
+            String message = "Yêu cầu đổi/trả của bạn đã được gửi tới người bán.";
+            notificationDomainService.createAndPush(
+                    request.getUser().getId(),
+                    Notification.NotificationType.SYSTEM,
+                    title,
+                    message,
+                    buildReturnDetailLink(request));
+        } catch (Exception ex) {
+            // Log and swallow - notification failure should not abort the main transaction
+            log.error("Failed to send return creation notification for return {}: {}",
+                    request.getId(), ex.getMessage(), ex);
+        }
     }
 
     private void notifyCustomerReturnStatusChanged(ReturnRequest request) {
@@ -480,48 +556,57 @@ public class ReturnRequestService {
                 || request.getUser().getId() == null) {
             return;
         }
-        ReturnRequest.ReturnStatus status = request.getStatus();
-        if (status == null) {
-            return;
+        try {
+            ReturnRequest.ReturnStatus status = request.getStatus();
+            if (status == null) {
+                return;
+            }
+            String code = resolveReturnCode(request);
+            String title = "Yêu cầu #" + code + " " + returnStatusTitle(status);
+            String message = returnStatusMessage(status);
+            notificationDomainService.createAndPush(
+                    request.getUser().getId(),
+                    Notification.NotificationType.SYSTEM,
+                    title,
+                    message,
+                    buildReturnDetailLink(request));
+        } catch (Exception ex) {
+            // Log and swallow - notification failure should not abort the main transaction
+            log.error("Failed to send return status change notification for return {}: {}",
+                    request.getId(), ex.getMessage(), ex);
         }
-        String code = resolveReturnCode(request);
-        String title = "Yêu cầu #" + code + " " + returnStatusTitle(status);
-        String message = returnStatusMessage(status);
-        notificationDomainService.createAndPush(
-                request.getUser().getId(),
-                Notification.NotificationType.SYSTEM,
-                title,
-                message,
-                buildReturnDetailLink(request));
     }
 
     private String returnStatusTitle(ReturnRequest.ReturnStatus status) {
         return switch (status) {
-            case PENDING_VENDOR -> "đã gửi tới người bán";
-            case ACCEPTED -> "được chấp nhận";
-            case SHIPPING -> "đang vận chuyển";
-            case RECEIVED -> "đã được người bán nhận";
-            case COMPLETED -> "đã hoàn tất";
-            case REJECTED -> "bị từ chối";
-            case DISPUTED -> "đang được xử lý tranh chấp";
-            case CANCELLED -> "đã bị hủy";
+            case REQUESTED -> "yêu cầu trả hàng đã được tạo";
+            case IN_TRANSIT -> "yêu cầu trả hàng đang được vận chuyển";
+            case DELIVERED_TO_SELLER -> "yêu cầu trả hàng đã được nhận bởi người bán";
+            case REFUND_SUCCESS -> "đã hoàn tiền thành công";
+            case DISPUTING -> "đang được tranh chấp";
+            case RETURN_REJECTED -> "yêu cầu trả hàng bị từ chối";
+            case CANCELLED -> "đã hủy yêu cầu";
         };
     }
 
     private String returnStatusMessage(ReturnRequest.ReturnStatus status) {
         return switch (status) {
-            case PENDING_VENDOR -> "Người bán sẽ phản hồi yêu cầu đổi/trả của bạn sớm.";
-            case ACCEPTED -> "Người bán đã chấp nhận yêu cầu đổi/trả của bạn.";
-            case SHIPPING -> "Bạn đã cập nhật vận chuyển cho yêu cầu đổi/trả.";
-            case RECEIVED -> "Người bán đã nhận được kiện hàng hoàn trả.";
-            case COMPLETED -> "Yêu cầu đổi/trả đã hoàn tất.";
-            case REJECTED -> "Yêu cầu đổi/trả đã bị từ chối.";
-            case DISPUTED -> "Yêu cầu đổi/trả đang trong quá trình xử lý tranh chấp.";
-            case CANCELLED -> "Yêu cầu đổi/trả đã được hủy.";
+            case REQUESTED -> "Yêu cầu trả hàng của bạn đang chờ xử lý.";
+            case IN_TRANSIT -> "Kiện hàng hoàn trả đang trên đường gửi tới người bán.";
+            case DELIVERED_TO_SELLER -> "Hiện tại người bán đang kiểm tra hàng.";
+            case REFUND_SUCCESS -> "Tiền đã được hoàn về ví của bạn.";
+            case DISPUTING -> "Hệ thống đang phân xử tranh chấp giữa bạn và người bán.";
+            case RETURN_REJECTED -> "Yêu cầu trả hàng của bạn không được chấp nhận.";
+            case CANCELLED -> "Yêu cầu trả hàng đã bị hủy.";
         };
     }
 
     private String buildReturnDetailLink(ReturnRequest request) {
+        // Navigate to order detail page where user can see return request
+        if (request.getOrder() != null && request.getOrder().getId() != null) {
+            return "/profile/orders/" + request.getOrder().getId();
+        }
+        // Fallback to returns page with code
         String code = resolveReturnCode(request);
         return "/returns?code=" + code;
     }
@@ -608,11 +693,10 @@ public class ReturnRequestService {
     }
 
     private boolean isOpenStatus(ReturnRequest.ReturnStatus status) {
-        return status == ReturnRequest.ReturnStatus.PENDING_VENDOR
-                || status == ReturnRequest.ReturnStatus.ACCEPTED
-                || status == ReturnRequest.ReturnStatus.SHIPPING
-                || status == ReturnRequest.ReturnStatus.RECEIVED
-                || status == ReturnRequest.ReturnStatus.DISPUTED;
+        return status == ReturnRequest.ReturnStatus.REQUESTED
+                || status == ReturnRequest.ReturnStatus.IN_TRANSIT
+                || status == ReturnRequest.ReturnStatus.DELIVERED_TO_SELLER
+                || status == ReturnRequest.ReturnStatus.DISPUTING;
     }
 
     private Specification<ReturnRequest> buildListSpecification(
@@ -802,9 +886,11 @@ public class ReturnRequestService {
 
     private ReturnRequestResponse toResponse(ReturnRequest request) {
         UUID effectiveStoreId = resolveStoreId(request);
-        String storeName = effectiveStoreId == null
-                ? null
-                : storeRepository.findById(effectiveStoreId).map(Store::getName).orElse(null);
+        String storeName = null;
+
+        if (effectiveStoreId != null) {
+            storeName = storeRepository.findById(effectiveStoreId).map(Store::getName).orElse(null);
+        }
 
         return ReturnRequestResponse.builder()
                 .id(request.getId())
@@ -870,6 +956,16 @@ public class ReturnRequestService {
         return getCustomerReturnsByOrder(order, userId);
     }
 
+    @Transactional(readOnly = true)
+    public ReturnRequestResponse getCustomerReturnByCode(String code, UUID userId) {
+        ReturnRequest request = returnRequestRepository.findByReturnCode(code)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Return request not found"));
+        if (request.getUser() == null || !request.getUser().getId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Return request does not belong to this customer");
+        }
+        return toResponse(request);
+    }
+
     private List<ReturnRequestResponse> getCustomerReturnsByOrder(Order order, UUID userId) {
         if (order.getUser() == null || !order.getUser().getId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Order does not belong to user");
@@ -898,5 +994,37 @@ public class ReturnRequestService {
         if (adminAuditLogService == null)
             return;
         adminAuditLogService.logAction(actorId, actorEmail, domain, action, targetId, success, note);
+    }
+
+    private boolean hasCustomerEvidence(ReturnSubmitRequest payload) {
+        if (payload == null || payload.getItems() == null) {
+            return false;
+        }
+        for (ReturnSubmitRequest.ReturnItemPayload item : payload.getItems()) {
+            if (item == null)
+                continue;
+            String originalEvidence = normalizeOptionalText(item.getEvidenceUrl());
+            String fallbackEvidence = normalizeOptionalText(item.getAdminImageUrl());
+            if (!originalEvidence.isEmpty() || !fallbackEvidence.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String buildMockTrackingNumber(String returnCode) {
+        if (returnCode == null || returnCode.isBlank()) {
+            return "RET-MOCK-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        }
+        return "RET-MOCK-" + returnCode.trim().toUpperCase();
+    }
+
+    private void assertOpenReturnCanBeCancelled(ReturnRequest request) {
+        if (request == null)
+            return;
+        ReturnRequest.ReturnStatus status = request.getStatus();
+        if (status != ReturnRequest.ReturnStatus.REQUESTED && status != ReturnRequest.ReturnStatus.IN_TRANSIT) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Return request can no longer be cancelled");
+        }
     }
 }

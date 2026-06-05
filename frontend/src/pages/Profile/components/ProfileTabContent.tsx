@@ -32,6 +32,7 @@ const ProfileTabContent = (props: ProfileTabContentProps) => {
           orderStatusLabelMap={props.orderStatusLabelMap}
           onOpenOrderDetail={props.onOpenOrderDetail}
           onRequestCancelOrder={props.onRequestCancelOrder}
+          onRequestCancelReturn={props.onRequestCancelReturn}
           onOpenReturnDrawer={props.onOpenReturnDrawer}
           onOpenReviewForOrder={props.onOpenReviewForOrder}
         />

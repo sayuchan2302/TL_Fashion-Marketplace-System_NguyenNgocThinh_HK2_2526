@@ -153,7 +153,7 @@ const AdminFinancialWalletsPanel = ({
                 </button>
                 {record.reservedBalance > 0 && (
                   <button
-                    className="admin-icon-btn subtle"
+                    className="admin-icon-btn subtle success-icon"
                     title="Duyệt phiếu rút đang chờ"
                     onClick={() => onOpenReleaseConfirm([record.storeId])}
                   >
@@ -206,7 +206,7 @@ const AdminFinancialWalletsPanel = ({
                 </button>
                 {record.reservedBalance > 0 && (
                   <button
-                    className="admin-icon-btn subtle"
+                    className="admin-icon-btn subtle success-icon"
                     type="button"
                     title="Duyệt phiếu rút đang chờ"
                     aria-label="Duyệt phiếu rút đang chờ"

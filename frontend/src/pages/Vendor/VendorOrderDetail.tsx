@@ -1,7 +1,7 @@
 import './Vendor.css';
 import '../../styles/orderDetailTheme.css';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, Check, Copy, MapPin, Package, Percent, Printer, Store, Truck, User, XCircle } from 'lucide-react';
+import { CheckCircle2, Copy, MapPin, Package, Percent, Printer, Store, Truck, User, XCircle } from 'lucide-react';
 import { startTransition, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
@@ -14,7 +14,6 @@ import { vendorPortalService, type VendorOrderDetailData } from '../../services/
 import { useToast } from '../../contexts/ToastContext';
 import { getUiErrorMessage } from '../../utils/errorMessage';
 import { AdminStateBlock } from '../Admin/AdminStateBlocks';
-import AdminConfirmDialog from '../Admin/AdminConfirmDialog';
 import { copyTextToClipboard } from './vendorHelpers';
 import { toDisplayOrderCode } from '../../utils/displayCode';
 import { getOptimizedImageUrl } from '../../utils/getOptimizedImageUrl';
@@ -35,7 +34,6 @@ const emptyOrder: VendorOrderDetailData = {
   paymentMethod: 'COD',
   paymentStatus: 'pending',
   note: '',
-  warehouseNote: '',
   trackingNumber: '',
   carrier: '',
   commissionFee: 0,
@@ -52,8 +50,6 @@ const VendorOrderDetail = () => {
   const [loadError, setLoadError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [delayDialogOpen, setDelayDialogOpen] = useState(false);
-  const [delayReason, setDelayReason] = useState('');
   const pageOrderCode = order.code || id || '';
   usePageTitle(
     pageOrderCode
@@ -142,34 +138,6 @@ const VendorOrderDetail = () => {
     );
   };
 
-  const requestNotifyDelay = () => {
-    setDelayReason('');
-    setDelayDialogOpen(true);
-  };
-
-  const confirmNotifyDelay = async () => {
-    const note = delayReason.trim();
-    if (!note) {
-      addToast('Cần nhập lý do chậm xử lý / giao hàng.', 'error');
-      return;
-    }
-
-    setIsProcessing(true);
-    try {
-      await vendorPortalService.notifyDelay(order.id || id, note);
-      setOrder((current) => ({
-        ...current,
-        warehouseNote: note,
-      }));
-      setDelayDialogOpen(false);
-      setDelayReason('');
-      addToast('Đã gửi ghi chú trễ đơn cho đơn hàng.', 'success');
-    } catch (err: unknown) {
-      addToast(getUiErrorMessage(err, 'Không thể gửi ghi chú trễ đơn'), 'error');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
 
   const handlePrintDeliveryNote = () => {
     // 1. Kích hoạt in trên trình duyệt
@@ -204,11 +172,6 @@ const VendorOrderDetail = () => {
   const canShip = order.status === 'processing';
   const canDeliver = order.status === 'shipped';
   const canCancel = order.status === 'pending' || order.status === 'confirmed' || order.status === 'processing';
-  const canNotifyDelay = order.status === 'pending'
-    || order.status === 'confirmed'
-    || order.status === 'processing'
-    || order.status === 'shipped';
-
   return (
     <VendorLayout
       title={
@@ -228,7 +191,7 @@ const VendorOrderDetail = () => {
           </button>
           {canConfirm && (
             <button className="admin-primary-btn vendor-admin-primary" onClick={() => void updateStatus('CONFIRMED', 'confirmed', 'Đã xác nhận đơn hàng')} disabled={isProcessing}>
-              <Check size={16} />
+              <CheckCircle2 size={16} />
               {isProcessing ? 'Đang xử lý...' : 'Xác nhận đơn'}
             </button>
           )}
@@ -246,7 +209,7 @@ const VendorOrderDetail = () => {
           )}
           {canDeliver && (
             <button className="admin-primary-btn vendor-admin-primary" onClick={() => void updateStatus('DELIVERED', 'delivered', 'Đơn hàng đã được xác nhận giao thành công')} disabled={isProcessing}>
-              <Check size={16} />
+              <CheckCircle2 size={16} />
               {isProcessing ? 'Đang xử lý...' : 'Xác nhận đã giao'}
             </button>
           )}
@@ -254,12 +217,6 @@ const VendorOrderDetail = () => {
             <button className="admin-ghost-btn danger" onClick={() => void updateStatus('CANCELLED', 'cancelled', 'Đã hủy đơn hàng')} disabled={isProcessing}>
               <XCircle size={16} />
               Hủy đơn
-            </button>
-          )}
-          {canNotifyDelay && (
-            <button className="admin-ghost-btn" onClick={requestNotifyDelay} disabled={isProcessing}>
-              <AlertTriangle size={16} />
-              Báo đơn trễ
             </button>
           )}
         </div>
@@ -422,9 +379,6 @@ const VendorOrderDetail = () => {
                 {order.note && (
                   <div className="od-note">Ghi chú: {order.note}</div>
                 )}
-                {order.warehouseNote && (
-                  <div className="od-note">Delay note: {order.warehouseNote}</div>
-                )}
               </div>
             </section>
 
@@ -451,40 +405,9 @@ const VendorOrderDetail = () => {
           </div>
         </motion.div>
       )}
-      <AdminConfirmDialog
-        open={delayDialogOpen}
-        title="Báo đơn trễ"
-        description="Nhập lý do chậm xử lý hoặc giao hàng để lưu vào đơn và thông báo cho khách."
-        selectedItems={[toDisplayOrderCode(order.code)]}
-        selectedNoun="đơn"
-        confirmLabel={isProcessing ? 'Đang gửi...' : 'Gửi ghi chú'}
-        confirmDisabled={isProcessing || !delayReason.trim()}
-        cancelDisabled={isProcessing}
-        variant="vendor"
-        onCancel={() => {
-          if (!isProcessing) {
-            setDelayDialogOpen(false);
-            setDelayReason('');
-          }
-        }}
-        onConfirm={() => void confirmNotifyDelay()}
-      >
-        <label className="form-field full">
-          <span>Lý do trễ đơn</span>
-          <textarea
-            rows={4}
-            value={delayReason}
-            onChange={(event) => setDelayReason(event.target.value)}
-            placeholder="VD: Đơn cần thêm thời gian đóng gói do thiếu hàng tạm thời"
-            autoFocus
-          />
-        </label>
-      </AdminConfirmDialog>
       {createPortal(<VendorOrderPrintTemplate order={order} />, document.body)}
     </VendorLayout>
   );
 };
 
 export default VendorOrderDetail;
-
-

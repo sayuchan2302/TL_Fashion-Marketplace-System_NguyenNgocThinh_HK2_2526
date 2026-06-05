@@ -20,7 +20,6 @@ const STATIC_ROUTE_TITLES: StaticRouteTitle[] = [
   { path: '/order-success', title: 'Đặt hàng thành công' },
   { path: '/wishlist', title: 'Yêu thích' },
   { path: '/order-tracking', title: 'Theo dõi đơn hàng' },
-  { path: '/returns', title: 'Đổi trả hàng' },
   { path: '/faq', title: 'FAQ' },
   { path: '/size-guide', title: 'Bảng size' },
   { path: '/about', title: 'Về Phố Mặc' },
@@ -66,7 +65,6 @@ const CATEGORY_TITLES: Record<string, string> = {
 
 const POLICY_TITLES: Record<string, string> = {
   'bao-mat': 'Chính sách bảo mật',
-  'doi-tra': 'Chính sách đổi trả',
   'giao-hang': 'Chính sách giao hàng',
   'khieu-nai': 'Chính sách khiếu nại',
   'khuyen-mai': 'Chính sách khuyến mãi',

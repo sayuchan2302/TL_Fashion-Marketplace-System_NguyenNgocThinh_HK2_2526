@@ -73,7 +73,7 @@ const AdminFinancialPendingPayoutsPanel = ({
               <button className="admin-icon-btn subtle" title="Xem chi tiết" onClick={() => onOpenDetail(payout)}>
                 <Eye size={16} />
               </button>
-              <button className="admin-icon-btn subtle" title="Duyệt" onClick={() => void onApprove(payout)}>
+              <button className="admin-icon-btn subtle success-icon" title="Duyệt" onClick={() => void onApprove(payout)}>
                 <CheckCircle2 size={16} />
               </button>
               <button
@@ -123,7 +123,7 @@ const AdminFinancialPendingPayoutsPanel = ({
                 <Eye size={16} />
                 Xem chi tiết
               </button>
-              <button className="admin-icon-btn subtle" type="button" title="Duyệt" aria-label="Duyệt phiếu rút" onClick={() => void onApprove(payout)}>
+              <button className="admin-icon-btn subtle success-icon" type="button" title="Duyệt" aria-label="Duyệt phiếu rút" onClick={() => void onApprove(payout)}>
                 <CheckCircle2 size={16} />
               </button>
               <button

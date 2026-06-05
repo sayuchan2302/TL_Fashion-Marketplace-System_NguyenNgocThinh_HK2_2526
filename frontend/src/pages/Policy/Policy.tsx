@@ -1,18 +1,8 @@
 import { useParams, Link } from 'react-router-dom';
-import { ChevronRight, Shield, Truck, RotateCcw, Lock } from 'lucide-react';
+import { ChevronRight, Shield, Truck, Lock } from 'lucide-react';
 import './Policy.css';
 
 const POLICIES: Record<string, { title: string; icon: React.ReactNode; content: string[] }> = {
-  'doi-tra': {
-    title: 'Chính sách đổi trả 60 ngày',
-    icon: <RotateCcw size={28} />,
-    content: [
-      'Coolmate hỗ trợ đổi trả sản phẩm trong vòng 60 ngày kể từ ngày mua hàng, áp dụng cho tất cả sản phẩm chưa qua sử dụng và còn nguyên tem mác.',
-      'Điều kiện đổi trả:\n• Sản phẩm chưa qua sử dụng, còn nguyên tem mác.\n• Sản phẩm không bị hư hỏng do người dùng.\n• Có hóa đơn hoặc mã đơn hàng.',
-      'Quy trình đổi trả:\n1. Liên hệ CSKH qua hotline 1900.27.27.37 hoặc email cool@coolmate.me.\n2. Gửi sản phẩm về địa chỉ kho của Coolmate.\n3. Nhận sản phẩm thay thế hoặc hoàn tiền trong 3-5 ngày làm việc.',
-      'Lưu ý: Phí vận chuyển đổi trả sẽ do Coolmate chi trả nếu lỗi từ nhà sản xuất. Trường hợp đổi do nhu cầu cá nhân, khách hàng chịu phí vận chuyển.',
-    ],
-  },
   'bao-mat': {
     title: 'Chính sách bảo mật',
     icon: <Lock size={28} />,
@@ -76,7 +66,7 @@ const Policy = () => {
         <div className="policy-breadcrumb">
           <Link to="/">Trang chủ</Link>
           <ChevronRight size={14} />
-          <Link to="/policy/doi-tra">Chính sách</Link>
+          <Link to="/policy">Chính sách</Link>
           <ChevronRight size={14} />
           <span>{policy.title}</span>
         </div>

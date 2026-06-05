@@ -316,7 +316,7 @@ export const CLIENT_TEXT = {
       reasons: {
         size: 'Không vừa size',
         defect: 'Lỗi sản phẩm',
-        change: 'Đổi mẫu khác',
+        change: 'Hàng giả',
         other: 'Khác',
       },
       description: 'Mô tả chi tiết',
@@ -338,7 +338,7 @@ export const CLIENT_TEXT = {
     summary: {
       selectedItems: 'Sản phẩm đã chọn',
       reason: 'Lý do',
-      submit: 'Gửi yêu cầu đổi/trả',
+      submit: 'Gửi yêu cầu hoàn đơn',
       submitting: 'Đang gửi yêu cầu...',
       submitted: 'Yêu cầu đã gửi thành công — chúng tôi sẽ liên hệ để hướng dẫn quy trình hoàn hàng.',
     },

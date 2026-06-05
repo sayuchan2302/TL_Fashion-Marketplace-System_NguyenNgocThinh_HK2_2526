@@ -52,7 +52,6 @@ interface BackendVendorOrderSummary {
   customer?: BackendVendorCustomer;
   trackingNumber?: string;
   shippingCarrier?: string;
-  warehouseNote?: string;
   productName?: string;
   productMeta?: string;
   productExtra?: string | null;
@@ -266,7 +265,6 @@ export interface VendorOrderDetailData {
   paymentMethod: string;
   paymentStatus: string;
   note: string;
-  warehouseNote: string;
   trackingNumber: string;
   carrier: string;
   commissionFee: number;
@@ -487,7 +485,6 @@ const mapOrderDetail = (order: BackendVendorOrderDetail): VendorOrderDetailData 
   paymentMethod: order.paymentMethod || 'COD',
   paymentStatus: (order.paymentStatus || 'UNPAID').toLowerCase(),
   note: order.note || '',
-  warehouseNote: order.warehouseNote || '',
   trackingNumber: order.trackingNumber || '',
   carrier: order.shippingCarrier || '',
   commissionFee: Number(order.commissionFee ?? 0),
@@ -684,13 +681,6 @@ export const vendorPortalService = {
     await apiRequest(`/api/vendor/orders/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status, ...payload }),
-    }, { auth: true });
-  },
-
-  async notifyDelay(id: string, warehouseNote: string) {
-    await apiRequest(`/api/vendor/orders/${id}/delay`, {
-      method: 'PATCH',
-      body: JSON.stringify({ warehouseNote }),
     }, { auth: true });
   },
 

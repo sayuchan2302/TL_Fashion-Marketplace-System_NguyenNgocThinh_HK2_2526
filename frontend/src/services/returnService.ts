@@ -1,13 +1,12 @@
 import { apiRequest } from './apiClient';
 
 export type ReturnStatus =
-  | 'PENDING_VENDOR'
-  | 'ACCEPTED'
-  | 'SHIPPING'
-  | 'RECEIVED'
-  | 'COMPLETED'
-  | 'REJECTED'
-  | 'DISPUTED'
+  | 'REQUESTED'
+  | 'IN_TRANSIT'
+  | 'DELIVERED_TO_SELLER'
+  | 'REFUND_SUCCESS'
+  | 'DISPUTING'
+  | 'RETURN_REJECTED'
   | 'CANCELLED';
 export type ReturnReason = 'SIZE' | 'DEFECT' | 'CHANGE' | 'OTHER';
 export type ReturnResolution = 'EXCHANGE' | 'REFUND';
@@ -42,6 +41,7 @@ export interface ReturnRequest {
   storeName?: string;
   vendorReason?: string;
   disputeReason?: string;
+  disputeEvidenceUrl?: string;
   shippingTrackingNumber?: string;
   shippingCarrier?: string;
   adminNote?: string;
@@ -74,6 +74,7 @@ export interface VendorReturnSummary {
   inTransit: number;
   toInspect: number;
   disputed: number;
+  completed: number;
 }
 
 interface ReturnListParams {
@@ -169,16 +170,22 @@ export const returnService = {
     }, { auth: true });
   },
 
-  async acceptByVendor(id: string): Promise<ReturnRequest> {
-    return apiRequest<ReturnRequest>(`/api/returns/my-store/${id}/accept`, {
+  async getByCode(code: string): Promise<ReturnRequest> {
+    return apiRequest<ReturnRequest>(`/api/returns/customer/code/${code}`, {
+      method: 'GET',
+    }, { auth: true });
+  },
+
+  async approveByVendor(id: string): Promise<ReturnRequest> {
+    return apiRequest<ReturnRequest>(`/api/returns/my-store/${id}/approve`, {
       method: 'PATCH',
     }, { auth: true });
   },
 
-  async rejectByVendor(id: string, reason: string): Promise<ReturnRequest> {
-    return apiRequest<ReturnRequest>(`/api/returns/my-store/${id}/reject`, {
+  async disputeByVendor(id: string, reason: string, evidenceUrl: string): Promise<ReturnRequest> {
+    return apiRequest<ReturnRequest>(`/api/returns/my-store/${id}/dispute`, {
       method: 'PATCH',
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ reason, evidenceUrl }),
     }, { auth: true });
   },
 

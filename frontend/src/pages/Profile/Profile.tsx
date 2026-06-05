@@ -32,6 +32,7 @@ import { orderService } from '../../services/orderService';
 import { reviewService, type EligibleReviewItem, type Review as CustomerReview } from '../../services/reviewService';
 import { customerVoucherService, type CustomerWalletVoucher } from '../../services/customerVoucherService';
 import { profileService, type UserProfileRecord } from '../../services/profileService';
+import { returnService } from '../../services/returnService';
 import { authService } from '../../services/authService';
 import { storeFollowService, type FollowedStoreItem } from '../../services/storeFollowService';
 import { calculateTier, TIER_CONFIG, getProgressToNextTier, getSpendRequiredForNextTier, getNextTier } from '../../utils/tierUtils';
@@ -237,6 +238,8 @@ const Profile = () => {
   const [pendingCancelOrderId, setPendingCancelOrderId] = useState<string | null>(null);
   const [isDeletingAddress, setIsDeletingAddress] = useState(false);
   const [isCancellingOrder, setIsCancellingOrder] = useState(false);
+  const [pendingCancelReturnId, setPendingCancelReturnId] = useState<string | null>(null);
+  const [isCancellingReturn, setIsCancellingReturn] = useState(false);
   const [voucherWallet, setVoucherWallet] = useState<CustomerWalletVoucher[]>([]);
   const [voucherPage, setVoucherPage] = useState(1);
 
@@ -752,6 +755,21 @@ const Profile = () => {
     }
   };
 
+  const handleCancelReturn = async (returnId: string) => {
+    if (isCancellingReturn) return;
+    setIsCancellingReturn(true);
+    try {
+      await returnService.cancelByCustomer(returnId, 'Khách hàng tự hủy yêu cầu');
+      window.location.reload(); // Ideally we just refetch data but reload guarantees fresh state
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Không thể hủy yêu cầu đổi/trả.';
+      addToast(message, 'error');
+    } finally {
+      setIsCancellingReturn(false);
+      setPendingCancelReturnId(null);
+    }
+  };
+
   const handleMarkAllNotificationsRead = useCallback(() => {
     markAllAsRead();
     addToast(CLIENT_TOAST_MESSAGES.notifications.markedAllRead, 'success');
@@ -949,6 +967,7 @@ const Profile = () => {
                 getOrderDisplayCode={getOrderDisplayCode}
                 onOpenReviewModal={handleOpenReviewModal}
                 onOpenReturnDrawer={handleOpenReturnDrawer}
+                onRequestCancelReturn={setPendingCancelReturnId}
                 onOpenReviewForOrder={handleOpenReviewForOrder}
                 notifications={notifications}
                 unreadCount={unreadCount}
@@ -1062,6 +1081,19 @@ const Profile = () => {
         cancelText="Giữ đơn hàng"
         variant="danger"
         isLoading={isCancellingOrder}
+      />
+
+      {/* Confirm Cancel Return Modal */}
+      <ConfirmModal
+        isOpen={Boolean(pendingCancelReturnId)}
+        onClose={() => setPendingCancelReturnId(null)}
+        onConfirm={() => pendingCancelReturnId && void handleCancelReturn(pendingCancelReturnId)}
+        title="Hủy yêu cầu đổi/trả"
+        message="Bạn có chắc chắn muốn hủy yêu cầu đổi/trả này? Sau khi hủy, yêu cầu sẽ không thể khôi phục."
+        confirmText="Hủy yêu cầu"
+        cancelText="Giữ yêu cầu"
+        variant="danger"
+        isLoading={isCancellingReturn}
       />
     </div>
   );

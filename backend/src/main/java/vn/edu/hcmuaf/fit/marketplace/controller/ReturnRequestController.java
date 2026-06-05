@@ -20,8 +20,6 @@ import org.springframework.web.multipart.MultipartFile;
 import vn.edu.hcmuaf.fit.marketplace.dto.request.ReturnAdminVerdictRequest;
 import vn.edu.hcmuaf.fit.marketplace.dto.request.ReturnCancelRequest;
 import vn.edu.hcmuaf.fit.marketplace.dto.request.ReturnDisputeRequest;
-import vn.edu.hcmuaf.fit.marketplace.dto.request.ReturnRejectRequest;
-import vn.edu.hcmuaf.fit.marketplace.dto.request.ReturnShippingUpdateRequest;
 import vn.edu.hcmuaf.fit.marketplace.dto.request.ReturnSubmitRequest;
 import vn.edu.hcmuaf.fit.marketplace.dto.response.ReturnRequestResponse;
 import vn.edu.hcmuaf.fit.marketplace.dto.response.VendorReturnSummaryResponse;
@@ -76,32 +74,6 @@ public class ReturnRequestController {
         return ResponseEntity.ok(Map.of("url", evidenceUrl));
     }
 
-    @PatchMapping("/{id}/shipping")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ReturnRequestResponse> markShipping(
-            @PathVariable UUID id,
-            @Valid @RequestBody ReturnShippingUpdateRequest request,
-            @RequestHeader("Authorization") String authHeader) {
-        UserContext ctx = authContext.fromAuthHeader(authHeader);
-        return ResponseEntity.ok(returnRequestService.markShipping(
-                id,
-                ctx.getUserId(),
-                request.getTrackingNumber(),
-                request.getCarrier(),
-                ctx.getEmail()));
-    }
-
-    @PatchMapping("/{id}/dispute")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ReturnRequestResponse> openDispute(
-            @PathVariable UUID id,
-            @Valid @RequestBody ReturnDisputeRequest request,
-            @RequestHeader("Authorization") String authHeader) {
-        UserContext ctx = authContext.fromAuthHeader(authHeader);
-        return ResponseEntity
-                .ok(returnRequestService.openDispute(id, ctx.getUserId(), request.getReason(), ctx.getEmail()));
-    }
-
     @PatchMapping("/{id}/cancel")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ReturnRequestResponse> cancelReturn(
@@ -109,8 +81,18 @@ public class ReturnRequestController {
             @RequestBody(required = false) ReturnCancelRequest request,
             @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.fromAuthHeader(authHeader);
-        String reason = request == null ? null : request.getReason();
-        return ResponseEntity.ok(returnRequestService.cancelByCustomer(id, ctx.getUserId(), reason, ctx.getEmail()));
+        return ResponseEntity.ok(returnRequestService.cancelReturnByCustomer(id, ctx.getUserId(), ctx.getEmail()));
+    }
+
+    @PatchMapping("/{id}/dispute")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ReturnRequestResponse> openDispute(
+            @PathVariable UUID id,
+            @RequestBody(required = false) Map<String, String> request,
+            @RequestHeader("Authorization") String authHeader) {
+        UserContext ctx = authContext.fromAuthHeader(authHeader);
+        String reason = request != null ? request.get("reason") : null;
+        return ResponseEntity.ok(returnRequestService.openDispute(id, ctx.getUserId(), reason, ctx.getEmail()));
     }
 
     @GetMapping("/my-store")
@@ -140,42 +122,25 @@ public class ReturnRequestController {
         return ResponseEntity.ok(returnRequestService.getVendorSummary(ctx.getStoreId()));
     }
 
-    @PatchMapping("/my-store/{id}/accept")
+    @PatchMapping("/my-store/{id}/approve")
     @PreAuthorize("hasRole('VENDOR')")
-    public ResponseEntity<ReturnRequestResponse> acceptReturn(
+    public ResponseEntity<ReturnRequestResponse> approveReturn(
             @PathVariable UUID id,
             @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.requireVendor(authHeader);
-        return ResponseEntity.ok(returnRequestService.acceptReturn(id, ctx.getStoreId(), ctx.getEmail()));
+        return ResponseEntity.ok(returnRequestService.sellerApproveReturn(id, ctx.getStoreId(), ctx.getEmail()));
     }
 
-    @PatchMapping("/my-store/{id}/reject")
+    @PatchMapping("/my-store/{id}/dispute")
     @PreAuthorize("hasRole('VENDOR')")
-    public ResponseEntity<ReturnRequestResponse> rejectReturn(
+    public ResponseEntity<ReturnRequestResponse> disputeReturn(
             @PathVariable UUID id,
-            @Valid @RequestBody ReturnRejectRequest request,
+            @Valid @RequestBody ReturnDisputeRequest request,
             @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.requireVendor(authHeader);
         return ResponseEntity
-                .ok(returnRequestService.rejectReturn(id, ctx.getStoreId(), request.getReason(), ctx.getEmail()));
-    }
-
-    @PatchMapping("/my-store/{id}/received")
-    @PreAuthorize("hasRole('VENDOR')")
-    public ResponseEntity<ReturnRequestResponse> markReceived(
-            @PathVariable UUID id,
-            @RequestHeader("Authorization") String authHeader) {
-        UserContext ctx = authContext.requireVendor(authHeader);
-        return ResponseEntity.ok(returnRequestService.markReceived(id, ctx.getStoreId(), ctx.getEmail()));
-    }
-
-    @PatchMapping("/my-store/{id}/confirm-refund")
-    @PreAuthorize("hasRole('VENDOR')")
-    public ResponseEntity<ReturnRequestResponse> confirmReceipt(
-            @PathVariable UUID id,
-            @RequestHeader("Authorization") String authHeader) {
-        UserContext ctx = authContext.requireVendor(authHeader);
-        return ResponseEntity.ok(returnRequestService.confirmReceipt(id, ctx.getStoreId(), ctx.getEmail()));
+                .ok(returnRequestService.sellerDisputeReturn(id, ctx.getStoreId(), request.getReason(),
+                        request.getEvidenceUrl(), ctx.getEmail()));
     }
 
     @GetMapping
@@ -213,9 +178,11 @@ public class ReturnRequestController {
             @Valid @RequestBody ReturnAdminVerdictRequest request,
             @RequestHeader("Authorization") String authHeader) {
         UserContext admin = authContext.requireAdmin(authHeader);
-        return ResponseEntity.ok(returnRequestService.finalVerdict(
+        String winner = request.getAction() == ReturnAdminVerdictRequest.VerdictAction.REFUND_TO_CUSTOMER ? "customer"
+                : "seller";
+        return ResponseEntity.ok(returnRequestService.adminResolveDispute(
                 id,
-                request.getAction(),
+                winner,
                 request.getAdminNote(),
                 admin.getUserId(),
                 admin.getEmail()));
@@ -227,6 +194,15 @@ public class ReturnRequestController {
             @RequestHeader("Authorization") String authHeader) {
         UserContext ctx = authContext.fromAuthHeader(authHeader);
         return ResponseEntity.ok(returnRequestService.getCustomerReturns(ctx.getUserId()));
+    }
+
+    @GetMapping("/customer/code/{code}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ReturnRequestResponse> getMyReturnByCode(
+            @PathVariable String code,
+            @RequestHeader("Authorization") String authHeader) {
+        UserContext ctx = authContext.fromAuthHeader(authHeader);
+        return ResponseEntity.ok(returnRequestService.getCustomerReturnByCode(code, ctx.getUserId()));
     }
 
     @GetMapping("/order/{orderId}")

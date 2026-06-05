@@ -2,10 +2,12 @@ package vn.edu.hcmuaf.fit.marketplace.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.Check;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -19,6 +21,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+@Check(constraints = "status IN ('REQUESTED', 'IN_TRANSIT', 'DELIVERED_TO_SELLER', 'REFUND_SUCCESS', 'DISPUTING', 'RETURN_REJECTED', 'CANCELLED')")
 @Table(name = "return_requests", indexes = {
         @Index(name = "idx_return_requests_return_code", columnList = "return_code", unique = true),
         @Index(name = "idx_return_requests_status", columnList = "status"),
@@ -52,8 +55,9 @@ public class ReturnRequest extends BaseEntity {
     private ReturnResolution resolution;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 20)
-    private ReturnStatus status = ReturnStatus.PENDING_VENDOR;
+    @Column(length = 30)
+    @Builder.Default
+    private ReturnStatus status = ReturnStatus.REQUESTED;
 
     @ElementCollection
     @CollectionTable(name = "return_items", joinColumns = @JoinColumn(name = "return_request_id"))
@@ -64,6 +68,9 @@ public class ReturnRequest extends BaseEntity {
 
     @Column(name = "dispute_reason", columnDefinition = "text")
     private String disputeReason;
+
+    @Column(name = "dispute_evidence_url")
+    private String disputeEvidenceUrl;
 
     @Column(name = "shipping_tracking_number")
     private String shippingTrackingNumber;
@@ -80,10 +87,14 @@ public class ReturnRequest extends BaseEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Column(name = "seller_deadline_at")
+    private LocalDateTime sellerDeadlineAt;
+
     @Column(name = "admin_note", columnDefinition = "text")
     private String adminNote;
 
     @Column(name = "admin_finalized")
+    @Builder.Default
     private Boolean adminFinalized = false;
 
     @Column(name = "updated_by")
@@ -98,13 +109,12 @@ public class ReturnRequest extends BaseEntity {
     }
 
     public enum ReturnStatus {
-        PENDING_VENDOR,
-        ACCEPTED,
-        SHIPPING,
-        RECEIVED,
-        COMPLETED,
-        REJECTED,
-        DISPUTED,
+        REQUESTED,
+        IN_TRANSIT,
+        DELIVERED_TO_SELLER,
+        REFUND_SUCCESS,
+        DISPUTING,
+        RETURN_REJECTED,
         CANCELLED
     }
 

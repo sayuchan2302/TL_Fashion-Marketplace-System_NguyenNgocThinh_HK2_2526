@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
-import { Camera, Check, Loader2, RefreshCw, X } from 'lucide-react';
+import { Camera, Check, Loader2, X } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import { returnService, type ReturnReason, type ReturnResolution } from '../../services/returnService';
 import type { Order, OrderItem } from '../../types';
@@ -33,10 +33,6 @@ const reasonOptions: Array<{ id: ReturnReason; label: string }> = [
   { id: 'OTHER', label: t.info.reasons.other },
 ];
 
-const resolutionOptions: Array<{ id: ReturnResolution; label: string; description: string }> = [
-  { id: 'EXCHANGE', label: t.resolution.changeSize, description: t.resolution.changeSizeDesc },
-  { id: 'REFUND', label: t.resolution.refund, description: t.resolution.refundDesc },
-];
 
 const getItemVariantLabel = (item: OrderItem) =>
   [
@@ -54,7 +50,7 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
   const { addToast } = useToast();
   const [items, setItems] = useState<ReturnSelectableItem[]>([]);
   const [reason, setReason] = useState<ReturnReason>('SIZE');
-  const [resolution, setResolution] = useState<ReturnResolution>('EXCHANGE');
+  const [resolution, setResolution] = useState<ReturnResolution>('REFUND');
   const [note, setNote] = useState('');
   const [evidence, setEvidence] = useState<EvidenceState | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -90,7 +86,7 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
 
     setItems(order.items.map((item) => ({ ...item, selected: true })));
     setReason('SIZE');
-    setResolution('EXCHANGE');
+    setResolution('REFUND');
     setNote('');
     setEvidence((prev) => {
       revokeEvidencePreview(prev);
@@ -112,11 +108,6 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
 
   if (!isOpen || !order) return null;
 
-  const toggleItem = (itemId: string) => {
-    setItems((prev) => prev.map((item) => (
-      item.id === itemId ? { ...item, selected: !item.selected } : item
-    )));
-  };
 
   const handleClose = () => {
     if (isSubmitting) return;
@@ -162,7 +153,6 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
           error: '',
         };
       });
-      addToast('Đã tải ảnh minh chứng.', 'success');
     } catch (error: unknown) {
       const message = error instanceof Error && error.message.trim()
         ? error.message
@@ -210,6 +200,11 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
       return;
     }
 
+    if (!evidence?.uploadedUrl) {
+      addToast('Vui lòng tải lên ảnh minh chứng đổi trả.', 'error');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await returnService.submit({
@@ -250,7 +245,7 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
       <form className="return-drawer" onSubmit={handleSubmit}>
         <div className="return-drawer-header">
           <div>
-            <p className="return-drawer-eyebrow">Đổi / trả hàng</p>
+            <p className="return-drawer-eyebrow">Hoàn đơn</p>
             <h3 className="return-drawer-title">Yêu cầu cho đơn #{toDisplayOrderCode(order.code || order.id)}</h3>
           </div>
           <button type="button" className="return-drawer-close" onClick={handleClose} aria-label="Đóng">
@@ -277,19 +272,13 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
           <section className="return-drawer-section">
             <div className="return-drawer-section-head">
               <h4>Sản phẩm cần xử lý</h4>
-              <span>{selectedItems.length}/{items.length} đã chọn</span>
+              <span>Toàn bộ đơn hàng</span>
             </div>
 
             <div className="return-item-list">
               {items.map((item, index) => (
                 <article key={`${item.id}-${index}`} className={`return-item-card ${item.selected ? 'selected' : ''}`}>
-                  <label className="return-item-main">
-                    <input
-                      type="checkbox"
-                      className="return-item-check"
-                      checked={item.selected}
-                      onChange={() => toggleItem(item.id)}
-                    />
+                  <div className="return-item-main" style={{ gridTemplateColumns: '58px minmax(0, 1fr)' }}>
                     <img
                       src={getOptimizedImageUrl(item.image, { width: 160, format: 'webp' })}
                       alt={item.name}
@@ -300,7 +289,7 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
                       <small>{getItemVariantLabel(item)}</small>
                       <small>Số lượng: {item.quantity || 1}</small>
                     </span>
-                  </label>
+                  </div>
                 </article>
               ))}
             </div>
@@ -322,27 +311,6 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
               ))}
             </div>
           </section>
-
-          <section className="return-drawer-section">
-            <h4>{t.resolution.title}</h4>
-            <div className="return-resolution-grid">
-              {resolutionOptions.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`return-resolution-card ${resolution === option.id ? 'active' : ''}`}
-                  onClick={() => setResolution(option.id)}
-                >
-                  <span>
-                    {resolution === option.id ? <Check size={14} /> : <RefreshCw size={14} />}
-                    {option.label}
-                  </span>
-                  <small>{option.description}</small>
-                </button>
-              ))}
-            </div>
-          </section>
-
           <section className="return-drawer-section">
             <label className="return-drawer-label" htmlFor="return-drawer-evidence">
               Ảnh minh chứng

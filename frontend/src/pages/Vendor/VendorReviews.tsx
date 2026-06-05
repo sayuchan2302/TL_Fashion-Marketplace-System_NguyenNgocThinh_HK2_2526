@@ -463,19 +463,7 @@ const VendorReviews = () => {
                 <p className="admin-muted small">Bạn cần đăng nhập bằng tài khoản người bán để phản hồi đánh giá.</p>
               ) : null}
             </div>
-            <div className="vendor-reviews-head-actions">
-              {canVendorReply ? (
-                <button
-                  className="admin-ghost-btn"
-                  type="button"
-                  disabled={selectedNeedReply.length === 0}
-                  onClick={() => setConfirmReplyIds(selectedNeedReply)}
-                >
-                  <MessageSquare size={14} />
-                  Phản hồi đã chọn
-                </button>
-              ) : null}
-            </div>
+
           </div>
           {loading ? (
             <AdminStateBlock

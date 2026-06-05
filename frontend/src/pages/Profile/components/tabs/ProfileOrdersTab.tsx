@@ -51,22 +51,22 @@ const getOrderSlaNotice = (order: ProfileTabContentProps['orders'][number]): { t
 
 const getReturnStatusBadgeLabel = (status: string) => {
   switch (status) {
-    case 'PENDING_VENDOR':
-      return 'Đang đổi/trả';
-    case 'ACCEPTED':
-      return 'Chờ gửi hàng';
-    case 'SHIPPING':
+    case 'REQUESTED':
+      return 'Đã yêu cầu';
+    case 'IN_TRANSIT':
       return 'Đang vận chuyển';
-    case 'RECEIVED':
-      return 'Shop đã nhận';
-    case 'COMPLETED':
+    case 'DELIVERED_TO_SELLER':
+      return 'Shop đang xử lý';
+    case 'REFUND_SUCCESS':
       return 'Trả hàng thành công';
-    case 'REJECTED':
+    case 'RETURN_REJECTED':
       return 'Yêu cầu bị từ chối';
-    case 'DISPUTED':
+    case 'DISPUTING':
       return 'Tranh chấp';
+    case 'CANCELLED':
+      return 'Đã hủy';
     default:
-      return 'Đang đổi/trả';
+      return 'Đang xử lý';
   }
 };
 
@@ -85,6 +85,7 @@ const OrdersTab = ({
   orderStatusLabelMap,
   onOpenOrderDetail,
   onRequestCancelOrder,
+  onRequestCancelReturn,
   onOpenReturnDrawer,
   onOpenReviewForOrder,
 }: Pick<ProfileTabContentProps,
@@ -99,6 +100,7 @@ const OrdersTab = ({
   | 'orderStatusLabelMap'
   | 'onOpenOrderDetail'
   | 'onRequestCancelOrder'
+  | 'onRequestCancelReturn'
   | 'onOpenReturnDrawer'
   | 'onOpenReviewForOrder'
 >) => {
@@ -192,10 +194,10 @@ const OrdersTab = ({
             const activeReturn = customerReturns.find((req) => req.orderId === order.id && req.status !== 'CANCELLED');
             const displayStatusText = activeReturn
               ? getReturnStatusBadgeLabel(activeReturn.status)
-              : (orderStatusLabelMap[order.status] ?? order.status);
+              : (orderStatusLabelMap?.[order.status] ?? order.status);
 
             const displayStatusClass = activeReturn
-              ? (activeReturn.status === 'COMPLETED' ? 'refunded' : 'returning')
+              ? (activeReturn.status === 'REFUND_SUCCESS' ? 'refunded' : 'returning')
               : order.status;
 
             return (
@@ -239,9 +241,14 @@ const OrdersTab = ({
                     <span className="order-total-price">{order.total.toLocaleString('vi-VN')}đ</span>
                   </div>
                   <div className="order-actions">
-                    {order.status === 'pending' && (
+                    {order.status === 'pending' && !activeReturn && (
                       <button className="order-action-btn order-btn-danger" onClick={() => onRequestCancelOrder(order.id)}>
                         Hủy đơn hàng
+                      </button>
+                    )}
+                    {activeReturn && (activeReturn.status === 'REQUESTED' || activeReturn.status === 'IN_TRANSIT') && (
+                      <button className="order-action-btn order-btn-danger" onClick={() => onRequestCancelReturn(activeReturn.id)}>
+                        Hủy yêu cầu
                       </button>
                     )}
                     <button className="order-action-btn order-btn-outline" onClick={() => onOpenOrderDetail(order)}>
@@ -256,7 +263,7 @@ const OrdersTab = ({
                           if (activeReq) return null;
                           return (
                             <button className="order-action-btn order-btn-outline" onClick={() => onOpenReturnDrawer(order)}>
-                              <RotateCcw size={16} /> Đổi / trả hàng
+                              <RotateCcw size={16} /> Hoàn đơn
                             </button>
                           );
                         })()}

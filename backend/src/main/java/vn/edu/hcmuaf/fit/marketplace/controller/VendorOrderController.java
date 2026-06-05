@@ -133,19 +133,6 @@ public class VendorOrderController {
         return ResponseEntity.ok(orderService.updateVendorOrderTracking(id, effectiveStoreId, request.getTrackingNumber()));
     }
 
-    @PatchMapping("/{id}/delay")
-    @PreAuthorize("hasAnyRole('VENDOR', 'SUPER_ADMIN')")
-    public ResponseEntity<VendorOrderDetailResponse> notifyDelay(
-            @RequestHeader("Authorization") String authHeader,
-            @RequestParam(required = false) UUID storeId,
-            @PathVariable UUID id,
-            @RequestBody DelayNoteRequest request
-    ) {
-        UserContext ctx = authContext.requireVendor(authHeader);
-        UUID effectiveStoreId = authContext.resolveRequiredStoreId(ctx, storeId);
-        return ResponseEntity.ok(orderService.updateVendorDelayNote(id, effectiveStoreId, request.getWarehouseNote()));
-    }
-
     private Order.OrderStatus parseOrderStatus(String rawStatus) {
         if (rawStatus == null || rawStatus.isBlank()) {
             return null;
@@ -186,18 +173,6 @@ public class VendorOrderController {
             return LocalDate.parse(rawDate).plusDays(1).atStartOfDay();
         } catch (Exception ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid date_to format. Use YYYY-MM-DD");
-        }
-    }
-
-    public static class DelayNoteRequest {
-        private String warehouseNote;
-
-        public String getWarehouseNote() {
-            return warehouseNote;
-        }
-
-        public void setWarehouseNote(String warehouseNote) {
-            this.warehouseNote = warehouseNote;
         }
     }
 }

@@ -24,7 +24,6 @@ const SecurityPage = lazy(() => import('./pages/Account/SecurityPage'));
 const OrderDetailPage = lazy(() => import('./pages/Account/OrderDetailPage'));
 const ProtectedRoute = lazy(() => import('./components/ProtectedRoute/ProtectedRoute'));
 const OrderTracking = lazy(() => import('./pages/OrderTracking/OrderTracking'));
-const Returns = lazy(() => import('./pages/Returns/Returns'));
 const FAQ = lazy(() => import('./pages/FAQ/FAQ'));
 const PaymentResult = lazy(() => import('./pages/PaymentResult/PaymentResult'));
 const SizeGuide = lazy(() => import('./pages/SizeGuide/SizeGuide'));
@@ -110,7 +109,6 @@ function App() {
                           <Route path="/search" element={<Search />} />
                           <Route path="/wishlist" element={<Wishlist />} />
                           <Route path="/order-tracking" element={<OrderTracking />} />
-                          <Route path="/returns" element={<Returns />} />
                           <Route path="/payment-result" element={<PaymentResult />} />
                           <Route path="/faq" element={<FAQ />} />
                           <Route path="/size-guide" element={<SizeGuide />} />

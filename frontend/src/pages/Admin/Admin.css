@@ -5111,13 +5111,7 @@ input:disabled,
   min-width: 0;
 }
 
-.returns-row-disputed {
-  background: #fff7ed;
-}
 
-.returns-row-disputed:hover {
-  background: #ffedd5;
-}
 
 .admin-table-row.returns-row .returns-actions {
   display: flex;
@@ -6927,6 +6921,7 @@ textarea:focus-visible {
     width: 100%;
     justify-content: center;
   }
+
   .image-vision-last-search {
     white-space: normal;
   }
