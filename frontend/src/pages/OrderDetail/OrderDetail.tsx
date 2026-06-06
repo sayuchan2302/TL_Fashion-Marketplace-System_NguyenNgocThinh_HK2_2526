@@ -1,4 +1,4 @@
-﻿import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ChevronRight,
   Package,
@@ -22,9 +22,9 @@ import { returnService, type ReturnRequest } from '../../services/returnService'
 import { reviewService, type EligibleReviewItem, type Review } from '../../services/reviewService';
 import ReviewModal from '../../components/ReviewModal/ReviewModal';
 import { formatPrice } from '../../utils/formatters';
-import { toDisplayOrderCode } from '../../utils/displayCode';
-import ConfirmModal from '../../components/ConfirmModal/ConfirmModal';
 import { usePageTitle } from '../../hooks/usePageTitle';
+import { resolveDetailRouteKey, toDisplayOrderCode } from '../../utils/displayCode';
+import ConfirmModal from '../../components/ConfirmModal/ConfirmModal';
 import { CLIENT_TEXT } from '../../utils/texts';
 import type { Order } from '../../types';
 import ReturnRequestDrawer from './ReturnRequestDrawer';
@@ -241,6 +241,14 @@ const OrderDetail = () => {
       window.clearInterval(refreshInterval);
     };
   }, [addToast, id]);
+
+  useEffect(() => {
+    if (!order || !id) return;
+    const routeKey = resolveDetailRouteKey(order.code, order.id);
+    if (routeKey && routeKey !== id) {
+      navigate(`/profile/orders/${encodeURIComponent(routeKey)}`, { replace: true });
+    }
+  }, [order, id, navigate]);
 
   const handleCancelOrder = async () => {
     if (!order) return;

@@ -107,7 +107,7 @@ const ReviewsTab = ({
                   const qtyString = parts[1]?.replace('Số lượng: ', 'x') || 'x1';
 
                   return (
-                    <div key={product.productId} className="order-card">
+                    <div key={`${product.orderId}-${product.productId}-${product.variant || ''}`} className="order-card">
                       <div className="order-card-header">
                         <div className="order-card-meta">
                           <span className="order-id">Đơn hàng: #{getOrderDisplayCode(product.orderId, product.orderCode)}</span>

@@ -167,6 +167,7 @@
 }
 
 @media (max-width: 1080px) {
+
   .od-theme .order-detail-grid,
   .od-theme-client .od-grid {
     grid-template-columns: 1fr;
@@ -183,4 +184,35 @@
     transform: none;
     box-shadow: none;
   }
+}
+
+/* --- Order Status Badges --- */
+.status-delivered {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+.status-shipping {
+  background-color: #dbeafe;
+  color: #2563eb;
+}
+
+.status-pending {
+  background-color: #fef9c3;
+  color: #ca8a04;
+}
+
+.status-cancelled {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+.status-returning {
+  background-color: #ffedd5;
+  color: #ea580c;
+}
+
+.status-refunded {
+  background-color: #dcfce7;
+  color: #16a34a;
 }
