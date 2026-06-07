@@ -8,7 +8,7 @@ node_modules
 .vscode/settings.json
 .skills-lock.json
 CLAUDE.md
-
+.ci-logs/
 # Dependencies
 node_modules/
 frontend/node_modules/

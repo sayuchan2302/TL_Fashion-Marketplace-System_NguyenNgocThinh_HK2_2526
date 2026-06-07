@@ -686,10 +686,6 @@ const AdminPromotions = () => {
             <h4>Thông tin</h4>
             <div className="form-grid">
               <label className="form-field">
-                <span>Phạm vi áp dụng</span>
-                <input value="Toàn sàn" disabled />
-              </label>
-              <label className="form-field">
                 <span>Tên chiến dịch</span>
                 <input value={form.name} onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} />
               </label>
