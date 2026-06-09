@@ -184,6 +184,72 @@ class ReturnRequestAdminVendorIntegrationTest {
                 assertTrue(foundFixture, "Expected filtered list to include created disputed fixture");
         }
 
+        @Test
+        void adminCanRequestMoreEvidenceAndCustomerCanSubmitIt() throws Exception {
+                ReturnRequest disputed = createReturnFixture(
+                                VENDOR_AN_EMAIL,
+                                CUSTOMER_MINH_EMAIL,
+                                ReturnRequest.ReturnStatus.DISPUTING,
+                                "EVIDENCE");
+                String adminToken = loginAndExtractToken(ADMIN_EMAIL, TEST_PASSWORD);
+                String customerToken = loginAndExtractToken(CUSTOMER_MINH_EMAIL, TEST_PASSWORD);
+
+                ResponseEntity<String> requestResponse = exchangePost(
+                                "/api/returns/admin/" + disputed.getId() + "/evidence-requests",
+                                adminToken,
+                                Map.of("message", "Vui lòng bổ sung ảnh kiện hàng sau khi mở"));
+                assertEquals(HttpStatus.OK, requestResponse.getStatusCode());
+                JsonNode requestBody = objectMapper.readTree(requestResponse.getBody());
+                JsonNode evidenceRequests = requestBody.path("additionalEvidenceRequests");
+                assertTrue(evidenceRequests.isArray());
+                assertTrue(evidenceRequests.size() > 0);
+                String evidenceRequestId = evidenceRequests.get(0).path("id").asText();
+                assertFalse(evidenceRequestId.isBlank());
+
+                ResponseEntity<String> submitResponse = exchangePost(
+                                "/api/returns/" + disputed.getId() + "/additional-evidence",
+                                customerToken,
+                                Map.of(
+                                                "requestId", evidenceRequestId,
+                                                "note", "Ảnh kiện hàng ngay sau khi nhận",
+                                                "evidenceUrl", "/uploads/returns/customer-extra.jpg"));
+                assertEquals(HttpStatus.OK, submitResponse.getStatusCode());
+                JsonNode submitBody = objectMapper.readTree(submitResponse.getBody());
+                JsonNode evidence = submitBody.path("additionalEvidenceRequests").get(0).path("evidence");
+                assertTrue(evidence.isArray());
+                assertEquals("CUSTOMER", evidence.get(0).path("submittedByRole").asText());
+                assertEquals("/uploads/returns/customer-extra.jpg", evidence.get(0).path("evidenceUrl").asText());
+        }
+
+        @Test
+        void vendorCannotSubmitAdditionalEvidenceOutsideOwnStore() throws Exception {
+                ReturnRequest disputed = createReturnFixture(
+                                VENDOR_BINH_EMAIL,
+                                CUSTOMER_LAN_EMAIL,
+                                ReturnRequest.ReturnStatus.DISPUTING,
+                                "EVIDFORBID");
+                String adminToken = loginAndExtractToken(ADMIN_EMAIL, TEST_PASSWORD);
+                String vendorToken = loginAndExtractToken(VENDOR_AN_EMAIL, TEST_PASSWORD);
+
+                ResponseEntity<String> requestResponse = exchangePost(
+                                "/api/returns/admin/" + disputed.getId() + "/evidence-requests",
+                                adminToken,
+                                Map.of("message", "Bổ sung ảnh kiểm hàng"));
+                assertEquals(HttpStatus.OK, requestResponse.getStatusCode());
+                JsonNode requestBody = objectMapper.readTree(requestResponse.getBody());
+                String evidenceRequestId = requestBody.path("additionalEvidenceRequests").get(0).path("id").asText();
+
+                ResponseEntity<String> submitResponse = exchangePost(
+                                "/api/returns/" + disputed.getId() + "/additional-evidence",
+                                vendorToken,
+                                Map.of(
+                                                "requestId", evidenceRequestId,
+                                                "note", "Ảnh kiểm hàng của vendor khác",
+                                                "evidenceUrl", "/uploads/returns/vendor-extra.jpg"));
+
+                assertEquals(HttpStatus.FORBIDDEN, submitResponse.getStatusCode());
+        }
+
         private ReturnRequest createReturnFixture(
                         String vendorEmail,
                         String customerEmail,
@@ -367,6 +433,18 @@ class ReturnRequestAdminVendorIntegrationTest {
                                 .header("Authorization", "Bearer " + token)
                                 .header("Content-Type", "application/json")
                                 .method("PATCH", HttpRequest.BodyPublishers.ofString(payload));
+                HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+                return ResponseEntity.status(response.statusCode()).body(response.body());
+        }
+
+        private ResponseEntity<String> exchangePost(String path, String token, Map<String, ?> body)
+                        throws Exception {
+                String payload = body == null ? "" : objectMapper.writeValueAsString(body);
+                HttpRequest.Builder builder = HttpRequest.newBuilder()
+                                .uri(URI.create("http://localhost:" + port + path))
+                                .header("Authorization", "Bearer " + token)
+                                .header("Content-Type", "application/json")
+                                .POST(HttpRequest.BodyPublishers.ofString(payload));
                 HttpResponse<String> response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
                 return ResponseEntity.status(response.statusCode()).body(response.body());
         }

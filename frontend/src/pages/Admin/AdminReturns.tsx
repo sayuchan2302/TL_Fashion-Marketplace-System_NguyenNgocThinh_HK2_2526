@@ -125,6 +125,11 @@ const resolveEvidenceUrl = (path?: string) => {
   return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
+const evidenceActorLabel: Record<string, string> = {
+  CUSTOMER: 'Customer',
+  VENDOR: 'Vendor',
+};
+
 const AdminReturns = () => {
   const { pushToast } = useAdminToast();
   const [rows, setRows] = useState<ReturnRequest[]>([]);
@@ -139,6 +144,8 @@ const AdminReturns = () => {
   const [activeEnlargedImage, setActiveEnlargedImage] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [verdictConfirm, setVerdictConfirm] = useState<VerdictConfirmState | null>(null);
+  const [evidenceRequestTarget, setEvidenceRequestTarget] = useState<ReturnRequest | null>(null);
+  const [evidenceRequestMessage, setEvidenceRequestMessage] = useState('');
   const view = useAdminViewState({
     storageKey: ADMIN_VIEW_KEYS.returns,
     path: '/admin/returns',
@@ -153,6 +160,7 @@ const AdminReturns = () => {
     [drawerItem],
   );
   const drawerRefundTotal = useMemo(() => (drawerItem ? getReturnAmount(drawerItem) : 0), [drawerItem]);
+  const existingAdminNote = drawerItem?.adminNote?.trim() || '';
 
   const fetchTabCounts = useCallback(async () => {
     try {
@@ -281,6 +289,41 @@ const AdminReturns = () => {
     if (!verdictConfirm) return;
     await applyFinalVerdict(verdictConfirm.id, verdictConfirm.action);
     setVerdictConfirm(null);
+  };
+
+  const openEvidenceRequestModal = (item: ReturnRequest) => {
+    setEvidenceRequestTarget(item);
+    setEvidenceRequestMessage('Vui lòng bổ sung ảnh kiện hàng, sản phẩm và mô tả tình trạng thực tế để admin có đủ căn cứ xử lý.');
+  };
+
+  const closeEvidenceRequestModal = () => {
+    if (actionLoading) return;
+    setEvidenceRequestTarget(null);
+    setEvidenceRequestMessage('');
+  };
+
+  const submitEvidenceRequest = async () => {
+    if (!evidenceRequestTarget) return;
+    const normalizedMessage = evidenceRequestMessage.trim();
+    if (!normalizedMessage) {
+      pushToast('Vui lòng nhập nội dung yêu cầu bổ sung bằng chứng.');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      const updated = await returnService.requestAdditionalEvidence(evidenceRequestTarget.id, normalizedMessage);
+      setDrawerItem((current) => (current?.id === updated.id ? updated : current));
+      setRows((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      setEvidenceRequestTarget(null);
+      setEvidenceRequestMessage('');
+      await Promise.all([fetchPageData(), fetchTabCounts()]);
+      pushToast(`Đã yêu cầu Customer và Vendor bổ sung bằng chứng cho ${toDisplayReturnCode(updated.code)}.`);
+    } catch (error: unknown) {
+      pushToast(getUiErrorMessage(error, 'Không thể gửi yêu cầu bổ sung bằng chứng.'));
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   return (
@@ -800,22 +843,113 @@ const AdminReturns = () => {
               )}
 
 
+              {drawerItem.additionalEvidenceRequests && drawerItem.additionalEvidenceRequests.length > 0 && (
+                <PanelDrawerSection title="Bằng chứng bổ sung theo yêu cầu admin">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {drawerItem.additionalEvidenceRequests.map((request, requestIndex) => (
+                      <article
+                        key={request.id || requestIndex}
+                        style={{
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '12px',
+                          background: '#f8fafc',
+                          padding: '14px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '12px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
+                          <div style={{ minWidth: 0 }}>
+                            <strong style={{ display: 'block', fontSize: '13px', color: '#0f172a' }}>
+                              Lần yêu cầu #{requestIndex + 1}
+                            </strong>
+                            <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#475569', whiteSpace: 'pre-wrap' }}>
+                              {request.message}
+                            </p>
+                          </div>
+                          <span className="admin-muted" style={{ fontSize: '11px', whiteSpace: 'nowrap' }}>
+                            {formatDateTime(request.requestedAt)}
+                          </span>
+                        </div>
 
-              <PanelDrawerSection title="Ghi chú trọng tài">
-                <div className="returns-note-box" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fffbeb', borderLeft: '4px solid #f59e0b', padding: '12px', marginBottom: '14px' }}>
-                  <p className="returns-note-label" style={{ fontSize: '11px', textTransform: 'uppercase', color: '#b45309', fontWeight: 700, margin: '0 0 4px' }}>Ghi chú phiên trọng tài hiện tại</p>
-                  <p className="returns-note-text" style={{ fontSize: '13px', color: '#78350f', margin: 0 }}>{drawerItem.adminNote?.trim() || 'Hệ thống chưa ghi nhận phán quyết bằng văn bản cho phiên này.'}</p>
-                </div>
+                        {request.evidence && request.evidence.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {request.evidence.map((evidence) => (
+                              <div
+                                key={evidence.id}
+                                style={{
+                                  borderTop: '1px dashed #cbd5e1',
+                                  paddingTop: '10px',
+                                  display: 'grid',
+                                  gridTemplateColumns: '80px minmax(0, 1fr)',
+                                  gap: '12px',
+                                }}
+                              >
+                                <div
+                                  onClick={() => setActiveEnlargedImage(resolveEvidenceUrl(evidence.evidenceUrl))}
+                                  style={{
+                                    width: '80px',
+                                    height: '80px',
+                                    borderRadius: '8px',
+                                    overflow: 'hidden',
+                                    border: '1px solid #cbd5e1',
+                                    cursor: 'pointer',
+                                  }}
+                                  className="returns-evidence-thumbnail-hover"
+                                >
+                                  <img
+                                    src={resolveEvidenceUrl(evidence.evidenceUrl)}
+                                    alt="Additional Evidence Thumbnail"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  />
+                                </div>
+                                <div style={{ minWidth: 0, lineHeight: 1.6 }}>
+                                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                    <span className={evidence.submittedByRole === 'VENDOR' ? 'admin-pill pending' : 'admin-pill neutral'}>
+                                      {evidenceActorLabel[evidence.submittedByRole] || evidence.submittedByRole}
+                                    </span>
+                                    <span className="admin-muted" style={{ fontSize: '12px' }}>
+                                      {evidence.submittedByEmail || 'Không rõ email'} · {formatDateTime(evidence.createdAt)}
+                                    </span>
+                                  </div>
+                                  <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#475569', whiteSpace: 'pre-wrap' }}>
+                                    {evidence.note}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="admin-muted" style={{ margin: 0, fontSize: '12px' }}>
+                            Chưa có Customer hoặc Vendor bổ sung bằng chứng cho yêu cầu này.
+                          </p>
+                        )}
+                      </article>
+                    ))}
+                  </div>
+                </PanelDrawerSection>
+              )}
+
+
+
+              <PanelDrawerSection title="Ghi chú xử lý">
+                {existingAdminNote && (
+                  <div className="returns-note-box" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', background: '#fffbeb', borderLeft: '4px solid #f59e0b', padding: '12px', marginBottom: '14px' }}>
+                    <p className="returns-note-label" style={{ fontSize: '11px', textTransform: 'uppercase', color: '#b45309', fontWeight: 700, margin: '0 0 4px' }}>Ghi chú đã lưu</p>
+                    <p className="returns-note-text" style={{ fontSize: '13px', color: '#78350f', margin: 0 }}>{existingAdminNote}</p>
+                  </div>
+                )}
                 <div className="returns-note-input-wrap">
                   <label htmlFor="admin-return-note" className="returns-note-label">
-                    Cập nhật ghi chú mới
+                    Ghi chú cho quyết định
                   </label>
                   <textarea
                     id="admin-return-note"
                     value={drawerNote}
                     onChange={(event) => setDrawerNote(event.target.value)}
                     rows={4}
-                    placeholder="Nhập ghi chú cho phán quyết cuối cùng..."
+                    placeholder="Nhập lý do hoặc ghi chú nội bộ khi ra quyết định..."
                     className="returns-note-input"
                   />
                 </div>
@@ -835,6 +969,14 @@ const AdminReturns = () => {
 
               {drawerItem.status === 'DISPUTING' && (
                 <>
+                  <button
+                    className="admin-ghost-btn"
+                    disabled={actionLoading}
+                    onClick={() => openEvidenceRequestModal(drawerItem)}
+                  >
+                    <ShieldAlert size={14} />
+                    Cần bổ sung
+                  </button>
                   <button
                     className="admin-ghost-btn danger"
                     disabled={actionLoading}
@@ -923,6 +1065,87 @@ const AdminReturns = () => {
         document.body
       )}
 
+      {evidenceRequestTarget && createPortal(
+        <div
+          className="admin-modal-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.72)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99990,
+            padding: '20px',
+          }}
+          onClick={closeEvidenceRequestModal}
+        >
+          <div
+            style={{
+              width: 'min(520px, 100%)',
+              borderRadius: '16px',
+              background: '#ffffff',
+              boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.35)',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
+              <div>
+                <p style={{ margin: '0 0 4px', fontSize: '12px', fontWeight: 800, color: '#b45309', textTransform: 'uppercase' }}>
+                  Cần bổ sung thông tin
+                </p>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#0f172a' }}>
+                  {toDisplayReturnCode(evidenceRequestTarget.code)}
+                </h3>
+              </div>
+              <button
+                type="button"
+                className="admin-icon-btn subtle"
+                onClick={closeEvidenceRequestModal}
+                disabled={actionLoading}
+                aria-label="Đóng yêu cầu bổ sung"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ margin: 0, fontSize: '13px', color: '#475569', lineHeight: 1.6 }}>
+              Hệ thống sẽ yêu cầu cả Customer và Vendor cung cấp thêm ảnh kèm ghi chú. Admin vẫn có thể ra phán quyết bất cứ lúc nào.
+            </p>
+
+            <label htmlFor="return-evidence-request-message" className="returns-note-label">
+              Nội dung yêu cầu
+            </label>
+            <textarea
+              id="return-evidence-request-message"
+              value={evidenceRequestMessage}
+              onChange={(event) => setEvidenceRequestMessage(event.target.value)}
+              rows={5}
+              className="returns-note-input"
+              placeholder="Nhập nội dung admin cần hai bên bổ sung..."
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button type="button" className="admin-ghost-btn" onClick={closeEvidenceRequestModal} disabled={actionLoading}>
+                Hủy
+              </button>
+              <button type="button" className="admin-primary-btn" onClick={() => void submitEvidenceRequest()} disabled={actionLoading}>
+                {actionLoading ? 'Đang gửi...' : 'Gửi yêu cầu'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       <AdminConfirmDialog
         open={Boolean(verdictConfirm)}
         title="Xác nhận phán quyết hoàn trả"
@@ -945,5 +1168,3 @@ const AdminReturns = () => {
 };
 
 export default AdminReturns;
-
-

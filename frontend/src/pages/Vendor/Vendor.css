@@ -2189,6 +2189,20 @@
   width: 100%;
 }
 
+.vendor-return-actions .vendor-evidence-alert-btn {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #b45309;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.vendor-return-actions .vendor-evidence-alert-btn:hover:not(:disabled) {
+  border-color: #d97706;
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .admin-table-row.vendor-orders .admin-actions.vendor-order-actions {
   display: flex;
   align-items: center;

@@ -22,6 +22,26 @@ export interface ReturnItem {
   unitPrice: number;
 }
 
+export type ReturnEvidenceActor = 'CUSTOMER' | 'VENDOR';
+
+export interface ReturnAdditionalEvidence {
+  id: string;
+  submittedByRole: ReturnEvidenceActor;
+  submittedByUserId: string;
+  submittedByEmail?: string;
+  note: string;
+  evidenceUrl: string;
+  createdAt?: string;
+}
+
+export interface ReturnAdditionalEvidenceRequest {
+  id: string;
+  message: string;
+  requestedBy?: string;
+  requestedAt?: string;
+  evidence: ReturnAdditionalEvidence[];
+}
+
 export interface ReturnRequest {
   id: string;
   code?: string;
@@ -51,6 +71,7 @@ export interface ReturnRequest {
   completedAt?: string;
   createdAt?: string;
   updatedAt?: string;
+  additionalEvidenceRequests?: ReturnAdditionalEvidenceRequest[];
 }
 
 export interface ReturnSubmitPayload {
@@ -205,6 +226,25 @@ export const returnService = {
     return apiRequest<ReturnRequest>(`/api/returns/admin/${id}/verdict`, {
       method: 'PATCH',
       body: JSON.stringify({ action, adminNote }),
+    }, { auth: true });
+  },
+
+  async requestAdditionalEvidence(id: string, message: string): Promise<ReturnRequest> {
+    return apiRequest<ReturnRequest>(`/api/returns/admin/${id}/evidence-requests`, {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    }, { auth: true });
+  },
+
+  async submitAdditionalEvidence(
+    id: string,
+    requestId: string,
+    note: string,
+    evidenceUrl: string,
+  ): Promise<ReturnRequest> {
+    return apiRequest<ReturnRequest>(`/api/returns/${id}/additional-evidence`, {
+      method: 'POST',
+      body: JSON.stringify({ requestId, note, evidenceUrl }),
     }, { auth: true });
   },
 

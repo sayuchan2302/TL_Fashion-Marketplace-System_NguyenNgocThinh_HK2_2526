@@ -41,6 +41,7 @@ public class ReturnRequestResponse {
     private LocalDateTime completedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private List<AdditionalEvidenceRequest> additionalEvidenceRequests;
 
     @Getter
     @Builder
@@ -52,5 +53,27 @@ public class ReturnRequestResponse {
         private String evidenceUrl;
         private Integer quantity;
         private BigDecimal unitPrice;
+    }
+
+    @Getter
+    @Builder
+    public static class AdditionalEvidenceRequest {
+        private UUID id;
+        private String message;
+        private String requestedBy;
+        private LocalDateTime requestedAt;
+        private List<AdditionalEvidence> evidence;
+    }
+
+    @Getter
+    @Builder
+    public static class AdditionalEvidence {
+        private UUID id;
+        private String submittedByRole;
+        private UUID submittedByUserId;
+        private String submittedByEmail;
+        private String note;
+        private String evidenceUrl;
+        private LocalDateTime createdAt;
     }
 }

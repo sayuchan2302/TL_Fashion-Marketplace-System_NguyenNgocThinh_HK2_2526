@@ -18,7 +18,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { useToast } from '../../contexts/ToastContext';
 import { orderService } from '../../services/orderService';
-import { returnService, type ReturnRequest } from '../../services/returnService';
+import { returnService, type ReturnAdditionalEvidenceRequest, type ReturnRequest } from '../../services/returnService';
 import { reviewService, type EligibleReviewItem, type Review } from '../../services/reviewService';
 import ReviewModal from '../../components/ReviewModal/ReviewModal';
 import { formatPrice } from '../../utils/formatters';
@@ -115,6 +115,11 @@ const getOrderSlaNotice = (order: Order): { text: string; tone: 'pending' | 'can
 
   return null;
 };
+
+const findPendingCustomerEvidenceRequest = (
+  requests?: ReturnAdditionalEvidenceRequest[],
+): ReturnAdditionalEvidenceRequest | undefined =>
+  requests?.find((request) => !(request.evidence || []).some((evidence) => evidence.submittedByRole === 'CUSTOMER'));
 
 const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -240,7 +245,7 @@ const OrderDetail = () => {
       window.removeEventListener('focus', handleWindowFocus);
       window.clearInterval(refreshInterval);
     };
-  }, [addToast, id]);
+  }, [addToast, id, loadReturnRequests]);
 
   useEffect(() => {
     if (!order || !id) return;
@@ -352,6 +357,10 @@ const OrderDetail = () => {
   const totalProductQuantity = order.items.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const slaNotice = getOrderSlaNotice(order);
+  const activeReturnRequest = returnRequests.find((req) => req.status !== 'CANCELLED');
+  const pendingCustomerEvidenceRequest = activeReturnRequest
+    ? findPendingCustomerEvidenceRequest(activeReturnRequest.additionalEvidenceRequests)
+    : undefined;
   return (
     <div className="od-page od-theme od-theme-client">
       <div className="od-container">
@@ -616,6 +625,14 @@ const OrderDetail = () => {
                   {(() => {
                     const activeReq = returnRequests.find((req) => req.status !== 'CANCELLED');
                     if (activeReq) {
+                      const pendingEvidenceRequest = findPendingCustomerEvidenceRequest(activeReq.additionalEvidenceRequests);
+                      if (pendingEvidenceRequest) {
+                        return (
+                          <button className="od-action-btn od-btn-primary" onClick={() => setIsReturnDrawerOpen(true)}>
+                            <RotateCcw size={16} /> Cung cấp thêm bằng chứng
+                          </button>
+                        );
+                      }
                       if (activeReq.status === 'REQUESTED' || activeReq.status === 'IN_TRANSIT') {
                         return (
                           <button className="od-action-btn od-btn-danger" onClick={() => setPendingCancelReturnId(activeReq.id)}>
@@ -748,6 +765,11 @@ const OrderDetail = () => {
       <ReturnRequestDrawer
         isOpen={isReturnDrawerOpen}
         order={order}
+        activeReturnRequest={activeReturnRequest}
+        additionalEvidenceRequest={pendingCustomerEvidenceRequest}
+        onAdditionalEvidenceSubmitted={(updated) => {
+          setReturnRequests((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+        }}
         onClose={() => {
           setIsReturnDrawerOpen(false);
           if (id) {

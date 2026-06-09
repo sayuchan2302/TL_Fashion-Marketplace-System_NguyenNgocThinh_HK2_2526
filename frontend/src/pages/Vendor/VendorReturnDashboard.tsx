@@ -17,7 +17,7 @@ import {
   PanelTableFooter,
 } from '../../components/Panel/PanelPrimitives';
 import Drawer from '../../components/Drawer/Drawer';
-import { returnService, type ReturnRequest, type ReturnStatus } from '../../services/returnService';
+import { returnService, type ReturnAdditionalEvidenceRequest, type ReturnRequest, type ReturnStatus } from '../../services/returnService';
 import { useToast } from '../../contexts/ToastContext';
 import { getUiErrorMessage } from '../../utils/errorMessage';
 import { toDisplayOrderCode, toDisplayReturnCode } from '../../utils/displayCode';
@@ -108,6 +108,16 @@ const resolveEvidenceUrl = (url?: string | null) => {
   return API_BASE ? `${API_BASE}${url.startsWith('/') ? url : `/${url}`}` : url;
 };
 
+const evidenceActorLabel: Record<string, string> = {
+  CUSTOMER: 'Customer',
+  VENDOR: 'Vendor',
+};
+
+const findPendingVendorEvidenceRequest = (
+  requests?: ReturnAdditionalEvidenceRequest[],
+): ReturnAdditionalEvidenceRequest | undefined =>
+  requests?.find((request) => !(request.evidence || []).some((evidence) => evidence.submittedByRole === 'VENDOR'));
+
 const VendorReturnDashboard = () => {
   const { addToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -127,9 +137,13 @@ const VendorReturnDashboard = () => {
   const [detailItem, setDetailItem] = useState<ReturnRequest | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [disputeEvidence, setDisputeEvidence] = useState('');
+  const [additionalEvidenceNote, setAdditionalEvidenceNote] = useState('');
+  const [additionalEvidenceUrl, setAdditionalEvidenceUrl] = useState('');
   const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
+  const [isUploadingAdditionalEvidence, setIsUploadingAdditionalEvidence] = useState(false);
   const [activeEnlargedImage, setActiveEnlargedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const additionalEvidenceFileInputRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const updateQuery = useCallback(
@@ -266,6 +280,9 @@ const VendorReturnDashboard = () => {
     count: tabCounts[tab.key],
   }));
   const hasViewContext = activeTab !== 'all' || Boolean(keyword);
+  const pendingVendorEvidenceRequest = detailItem
+    ? findPendingVendorEvidenceRequest(detailItem.additionalEvidenceRequests)
+    : undefined;
 
   const handleApprove = async (request: ReturnRequest) => {
     try {
@@ -305,6 +322,62 @@ const VendorReturnDashboard = () => {
 
   const handleRemoveEvidence = () => {
     setDisputeEvidence('');
+  };
+
+  const handleAdditionalEvidenceUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.toLowerCase().startsWith('image/')) {
+      addToast('Chỉ chấp nhận file hình ảnh cho bằng chứng bổ sung.', 'error');
+      event.target.value = '';
+      return;
+    }
+
+    setIsUploadingAdditionalEvidence(true);
+    try {
+      const evidenceUrl = await returnService.uploadEvidence(file);
+      setAdditionalEvidenceUrl(evidenceUrl);
+    } catch (error: unknown) {
+      addToast(getUiErrorMessage(error, 'Tải ảnh bằng chứng bổ sung thất bại.'), 'error');
+    } finally {
+      setIsUploadingAdditionalEvidence(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleSubmitAdditionalEvidence = async (
+    request: ReturnRequest,
+    evidenceRequest: ReturnAdditionalEvidenceRequest,
+  ) => {
+    const normalizedNote = additionalEvidenceNote.trim();
+    if (!normalizedNote) {
+      addToast('Vui lòng nhập ghi chú cho bằng chứng bổ sung.', 'error');
+      return;
+    }
+    if (!additionalEvidenceUrl.trim()) {
+      addToast('Vui lòng tải lên ảnh bằng chứng bổ sung.', 'error');
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      const updated = await returnService.submitAdditionalEvidence(
+        request.id,
+        evidenceRequest.id,
+        normalizedNote,
+        additionalEvidenceUrl,
+      );
+      setDetailItem((current) => (current?.id === updated.id ? updated : current));
+      await Promise.all([fetchPageData(), fetchTabCounts()]);
+      setAdditionalEvidenceNote('');
+      setAdditionalEvidenceUrl('');
+      addToast(`Đã gửi bằng chứng bổ sung cho yêu cầu ${toDisplayReturnCode(updated.code)}.`, 'success');
+    } catch (error: unknown) {
+      addToast(getUiErrorMessage(error, 'Không thể gửi bằng chứng bổ sung.'), 'error');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleDispute = async (request: ReturnRequest, reason: string, evidenceUrl: string) => {
@@ -455,6 +528,7 @@ const VendorReturnDashboard = () => {
                   const reasonText = reasonLabel[item.reason] || item.reason;
                   const productMeta = `${variantName} · Số lượng: ${totalQuantity}`;
                   const extraItemCount = Math.max(0, item.items.length - 1);
+                  const pendingEvidenceRequest = findPendingVendorEvidenceRequest(item.additionalEvidenceRequests);
 
                   return (
                     <motion.div key={item.id} className="admin-table-row vendor-returns" role="row" whileHover={{ y: -1 }}>
@@ -508,6 +582,17 @@ const VendorReturnDashboard = () => {
                         {formatVnd(getRefundAmount(item))}
                       </div>
                       <div role="cell" className="admin-actions vendor-return-actions">
+                        {pendingEvidenceRequest ? (
+                          <button
+                            className="admin-icon-btn subtle vendor-evidence-alert-btn"
+                            title="Admin yêu cầu bổ sung bằng chứng"
+                            aria-label={`Admin yêu cầu bổ sung bằng chứng cho ${toDisplayReturnCode(item.code)}`}
+                            onClick={() => setDetailItem(item)}
+                            disabled={actionLoading}
+                          >
+                            !
+                          </button>
+                        ) : null}
                         {['REQUESTED', 'IN_TRANSIT', 'DELIVERED_TO_SELLER'].includes(item.status) && (
                           <>
                             <button
@@ -554,6 +639,8 @@ const VendorReturnDashboard = () => {
           setDetailItem(null);
           setRejectReason('');
           setDisputeEvidence('');
+          setAdditionalEvidenceNote('');
+          setAdditionalEvidenceUrl('');
         }}
         className="returns-drawer"
         size="lg"
@@ -568,6 +655,8 @@ const VendorReturnDashboard = () => {
                 setDetailItem(null);
                 setRejectReason('');
                 setDisputeEvidence('');
+                setAdditionalEvidenceNote('');
+                setAdditionalEvidenceUrl('');
               }}
               closeLabel="Đóng chi tiết hoàn trả"
             />
@@ -713,6 +802,118 @@ const VendorReturnDashboard = () => {
                 </div>
               </PanelDrawerSection>
 
+              {detailItem.additionalEvidenceRequests && detailItem.additionalEvidenceRequests.length > 0 ? (
+                <PanelDrawerSection title="Bằng chứng bổ sung theo yêu cầu admin">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {detailItem.additionalEvidenceRequests.map((request, requestIndex) => (
+                      <article
+                        key={request.id || requestIndex}
+                        style={{
+                          border: '1px solid #e2e8f0',
+                          borderRadius: '12px',
+                          background: '#f8fafc',
+                          padding: '14px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '10px',
+                        }}
+                      >
+                        <strong style={{ fontSize: '13px', color: '#0f172a' }}>
+                          Yêu cầu #{requestIndex + 1}: {request.message}
+                        </strong>
+                        {request.evidence && request.evidence.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {request.evidence.map((evidence) => (
+                              <div key={evidence.id} style={{ display: 'grid', gridTemplateColumns: '74px minmax(0, 1fr)', gap: '10px', borderTop: '1px dashed #cbd5e1', paddingTop: '8px' }}>
+                                <div
+                                  onClick={() => setActiveEnlargedImage(resolveEvidenceUrl(evidence.evidenceUrl))}
+                                  style={{ width: '74px', height: '74px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1', cursor: 'pointer' }}
+                                  className="returns-evidence-thumbnail-hover"
+                                >
+                                  <img src={resolveEvidenceUrl(evidence.evidenceUrl)} alt="Bằng chứng bổ sung" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                </div>
+                                <div style={{ minWidth: 0 }}>
+                                  <span className={evidence.submittedByRole === 'VENDOR' ? 'admin-pill pending' : 'admin-pill neutral'}>
+                                    {evidenceActorLabel[evidence.submittedByRole] || evidence.submittedByRole}
+                                  </span>
+                                  <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#475569', whiteSpace: 'pre-wrap' }}>
+                                    {evidence.note}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="admin-muted" style={{ margin: 0, fontSize: '12px' }}>
+                            Chưa có bên nào phản hồi yêu cầu này.
+                          </p>
+                        )}
+                      </article>
+                    ))}
+
+                    {pendingVendorEvidenceRequest ? (
+                      <div className="returns-note-input-wrap" style={{ display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #f59e0b', background: '#fffbeb', borderRadius: '12px', padding: '14px' }}>
+                        <strong style={{ fontSize: '13px', color: '#92400e' }}>
+                          Vendor cần bổ sung bằng chứng cho yêu cầu mới nhất
+                        </strong>
+                        <textarea
+                          value={additionalEvidenceNote}
+                          onChange={(event) => setAdditionalEvidenceNote(event.target.value)}
+                          rows={3}
+                          placeholder="Ghi chú bổ sung cho admin..."
+                          className="returns-note-input"
+                        />
+                        <div className="return-evidence-upload">
+                          <input
+                            ref={additionalEvidenceFileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={(event) => void handleAdditionalEvidenceUpload(event)}
+                            hidden
+                          />
+                          {additionalEvidenceUrl ? (
+                            <div className={`return-evidence-preview ${isUploadingAdditionalEvidence ? 'uploading' : ''}`}>
+                              <img
+                                src={resolveEvidenceUrl(additionalEvidenceUrl)}
+                                alt="Bằng chứng bổ sung"
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => setActiveEnlargedImage(resolveEvidenceUrl(additionalEvidenceUrl))}
+                              />
+                              {isUploadingAdditionalEvidence ? <span className="return-evidence-status">Đang tải</span> : null}
+                              <button
+                                type="button"
+                                className="return-evidence-remove"
+                                onClick={() => setAdditionalEvidenceUrl('')}
+                                aria-label="Xóa ảnh bổ sung"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="return-evidence-btn"
+                            onClick={() => additionalEvidenceFileInputRef.current?.click()}
+                            disabled={isUploadingAdditionalEvidence}
+                          >
+                            {isUploadingAdditionalEvidence ? <Loader2 size={16} className="return-spin" /> : <Camera size={16} />}
+                            <span>{isUploadingAdditionalEvidence ? 'Đang tải...' : additionalEvidenceUrl ? 'Đổi ảnh' : 'Thêm ảnh'}</span>
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          className="admin-primary-btn"
+                          disabled={actionLoading || isUploadingAdditionalEvidence}
+                          onClick={() => void handleSubmitAdditionalEvidence(detailItem, pendingVendorEvidenceRequest)}
+                        >
+                          Gửi bằng chứng bổ sung
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </PanelDrawerSection>
+              ) : null}
+
 
 
               {['REQUESTED', 'IN_TRANSIT', 'DELIVERED_TO_SELLER'].includes(detailItem.status) ? (
@@ -778,6 +979,8 @@ const VendorReturnDashboard = () => {
                   setDetailItem(null);
                   setRejectReason('');
                   setDisputeEvidence('');
+                  setAdditionalEvidenceNote('');
+                  setAdditionalEvidenceUrl('');
                 }}
               >
                 Đóng

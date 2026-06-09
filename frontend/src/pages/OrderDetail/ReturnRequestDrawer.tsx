@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent } from 'react';
 import { Camera, Check, Loader2, X } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
-import { returnService, type ReturnReason, type ReturnResolution } from '../../services/returnService';
+import {
+  returnService,
+  type ReturnAdditionalEvidenceRequest,
+  type ReturnReason,
+  type ReturnRequest,
+  type ReturnResolution,
+} from '../../services/returnService';
 import type { Order, OrderItem } from '../../types';
 import { formatPrice } from '../../utils/formatters';
 import { getOptimizedImageUrl } from '../../utils/getOptimizedImageUrl';
@@ -24,6 +30,9 @@ interface ReturnRequestDrawerProps {
   isOpen: boolean;
   order: Order | null;
   onClose: () => void;
+  activeReturnRequest?: ReturnRequest | null;
+  additionalEvidenceRequest?: ReturnAdditionalEvidenceRequest;
+  onAdditionalEvidenceSubmitted?: (request: ReturnRequest) => void | Promise<void>;
 }
 
 const reasonOptions: Array<{ id: ReturnReason; label: string }> = [
@@ -46,7 +55,24 @@ const revokeEvidencePreview = (record: EvidenceState | null) => {
   }
 };
 
-const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProps) => {
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
+const resolveEvidenceUrl = (url?: string | null) => {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url) || url.startsWith('data:image/') || url.startsWith('blob:')) {
+    return url;
+  }
+  return API_BASE ? `${API_BASE}${url.startsWith('/') ? url : `/${url}`}` : url;
+};
+
+const ReturnRequestDrawer = ({
+  isOpen,
+  order,
+  onClose,
+  activeReturnRequest,
+  additionalEvidenceRequest,
+  onAdditionalEvidenceSubmitted,
+}: ReturnRequestDrawerProps) => {
   const { addToast } = useToast();
   const [items, setItems] = useState<ReturnSelectableItem[]>([]);
   const [reason, setReason] = useState<ReturnReason>('SIZE');
@@ -57,6 +83,7 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
   const fileInputRef = useRef<HTMLInputElement>(null);
   const evidenceRef = useRef<EvidenceState | null>(null);
   const lastInitializedOrderIdRef = useRef<string | null>(null);
+  const isAdditionalEvidenceMode = Boolean(activeReturnRequest && additionalEvidenceRequest);
 
   useEffect(() => {
     evidenceRef.current = evidence;
@@ -81,8 +108,9 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
       return;
     }
 
-    if (lastInitializedOrderIdRef.current === order.id) return;
-    lastInitializedOrderIdRef.current = order.id;
+    const initializeKey = `${order.id}:${additionalEvidenceRequest?.id || 'new-return'}`;
+    if (lastInitializedOrderIdRef.current === initializeKey) return;
+    lastInitializedOrderIdRef.current = initializeKey;
 
     setItems(order.items.map((item) => ({ ...item, selected: true })));
     setReason('SIZE');
@@ -92,7 +120,7 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
       revokeEvidencePreview(prev);
       return null;
     });
-  }, [isOpen, order]);
+  }, [additionalEvidenceRequest?.id, isOpen, order]);
 
   const selectedItems = useMemo(() => items.filter((item) => item.selected), [items]);
 
@@ -182,8 +210,58 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
     });
   };
 
+  const handleSubmitAdditionalEvidence = async () => {
+    if (!activeReturnRequest || !additionalEvidenceRequest) return;
+
+    const normalizedNote = note.trim();
+    if (!normalizedNote) {
+      addToast('Vui lòng nhập nội dung bổ sung cho admin.', 'error');
+      return;
+    }
+
+    if (hasUploadingEvidence) {
+      addToast('Vui lòng chờ tải xong ảnh bổ sung trước khi gửi.', 'error');
+      return;
+    }
+
+    if (hasEvidenceError) {
+      addToast('Vui lòng xóa hoặc tải lại ảnh bổ sung bị lỗi trước khi gửi.', 'error');
+      return;
+    }
+
+    if (!evidence?.uploadedUrl) {
+      addToast('Vui lòng tải lên ảnh bằng chứng bổ sung.', 'error');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const updated = await returnService.submitAdditionalEvidence(
+        activeReturnRequest.id,
+        additionalEvidenceRequest.id,
+        normalizedNote,
+        evidence.uploadedUrl,
+      );
+      await onAdditionalEvidenceSubmitted?.(updated);
+      addToast('Đã gửi bằng chứng bổ sung cho admin.', 'success');
+      onClose();
+    } catch (error: unknown) {
+      const message = error instanceof Error && error.message.trim()
+        ? error.message
+        : 'Không thể gửi bằng chứng bổ sung.';
+      addToast(message, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+
+    if (isAdditionalEvidenceMode) {
+      await handleSubmitAdditionalEvidence();
+      return;
+    }
 
     if (selectedItems.length === 0) {
       addToast(t.validation.selectOne, 'error');
@@ -233,6 +311,9 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
   const evidencePreviewUrl = evidence?.previewUrl || evidence?.uploadedUrl;
   const isEvidenceUploading = Boolean(evidence?.isUploading);
   const evidenceError = evidence?.error;
+  const submitLabel = isAdditionalEvidenceMode
+    ? (isSubmitting ? 'Đang gửi...' : 'Gửi bằng chứng bổ sung')
+    : (isSubmitting ? 'Đang gửi...' : t.summary.submit);
 
   return (
     <>
@@ -245,8 +326,10 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
       <form className="return-drawer" onSubmit={handleSubmit}>
         <div className="return-drawer-header">
           <div>
-            <p className="return-drawer-eyebrow">Hoàn đơn</p>
-            <h3 className="return-drawer-title">Yêu cầu cho đơn #{toDisplayOrderCode(order.code || order.id)}</h3>
+            <p className="return-drawer-eyebrow">{isAdditionalEvidenceMode ? 'Bổ sung bằng chứng' : 'Hoàn đơn'}</p>
+            <h3 className="return-drawer-title">
+              {isAdditionalEvidenceMode ? 'Cung cấp thêm bằng chứng' : 'Yêu cầu'} cho đơn #{toDisplayOrderCode(order.code || order.id)}
+            </h3>
           </div>
           <button type="button" className="return-drawer-close" onClick={handleClose} aria-label="Đóng">
             <X size={18} />
@@ -271,7 +354,7 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
 
           <section className="return-drawer-section">
             <div className="return-drawer-section-head">
-              <h4>Sản phẩm cần xử lý</h4>
+              <h4>{isAdditionalEvidenceMode ? 'Sản phẩm đang tranh chấp' : 'Sản phẩm cần xử lý'}</h4>
               <span>Toàn bộ đơn hàng</span>
             </div>
 
@@ -295,25 +378,53 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
             </div>
           </section>
 
-          <section className="return-drawer-section">
-            <h4>{t.info.reason}</h4>
-            <div className="return-chip-grid">
-              {reasonOptions.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={`return-chip ${reason === option.id ? 'active' : ''}`}
-                  onClick={() => setReason(option.id)}
-                >
-                  {reason === option.id ? <Check size={14} /> : null}
-                  <span>{option.label}</span>
-                </button>
-              ))}
-            </div>
-          </section>
+          {isAdditionalEvidenceMode && additionalEvidenceRequest ? (
+            <section className="return-drawer-section return-additional-evidence-panel">
+              <h4>Admin yêu cầu bổ sung</h4>
+              <div className="return-admin-request-box">
+                <p>{additionalEvidenceRequest.message}</p>
+                {additionalEvidenceRequest.requestedAt ? (
+                  <small>Thời gian yêu cầu: {new Date(additionalEvidenceRequest.requestedAt).toLocaleString('vi-VN')}</small>
+                ) : null}
+              </div>
+              {additionalEvidenceRequest.evidence?.length > 0 ? (
+                <div className="return-additional-evidence-list">
+                  {additionalEvidenceRequest.evidence.map((item) => (
+                    <article key={item.id} className="return-additional-evidence-item">
+                      <img src={resolveEvidenceUrl(item.evidenceUrl)} alt="Bằng chứng đã gửi" />
+                      <div>
+                        <strong>{item.submittedByRole === 'CUSTOMER' ? 'Customer' : 'Vendor'}</strong>
+                        <p>{item.note}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="return-additional-evidence-empty">Chưa có bên nào gửi bằng chứng bổ sung cho yêu cầu này.</p>
+              )}
+            </section>
+          ) : (
+            <section className="return-drawer-section">
+              <h4>{t.info.reason}</h4>
+              <div className="return-chip-grid">
+                {reasonOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`return-chip ${reason === option.id ? 'active' : ''}`}
+                    onClick={() => setReason(option.id)}
+                  >
+                    {reason === option.id ? <Check size={14} /> : null}
+                    <span>{option.label}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section className="return-drawer-section">
             <label className="return-drawer-label" htmlFor="return-drawer-evidence">
-              Ảnh minh chứng
+              {isAdditionalEvidenceMode ? 'Ảnh bằng chứng bổ sung' : 'Ảnh minh chứng'}
             </label>
             <div className="return-evidence-upload">
               <input
@@ -326,7 +437,7 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
               />
               {evidencePreviewUrl ? (
                 <div className={`return-evidence-preview ${isEvidenceUploading ? 'uploading' : ''}`}>
-                  <img src={evidencePreviewUrl} alt="Ảnh minh chứng đổi/trả" />
+                  <img src={resolveEvidenceUrl(evidencePreviewUrl)} alt={isAdditionalEvidenceMode ? 'Ảnh bằng chứng bổ sung' : 'Ảnh minh chứng đổi/trả'} />
                   {isEvidenceUploading ? <span className="return-evidence-status">Đang tải</span> : null}
                   <button
                     type="button"
@@ -360,7 +471,7 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
               className="return-drawer-textarea"
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              placeholder={t.info.descriptionPlaceholder}
+              placeholder={isAdditionalEvidenceMode ? 'Nhập nội dung giải thích thêm cho admin...' : t.info.descriptionPlaceholder}
               maxLength={700}
               rows={5}
             />
@@ -373,7 +484,7 @@ const ReturnRequestDrawer = ({ isOpen, order, onClose }: ReturnRequestDrawerProp
             Hủy
           </button>
           <button type="submit" className="return-btn-submit" disabled={isSubmitting || hasUploadingEvidence}>
-            {isSubmitting ? 'Đang gửi...' : t.summary.submit}
+            {submitLabel}
           </button>
         </div>
       </form>

@@ -13,9 +13,13 @@ import vn.edu.hcmuaf.fit.marketplace.dto.request.ReturnSubmitRequest;
 import vn.edu.hcmuaf.fit.marketplace.dto.response.ReturnRequestResponse;
 import vn.edu.hcmuaf.fit.marketplace.entity.Order;
 import vn.edu.hcmuaf.fit.marketplace.entity.OrderItem;
+import vn.edu.hcmuaf.fit.marketplace.entity.ReturnAdditionalEvidence;
+import vn.edu.hcmuaf.fit.marketplace.entity.ReturnEvidenceRequest;
 import vn.edu.hcmuaf.fit.marketplace.entity.ReturnRequest;
 import vn.edu.hcmuaf.fit.marketplace.entity.User;
 import vn.edu.hcmuaf.fit.marketplace.repository.OrderRepository;
+import vn.edu.hcmuaf.fit.marketplace.repository.ReturnAdditionalEvidenceRepository;
+import vn.edu.hcmuaf.fit.marketplace.repository.ReturnEvidenceRequestRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.ReturnRequestRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.StoreRepository;
 
@@ -45,6 +49,12 @@ class ReturnRequestServiceTest {
         @Mock
         private StoreRepository storeRepository;
 
+        @Mock
+        private ReturnEvidenceRequestRepository returnEvidenceRequestRepository;
+
+        @Mock
+        private ReturnAdditionalEvidenceRepository returnAdditionalEvidenceRepository;
+
         private WalletService walletService;
 
         private ReturnRequestService returnRequestService;
@@ -61,7 +71,11 @@ class ReturnRequestServiceTest {
                                 orderRepository,
                                 storeRepository,
                                 publicCodeService,
-                                walletService);
+                                walletService,
+                                null,
+                                null,
+                                returnEvidenceRequestRepository,
+                                returnAdditionalEvidenceRepository);
         }
 
         @Test
@@ -176,6 +190,186 @@ class ReturnRequestServiceTest {
 
                 assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
                 assertTrue(ex.getReason().contains("Invalid status transition"));
+        }
+
+        @Test
+        void sellerDisputeReturnsEvidenceUrlForAdminReview() {
+                UUID returnId = UUID.randomUUID();
+                UUID storeId = UUID.randomUUID();
+                String evidenceUrl = "/uploads/returns/vendor-proof.jpg";
+
+                User user = buildUser(UUID.randomUUID());
+                Order order = buildOrder(UUID.randomUUID(), user, Order.OrderStatus.DELIVERED, List.of());
+                ReturnRequest request = ReturnRequest.builder()
+                                .id(returnId)
+                                .order(order)
+                                .user(user)
+                                .storeId(storeId)
+                                .status(ReturnRequest.ReturnStatus.DELIVERED_TO_SELLER)
+                                .items(List.of())
+                                .build();
+
+                when(returnRequestRepository.findById(returnId)).thenReturn(Optional.of(request));
+                when(returnRequestRepository.save(any(ReturnRequest.class)))
+                                .thenAnswer(invocation -> invocation.getArgument(0));
+
+                ReturnRequestResponse response = returnRequestService.sellerDisputeReturn(
+                                returnId,
+                                storeId,
+                                "Customer returned a different item",
+                                evidenceUrl,
+                                "vendor@local");
+
+                assertEquals(ReturnRequest.ReturnStatus.DISPUTING, response.getStatus());
+                assertEquals("Customer returned a different item", response.getDisputeReason());
+                assertEquals(evidenceUrl, response.getDisputeEvidenceUrl());
+        }
+
+        @Test
+        void adminRequestAdditionalEvidenceCreatesTimelineEntry() {
+                UUID returnId = UUID.randomUUID();
+                UUID adminId = UUID.randomUUID();
+                User user = buildUser(UUID.randomUUID());
+                Order order = buildOrder(UUID.randomUUID(), user, Order.OrderStatus.DELIVERED, List.of());
+                ReturnRequest request = ReturnRequest.builder()
+                                .id(returnId)
+                                .order(order)
+                                .user(user)
+                                .status(ReturnRequest.ReturnStatus.DISPUTING)
+                                .items(List.of())
+                                .adminFinalized(false)
+                                .build();
+                List<ReturnEvidenceRequest> evidenceRequests = new ArrayList<>();
+
+                when(returnRequestRepository.findById(returnId)).thenReturn(Optional.of(request));
+                when(returnEvidenceRequestRepository.save(any(ReturnEvidenceRequest.class)))
+                                .thenAnswer(invocation -> {
+                                        ReturnEvidenceRequest saved = invocation.getArgument(0);
+                                        saved.setId(UUID.randomUUID());
+                                        saved.setEvidence(new ArrayList<>());
+                                        evidenceRequests.add(saved);
+                                        return saved;
+                                });
+                when(returnEvidenceRequestRepository.findByReturnRequestIdOrderByCreatedAtAsc(returnId))
+                                .thenAnswer(invocation -> evidenceRequests);
+
+                ReturnRequestResponse response = returnRequestService.requestAdditionalEvidence(
+                                returnId,
+                                "Vui lòng bổ sung ảnh kiện hàng và biên bản giao nhận",
+                                adminId,
+                                "admin@local");
+
+                assertEquals(1, response.getAdditionalEvidenceRequests().size());
+                ReturnRequestResponse.AdditionalEvidenceRequest evidenceRequest = response
+                                .getAdditionalEvidenceRequests()
+                                .getFirst();
+                assertEquals("Vui lòng bổ sung ảnh kiện hàng và biên bản giao nhận",
+                                evidenceRequest.getMessage());
+                assertEquals("admin@local", evidenceRequest.getRequestedBy());
+                assertTrue(evidenceRequest.getEvidence().isEmpty());
+        }
+
+        @Test
+        void customerSubmitsAdditionalEvidenceForOwnReturn() {
+                UUID returnId = UUID.randomUUID();
+                UUID requestId = UUID.randomUUID();
+                UUID userId = UUID.randomUUID();
+                String evidenceUrl = "/uploads/returns/customer-extra.jpg";
+                User user = buildUser(userId);
+                Order order = buildOrder(UUID.randomUUID(), user, Order.OrderStatus.DELIVERED, List.of());
+                ReturnRequest request = ReturnRequest.builder()
+                                .id(returnId)
+                                .order(order)
+                                .user(user)
+                                .status(ReturnRequest.ReturnStatus.DISPUTING)
+                                .items(List.of())
+                                .adminFinalized(false)
+                                .build();
+                ReturnEvidenceRequest evidenceRequest = ReturnEvidenceRequest.builder()
+                                .id(requestId)
+                                .returnRequest(request)
+                                .message("Bổ sung bằng chứng")
+                                .evidence(new ArrayList<>())
+                                .build();
+
+                when(returnRequestRepository.findById(returnId)).thenReturn(Optional.of(request));
+                when(returnEvidenceRequestRepository.findById(requestId)).thenReturn(Optional.of(evidenceRequest));
+                when(returnAdditionalEvidenceRepository.existsByEvidenceRequestIdAndSubmittedByRole(
+                                requestId,
+                                ReturnAdditionalEvidence.EvidenceActor.CUSTOMER)).thenReturn(false);
+                when(returnAdditionalEvidenceRepository.save(any(ReturnAdditionalEvidence.class)))
+                                .thenAnswer(invocation -> {
+                                        ReturnAdditionalEvidence saved = invocation.getArgument(0);
+                                        saved.setId(UUID.randomUUID());
+                                        evidenceRequest.getEvidence().add(saved);
+                                        return saved;
+                                });
+                when(returnEvidenceRequestRepository.findByReturnRequestIdOrderByCreatedAtAsc(returnId))
+                                .thenReturn(List.of(evidenceRequest));
+
+                ReturnRequestResponse response = returnRequestService.submitAdditionalEvidence(
+                                returnId,
+                                requestId,
+                                userId,
+                                "buyer@example.com",
+                                User.Role.CUSTOMER,
+                                null,
+                                "Ảnh chụp kiện hàng sau khi mở",
+                                evidenceUrl);
+
+                ReturnRequestResponse.AdditionalEvidence evidence = response
+                                .getAdditionalEvidenceRequests()
+                                .getFirst()
+                                .getEvidence()
+                                .getFirst();
+                assertEquals("CUSTOMER", evidence.getSubmittedByRole());
+                assertEquals(userId, evidence.getSubmittedByUserId());
+                assertEquals("buyer@example.com", evidence.getSubmittedByEmail());
+                assertEquals("Ảnh chụp kiện hàng sau khi mở", evidence.getNote());
+                assertEquals(evidenceUrl, evidence.getEvidenceUrl());
+        }
+
+        @Test
+        void vendorCannotSubmitAdditionalEvidenceForAnotherStore() {
+                UUID returnId = UUID.randomUUID();
+                UUID requestId = UUID.randomUUID();
+                UUID ownerStoreId = UUID.randomUUID();
+                UUID otherStoreId = UUID.randomUUID();
+                User user = buildUser(UUID.randomUUID());
+                Order order = buildOrder(UUID.randomUUID(), user, Order.OrderStatus.DELIVERED, List.of());
+                ReturnRequest request = ReturnRequest.builder()
+                                .id(returnId)
+                                .order(order)
+                                .user(user)
+                                .storeId(ownerStoreId)
+                                .status(ReturnRequest.ReturnStatus.DISPUTING)
+                                .items(List.of())
+                                .adminFinalized(false)
+                                .build();
+                ReturnEvidenceRequest evidenceRequest = ReturnEvidenceRequest.builder()
+                                .id(requestId)
+                                .returnRequest(request)
+                                .message("Bổ sung bằng chứng")
+                                .evidence(new ArrayList<>())
+                                .build();
+
+                when(returnRequestRepository.findById(returnId)).thenReturn(Optional.of(request));
+                when(returnEvidenceRequestRepository.findById(requestId)).thenReturn(Optional.of(evidenceRequest));
+
+                ResponseStatusException ex = assertThrows(
+                                ResponseStatusException.class,
+                                () -> returnRequestService.submitAdditionalEvidence(
+                                                returnId,
+                                                requestId,
+                                                UUID.randomUUID(),
+                                                "vendor@local",
+                                                User.Role.VENDOR,
+                                                otherStoreId,
+                                                "Ảnh kiểm hàng",
+                                                "/uploads/returns/vendor-extra.jpg"));
+
+                assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+                assertEquals("Return request does not belong to your store", ex.getReason());
         }
 
         @Test

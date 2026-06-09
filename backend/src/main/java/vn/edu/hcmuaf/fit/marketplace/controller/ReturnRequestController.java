@@ -18,8 +18,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.hcmuaf.fit.marketplace.dto.request.ReturnAdminVerdictRequest;
+import vn.edu.hcmuaf.fit.marketplace.dto.request.ReturnAdditionalEvidenceSubmitRequest;
 import vn.edu.hcmuaf.fit.marketplace.dto.request.ReturnCancelRequest;
 import vn.edu.hcmuaf.fit.marketplace.dto.request.ReturnDisputeRequest;
+import vn.edu.hcmuaf.fit.marketplace.dto.request.ReturnEvidenceRequestCreateRequest;
 import vn.edu.hcmuaf.fit.marketplace.dto.request.ReturnSubmitRequest;
 import vn.edu.hcmuaf.fit.marketplace.dto.response.ReturnRequestResponse;
 import vn.edu.hcmuaf.fit.marketplace.dto.response.VendorReturnSummaryResponse;
@@ -93,6 +95,24 @@ public class ReturnRequestController {
         UserContext ctx = authContext.fromAuthHeader(authHeader);
         String reason = request != null ? request.get("reason") : null;
         return ResponseEntity.ok(returnRequestService.openDispute(id, ctx.getUserId(), reason, ctx.getEmail()));
+    }
+
+    @PostMapping("/{id}/additional-evidence")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ReturnRequestResponse> submitAdditionalEvidence(
+            @PathVariable UUID id,
+            @Valid @RequestBody ReturnAdditionalEvidenceSubmitRequest request,
+            @RequestHeader("Authorization") String authHeader) {
+        UserContext ctx = authContext.fromAuthHeader(authHeader);
+        return ResponseEntity.ok(returnRequestService.submitAdditionalEvidence(
+                id,
+                request.getRequestId(),
+                ctx.getUserId(),
+                ctx.getEmail(),
+                ctx.getRole(),
+                ctx.getStoreId(),
+                request.getNote(),
+                request.getEvidenceUrl()));
     }
 
     @GetMapping("/my-store")
@@ -184,6 +204,20 @@ public class ReturnRequestController {
                 id,
                 winner,
                 request.getAdminNote(),
+                admin.getUserId(),
+                admin.getEmail()));
+    }
+
+    @PostMapping("/admin/{id}/evidence-requests")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<ReturnRequestResponse> requestAdditionalEvidence(
+            @PathVariable UUID id,
+            @Valid @RequestBody ReturnEvidenceRequestCreateRequest request,
+            @RequestHeader("Authorization") String authHeader) {
+        UserContext admin = authContext.requireAdmin(authHeader);
+        return ResponseEntity.ok(returnRequestService.requestAdditionalEvidence(
+                id,
+                request.getMessage(),
                 admin.getUserId(),
                 admin.getEmail()));
     }

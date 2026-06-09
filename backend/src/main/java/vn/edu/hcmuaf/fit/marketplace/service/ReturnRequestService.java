@@ -17,9 +17,14 @@ import vn.edu.hcmuaf.fit.marketplace.dto.response.VendorReturnSummaryResponse;
 import vn.edu.hcmuaf.fit.marketplace.entity.Notification;
 import vn.edu.hcmuaf.fit.marketplace.entity.Order;
 import vn.edu.hcmuaf.fit.marketplace.entity.OrderItem;
+import vn.edu.hcmuaf.fit.marketplace.entity.ReturnAdditionalEvidence;
+import vn.edu.hcmuaf.fit.marketplace.entity.ReturnEvidenceRequest;
 import vn.edu.hcmuaf.fit.marketplace.entity.ReturnRequest;
 import vn.edu.hcmuaf.fit.marketplace.entity.Store;
+import vn.edu.hcmuaf.fit.marketplace.entity.User;
 import vn.edu.hcmuaf.fit.marketplace.repository.OrderRepository;
+import vn.edu.hcmuaf.fit.marketplace.repository.ReturnAdditionalEvidenceRepository;
+import vn.edu.hcmuaf.fit.marketplace.repository.ReturnEvidenceRequestRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.ReturnRequestRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.StoreRepository;
 
@@ -50,6 +55,8 @@ public class ReturnRequestService {
     private final WalletService walletService;
     private final AdminAuditLogService adminAuditLogService;
     private final NotificationDomainService notificationDomainService;
+    private final ReturnEvidenceRequestRepository returnEvidenceRequestRepository;
+    private final ReturnAdditionalEvidenceRepository returnAdditionalEvidenceRepository;
 
     @Autowired
     public ReturnRequestService(
@@ -59,7 +66,9 @@ public class ReturnRequestService {
             PublicCodeService publicCodeService,
             WalletService walletService,
             AdminAuditLogService adminAuditLogService,
-            NotificationDomainService notificationDomainService) {
+            NotificationDomainService notificationDomainService,
+            ReturnEvidenceRequestRepository returnEvidenceRequestRepository,
+            ReturnAdditionalEvidenceRepository returnAdditionalEvidenceRepository) {
         this.returnRequestRepository = returnRequestRepository;
         this.orderRepository = orderRepository;
         this.storeRepository = storeRepository;
@@ -67,6 +76,8 @@ public class ReturnRequestService {
         this.walletService = walletService;
         this.adminAuditLogService = adminAuditLogService;
         this.notificationDomainService = notificationDomainService;
+        this.returnEvidenceRequestRepository = returnEvidenceRequestRepository;
+        this.returnAdditionalEvidenceRepository = returnAdditionalEvidenceRepository;
     }
 
     public ReturnRequestService(
@@ -81,6 +92,8 @@ public class ReturnRequestService {
                 storeRepository,
                 publicCodeService,
                 walletService,
+                null,
+                null,
                 null,
                 null);
     }
@@ -430,6 +443,97 @@ public class ReturnRequestService {
     }
 
     @Transactional
+    public ReturnRequestResponse requestAdditionalEvidence(
+            UUID returnId,
+            String message,
+            UUID adminId,
+            String adminEmail) {
+        if (returnEvidenceRequestRepository == null) {
+            throw new IllegalStateException("Return evidence request repository is not configured");
+        }
+        String normalizedMessage = normalizeRequiredText(message, "Evidence request message is required");
+        ReturnRequest request = findById(returnId);
+        if (request.getStatus() != ReturnRequest.ReturnStatus.DISPUTING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Additional evidence can only be requested for disputed returns");
+        }
+        if (Boolean.TRUE.equals(request.getAdminFinalized())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Cannot request additional evidence for a finalized return");
+        }
+
+        ReturnEvidenceRequest evidenceRequest = ReturnEvidenceRequest.builder()
+                .returnRequest(request)
+                .message(normalizedMessage)
+                .requestedBy(normalizeOptionalText(adminEmail).isEmpty()
+                        ? String.valueOf(adminId)
+                        : normalizeOptionalText(adminEmail))
+                .build();
+        returnEvidenceRequestRepository.save(evidenceRequest);
+        return toResponse(request);
+    }
+
+    @Transactional
+    public ReturnRequestResponse submitAdditionalEvidence(
+            UUID returnId,
+            UUID evidenceRequestId,
+            UUID userId,
+            String userEmail,
+            User.Role role,
+            UUID storeId,
+            String note,
+            String evidenceUrl) {
+        if (returnEvidenceRequestRepository == null || returnAdditionalEvidenceRepository == null) {
+            throw new IllegalStateException("Return evidence repositories are not configured");
+        }
+        if (evidenceRequestId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Evidence request is required");
+        }
+
+        String normalizedNote = normalizeRequiredText(note, "Evidence note is required");
+        String normalizedEvidenceUrl = normalizeRequiredText(evidenceUrl, "Evidence URL is required");
+        ReturnRequest request = findById(returnId);
+        if (request.getStatus() != ReturnRequest.ReturnStatus.DISPUTING) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Additional evidence can only be submitted for disputed returns");
+        }
+        if (Boolean.TRUE.equals(request.getAdminFinalized())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Cannot submit evidence for a finalized return");
+        }
+
+        ReturnEvidenceRequest evidenceRequest = returnEvidenceRequestRepository.findById(evidenceRequestId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Evidence request not found"));
+        if (evidenceRequest.getReturnRequest() == null || evidenceRequest.getReturnRequest().getId() == null
+                || !evidenceRequest.getReturnRequest().getId().equals(returnId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Evidence request does not belong to this return");
+        }
+
+        ReturnAdditionalEvidence.EvidenceActor actor = resolveEvidenceActor(request, userId, role, storeId);
+        if (returnAdditionalEvidenceRepository.existsByEvidenceRequestIdAndSubmittedByRole(evidenceRequestId, actor)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "This side has already submitted evidence for this request");
+        }
+
+        ReturnAdditionalEvidence additionalEvidence = ReturnAdditionalEvidence.builder()
+                .evidenceRequest(evidenceRequest)
+                .returnRequest(request)
+                .submittedByRole(actor)
+                .submittedByUserId(userId)
+                .submittedByEmail(normalizeOptionalText(userEmail))
+                .note(normalizedNote)
+                .evidenceUrl(normalizedEvidenceUrl)
+                .build();
+        ReturnAdditionalEvidence saved = returnAdditionalEvidenceRepository.save(additionalEvidence);
+        if (evidenceRequest.getEvidence() != null) {
+            evidenceRequest.getEvidence().add(saved);
+        }
+        return toResponse(request);
+    }
+
+    @Transactional
     public ReturnRequestResponse cancelReturnByCustomer(UUID returnId, UUID userId, String actor) {
         ReturnRequest request = findById(returnId);
         assertCustomerOwnership(request, userId);
@@ -636,6 +740,23 @@ public class ReturnRequestService {
                 || !request.getUser().getId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Return request does not belong to this customer");
         }
+    }
+
+    private ReturnAdditionalEvidence.EvidenceActor resolveEvidenceActor(
+            ReturnRequest request,
+            UUID userId,
+            User.Role role,
+            UUID storeId) {
+        if (role == User.Role.CUSTOMER) {
+            assertCustomerOwnership(request, userId);
+            return ReturnAdditionalEvidence.EvidenceActor.CUSTOMER;
+        }
+        if (role == User.Role.VENDOR) {
+            assertStoreOwnership(request, storeId);
+            return ReturnAdditionalEvidence.EvidenceActor.VENDOR;
+        }
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                "Only customer or vendor accounts can submit additional evidence");
     }
 
     private UUID resolveSingleStoreId(List<ReturnRequest.ReturnItemSnapshot> snapshots,
@@ -919,6 +1040,7 @@ public class ReturnRequestService {
                 .storeName(storeName)
                 .vendorReason(request.getVendorReason())
                 .disputeReason(request.getDisputeReason())
+                .disputeEvidenceUrl(request.getDisputeEvidenceUrl())
                 .shippingTrackingNumber(request.getShippingTrackingNumber())
                 .shippingCarrier(request.getShippingCarrier())
                 .adminNote(request.getAdminNote())
@@ -928,7 +1050,51 @@ public class ReturnRequestService {
                 .completedAt(request.getCompletedAt())
                 .createdAt(request.getCreatedAt())
                 .updatedAt(request.getUpdatedAt())
+                .additionalEvidenceRequests(toAdditionalEvidenceRequests(request))
                 .build();
+    }
+
+    private List<ReturnRequestResponse.AdditionalEvidenceRequest> toAdditionalEvidenceRequests(
+            ReturnRequest request) {
+        if (request == null || request.getId() == null || returnEvidenceRequestRepository == null) {
+            return List.of();
+        }
+        List<ReturnEvidenceRequest> requests = returnEvidenceRequestRepository
+                .findByReturnRequestIdOrderByCreatedAtAsc(request.getId());
+        if (requests == null || requests.isEmpty()) {
+            return List.of();
+        }
+        return requests
+                .stream()
+                .map(item -> ReturnRequestResponse.AdditionalEvidenceRequest.builder()
+                        .id(item.getId())
+                        .message(item.getMessage())
+                        .requestedBy(item.getRequestedBy())
+                        .requestedAt(item.getCreatedAt())
+                        .evidence(toAdditionalEvidence(item))
+                        .build())
+                .toList();
+    }
+
+    private List<ReturnRequestResponse.AdditionalEvidence> toAdditionalEvidence(ReturnEvidenceRequest request) {
+        if (request == null || request.getEvidence() == null) {
+            return List.of();
+        }
+        return request.getEvidence().stream()
+                .filter(java.util.Objects::nonNull)
+                .sorted(Comparator.comparing(
+                        ReturnAdditionalEvidence::getCreatedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .map(item -> ReturnRequestResponse.AdditionalEvidence.builder()
+                        .id(item.getId())
+                        .submittedByRole(item.getSubmittedByRole() == null ? null : item.getSubmittedByRole().name())
+                        .submittedByUserId(item.getSubmittedByUserId())
+                        .submittedByEmail(item.getSubmittedByEmail())
+                        .note(item.getNote())
+                        .evidenceUrl(item.getEvidenceUrl())
+                        .createdAt(item.getCreatedAt())
+                        .build())
+                .toList();
     }
 
     @Transactional(readOnly = true)
