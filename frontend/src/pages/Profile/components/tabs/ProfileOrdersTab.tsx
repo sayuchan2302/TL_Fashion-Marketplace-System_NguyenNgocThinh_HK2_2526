@@ -5,6 +5,7 @@ import EmptyState from '../../../../components/EmptyState/EmptyState';
 import ProfilePagination from '../ProfilePagination';
 import type { ProfileTabContentProps } from '../ProfileTabContent.types';
 import { returnService, type ReturnRequest } from '../../../../services/returnService';
+import { isOrderReturnWindowOpen } from '../../../../utils/orderReturnWindow';
 
 const orderFilterOptions = ['Tất cả', 'Chờ xác nhận', 'Đang giao', 'Đã giao', 'Đã hủy', 'Hoàn trả'];
 
@@ -192,6 +193,7 @@ const OrdersTab = ({
           pagedOrders.map((order) => {
             const slaNotice = getOrderSlaNotice(order);
             const activeReturn = customerReturns.find((req) => req.orderId === order.id && req.status !== 'CANCELLED');
+            const canRequestReturn = isOrderReturnWindowOpen(order);
             const displayStatusText = activeReturn
               ? getReturnStatusBadgeLabel(activeReturn.status)
               : (orderStatusLabelMap?.[order.status] ?? order.status);
@@ -256,17 +258,11 @@ const OrdersTab = ({
                     </button>
                     {order.status === 'delivered' && (
                       <>
-                        {(() => {
-                          const activeReq = customerReturns.find(
-                            (req) => req.orderId === order.id && req.status !== 'CANCELLED'
-                          );
-                          if (activeReq) return null;
-                          return (
-                            <button className="order-action-btn order-btn-outline" onClick={() => onOpenReturnDrawer(order)}>
-                              <RotateCcw size={16} /> Hoàn đơn
-                            </button>
-                          );
-                        })()}
+                        {!activeReturn && canRequestReturn ? (
+                          <button className="order-action-btn order-btn-outline" onClick={() => onOpenReturnDrawer(order)}>
+                            <RotateCcw size={16} /> Hoàn đơn
+                          </button>
+                        ) : null}
                         <button className="order-action-btn order-btn-primary" onClick={() => onOpenReviewForOrder(order)}>
                           Đánh giá
                         </button>

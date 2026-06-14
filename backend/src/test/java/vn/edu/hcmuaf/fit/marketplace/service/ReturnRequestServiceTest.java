@@ -99,6 +99,30 @@ class ReturnRequestServiceTest {
         }
 
         @Test
+        void submitRejectsWhenReturnWindowExpired() {
+                UUID userId = UUID.randomUUID();
+                UUID orderId = UUID.randomUUID();
+                UUID orderItemId = UUID.randomUUID();
+                UUID storeId = UUID.randomUUID();
+
+                User user = buildUser(userId);
+                OrderItem orderItem = buildOrderItem(orderItemId, storeId, 1, new BigDecimal("120000"));
+                Order order = buildOrder(orderId, user, Order.OrderStatus.DELIVERED, List.of(orderItem));
+                order.setEscrowDeadlineAt(LocalDateTime.now().minusSeconds(1));
+
+                when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+                ReturnSubmitRequest payload = buildSubmitPayload(orderId, List.of(buildItemPayload(orderItemId, 1)));
+
+                ResponseStatusException ex = assertThrows(
+                                ResponseStatusException.class,
+                                () -> returnRequestService.submit(userId, payload));
+
+                assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+                assertEquals("Escrow period has expired or order is completed", ex.getReason());
+        }
+
+        @Test
         void submitRejectsDuplicateOrderItemsInSamePayload() {
                 UUID userId = UUID.randomUUID();
                 UUID orderId = UUID.randomUUID();

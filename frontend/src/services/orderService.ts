@@ -49,6 +49,8 @@ interface BackendOrderResponse {
   id: string;
   code?: string;
   createdAt?: string;
+  deliveredAt?: string;
+  escrowDeadlineAt?: string;
   status?: string;
   vendorConfirmationDeadlineAt?: string;
   paymentMethod?: string;
@@ -96,6 +98,8 @@ interface BackendOrderTreeSubOrder {
   trackingNumber?: string;
   createdAt?: string;
   updatedAt?: string;
+  deliveredAt?: string;
+  escrowDeadlineAt?: string;
   vendorConfirmationDeadlineAt?: string;
   items?: BackendOrderTreeItem[];
 }
@@ -110,6 +114,8 @@ interface BackendOrderTreeResponse {
   id: string;
   code?: string;
   createdAt?: string;
+  deliveredAt?: string;
+  escrowDeadlineAt?: string;
   status?: string;
   vendorConfirmationDeadlineAt?: string;
   paymentMethod?: string;
@@ -280,6 +286,8 @@ const mapBackendOrderToShared = (order: BackendOrderResponse): SharedOrder => {
     id: order.id,
     code: order.code || order.id,
     createdAt: order.createdAt || new Date().toISOString(),
+    deliveredAt: order.deliveredAt,
+    escrowDeadlineAt: order.escrowDeadlineAt,
     vendorConfirmationDeadlineAt: order.vendorConfirmationDeadlineAt,
     parentOrderId: order.subOrderId || undefined,
     storeId: order.storeId || undefined,
@@ -366,6 +374,8 @@ const mapBackendOrderTreeToShared = (order: BackendOrderTreeResponse): SharedOrd
     id: order.id,
     code: order.code || order.id,
     createdAt: order.createdAt || new Date().toISOString(),
+    deliveredAt: order.deliveredAt,
+    escrowDeadlineAt: order.escrowDeadlineAt,
     vendorConfirmationDeadlineAt,
     customerName,
     customerEmail: order.customer?.email || '',
@@ -412,6 +422,8 @@ const toClientOrder = (o: SharedOrder): Order => ({
   id: o.id,
   code: o.code || o.id,
   createdAt: o.createdAt,
+  deliveredAt: o.deliveredAt,
+  escrowDeadlineAt: o.escrowDeadlineAt,
   vendorConfirmationDeadlineAt: o.vendorConfirmationDeadlineAt,
   status: fulfillmentToClientStatus(o.fulfillment, o.paymentStatus) as OrderStatus,
   total: o.total,

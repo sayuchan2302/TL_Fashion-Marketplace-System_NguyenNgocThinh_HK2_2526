@@ -96,7 +96,6 @@ export interface StoreProductFilters {
 
 export interface StoreRegistrationRequest {
   shopName: string;
-  brandName: string;
   slug: string;
   category?: string;
   address: string;
@@ -105,10 +104,6 @@ export interface StoreRegistrationRequest {
   contactName: string;
   contactPhone: string;
   contactEmail: string;
-  shippingLeadTime?: string;
-  returnPolicy?: string;
-  taxCode?: string;
-  businessType?: string;
 }
 
 interface StoreUpdateRequest {
@@ -266,12 +261,7 @@ const dedupeColorsBySwatch = (
 
 const buildRegistrationDescription = (payload: StoreRegistrationRequest) =>
   [
-    payload.brandName ? `Brand: ${payload.brandName}` : null,
     payload.category ? `Category: ${payload.category}` : null,
-    payload.shippingLeadTime ? `Lead time: ${payload.shippingLeadTime}` : null,
-    payload.returnPolicy ? `Return policy: ${payload.returnPolicy}` : null,
-    payload.businessType ? `Business type: ${payload.businessType}` : null,
-    payload.taxCode ? `Tax code: ${payload.taxCode}` : null,
   ].filter(Boolean).join('\n');
 
 const mapBackendStore = (store: BackendStoreResponse): StoreProfile => ({
@@ -435,7 +425,7 @@ export const storeService = {
     const store = await apiRequest<BackendStoreResponse>('/api/stores/register', {
       method: 'POST',
       body: JSON.stringify({
-        name: payload.brandName || payload.shopName,
+        name: payload.shopName,
         slug: payload.slug,
         description: buildRegistrationDescription(payload),
         contactEmail: payload.contactEmail,

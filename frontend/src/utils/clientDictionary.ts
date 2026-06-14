@@ -70,11 +70,10 @@ export const MARKETPLACE_DICTIONARY = {
     registerTitle: 'Trở thành đối tác bán hàng',
     registerSubtitle: 'Thiết lập cửa hàng nhanh chóng với quy trình phê duyệt rõ ràng.',
     wizard: {
-      stepperLabel: 'Tiến trình đăng ký',
+      stepperLabel: 'Biểu mẫu đăng ký',
       steps: {
         shopInfo: 'Thông tin cửa hàng',
-        contact: 'Liên hệ & vận hành',
-        compliance: 'Pháp lý & hoa hồng',
+        contact: 'Thông tin liên hệ',
       },
       actions: {
         next: 'Tiếp tục',
@@ -111,7 +110,6 @@ export const MARKETPLACE_DICTIONARY = {
     },
     form: {
       shopName: 'Tên cửa hàng',
-      brandName: 'Thương hiệu',
       slug: 'Đường dẫn cửa hàng',
       category: 'Danh mục chính',
       address: 'Địa chỉ kinh doanh',
@@ -120,14 +118,6 @@ export const MARKETPLACE_DICTIONARY = {
       contactName: 'Người liên hệ',
       contactPhone: 'Số điện thoại',
       contactEmail: 'Email',
-      logistics: 'Vận hành & giao hàng',
-      shippingLeadTime: 'Thời gian xử lý đơn',
-      returnPolicy: 'Chính sách đổi trả',
-      taxCode: 'Mã số thuế/CCCD',
-      businessType: 'Loại hình kinh doanh',
-      agree: 'Tôi đồng ý với điều khoản và chính sách hoa hồng',
-      commissionNote: 'Phí hoa hồng nền tảng dự kiến',
-      uploadDocs: 'Tài liệu pháp lý (tuỳ chọn)',
     },
   },
   cart: {
@@ -159,8 +149,8 @@ export const MARKETPLACE_DICTIONARY = {
     viewSubOrders: 'Xem đơn hàng con',
   },
   admin: {
-    storeApproval: 'Phê duyệt cửa hàng',
-    pendingStores: 'Cửa hàng chờ duyệt',
+    storeApproval: 'Yêu cầu trở thành Vendor',
+    pendingStores: 'Yêu cầu Vendor chờ duyệt',
     approvedStores: 'Cửa hàng đã duyệt',
     rejectedStores: 'Cửa hàng bị từ chối',
     commissionRate: 'Tỷ lệ hoa hồng',

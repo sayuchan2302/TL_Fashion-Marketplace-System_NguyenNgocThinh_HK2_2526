@@ -24,6 +24,7 @@ import ReviewModal from '../../components/ReviewModal/ReviewModal';
 import { formatPrice } from '../../utils/formatters';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { resolveDetailRouteKey, toDisplayOrderCode } from '../../utils/displayCode';
+import { isOrderReturnWindowOpen } from '../../utils/orderReturnWindow';
 import ConfirmModal from '../../components/ConfirmModal/ConfirmModal';
 import { CLIENT_TEXT } from '../../utils/texts';
 import type { Order } from '../../types';
@@ -666,11 +667,11 @@ const OrderDetail = () => {
                         </button>
                       );
                     }
-                    return (
+                    return isOrderReturnWindowOpen(order) ? (
                       <button className="od-action-btn od-btn-outline" onClick={() => setIsReturnDrawerOpen(true)}>
                         <RotateCcw size={16} /> Hoàn đơn
                       </button>
-                    );
+                    ) : null;
                   })()}
                 </>
               )}

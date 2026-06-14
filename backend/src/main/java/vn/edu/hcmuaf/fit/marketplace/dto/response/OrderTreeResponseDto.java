@@ -28,6 +28,8 @@ public class OrderTreeResponseDto {
     private boolean splitOrder;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime deliveredAt;
+    private LocalDateTime escrowDeadlineAt;
     private LocalDateTime vendorConfirmationDeadlineAt;
     private Customer customer;
     private Address shippingAddress;
@@ -77,6 +79,8 @@ public class OrderTreeResponseDto {
         private String warehouseNote;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
+        private LocalDateTime deliveredAt;
+        private LocalDateTime escrowDeadlineAt;
         private LocalDateTime vendorConfirmationDeadlineAt;
         private List<ItemNode> items;
     }

@@ -46,7 +46,7 @@ const TABS: Array<{ key: StoreFilter; label: string }> = [
 
 const STORE_SCOPE_TABS: Array<{ key: StoreScope; label: string }> = [
   { key: 'activeStores', label: 'Gian hàng đang hoạt động' },
-  { key: 'sellerRequests', label: 'Yêu cầu trở thành seller' },
+  { key: 'sellerRequests', label: 'Yêu cầu trở thành Vendor' },
 ];
 
 const ACTIVE_STORE_TABS: Array<{ key: StoreFilter; label: string }> = [
@@ -307,16 +307,16 @@ const StoreApprovals = () => {
     activeTab === 'suspended' ? 'Gian hàng tạm khóa' : activeTab === 'all' ? 'Gian hàng đã duyệt' : 'Gian hàng đang hoạt động';
   const sellerRequestPanelTitle =
     activeTab === 'rejected'
-      ? 'Yêu cầu seller đã từ chối'
+      ? 'Yêu cầu trở thành Vendor đã từ chối'
       : activeTab === 'all'
-        ? 'Tất cả yêu cầu trở thành seller'
-        : 'Đơn yêu cầu trở thành seller';
+        ? 'Tất cả yêu cầu trở thành Vendor'
+        : 'Đơn yêu cầu trở thành Vendor';
   const panelTitle = isSellerRequestScope ? sellerRequestPanelTitle : activeStorePanelTitle;
   const searchPlaceholder = isSellerRequestScope
     ? 'Tìm yêu cầu theo gian hàng, chủ sở hữu, email hoặc số điện thoại'
     : 'Tìm gian hàng, chủ sở hữu, email hoặc số điện thoại';
   const statusFilterLabel = isSellerRequestScope ? 'Tình trạng hồ sơ' : 'Trạng thái vận hành';
-  const emptyTitle = isSellerRequestScope ? 'Chưa có yêu cầu trở thành seller' : 'Chưa có gian hàng phù hợp';
+  const emptyTitle = isSellerRequestScope ? 'Chưa có yêu cầu trở thành Vendor' : 'Chưa có gian hàng phù hợp';
   const emptyDescription = isSellerRequestScope
     ? 'Các hồ sơ đăng ký bán hàng mới sẽ hiển thị tại đây để admin phê duyệt.'
     : 'Các gian hàng đã duyệt sẽ hiển thị tại đây để admin theo dõi và vận hành.';
@@ -472,9 +472,9 @@ const StoreApprovals = () => {
       />
       <PanelStatsGrid items={[
         { key: 'active', label: 'Đang hoạt động', value: counts.active, sub: 'Gian hàng đã duyệt và đang bán', tone: 'success', onClick: () => changeStoreView('activeStores', 'active') },
-        { key: 'pending', label: 'Yêu cầu seller', value: counts.pending, sub: 'Hồ sơ mới cần phê duyệt', tone: counts.pending > 0 ? 'warning' : '', onClick: () => changeStoreView('sellerRequests', 'pending') },
+        { key: 'pending', label: 'Yêu cầu trở thành Vendor', value: counts.pending, sub: 'Hồ sơ mới cần phê duyệt', tone: counts.pending > 0 ? 'warning' : '', onClick: () => changeStoreView('sellerRequests', 'pending') },
         { key: 'suspended', label: 'Tạm khóa', value: counts.suspended, sub: 'Gian hàng bị chặn vận hành tạm thời', tone: counts.suspended > 0 ? 'danger' : '', onClick: () => changeStoreView('activeStores', 'suspended') },
-        { key: 'rejected', label: 'Đã từ chối', value: counts.rejected, sub: 'Yêu cầu seller không được duyệt', tone: counts.rejected > 0 ? 'danger' : '', onClick: () => changeStoreView('sellerRequests', 'rejected') },
+        { key: 'rejected', label: 'Đã từ chối', value: counts.rejected, sub: 'Yêu cầu trở thành Vendor không được duyệt', tone: counts.rejected > 0 ? 'danger' : '', onClick: () => changeStoreView('sellerRequests', 'rejected') },
       ]} />
       <section className="admin-panels single"><div className="admin-panel"><div className="admin-panel-head">
         <h2>{panelTitle}</h2>

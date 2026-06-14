@@ -32,6 +32,7 @@ public class AdminOrderResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deliveredAt;
+    private LocalDateTime escrowDeadlineAt;
     private LocalDateTime vendorConfirmationDeadlineAt;
 
     // Flattened user and address data to avoid lazy load issues
