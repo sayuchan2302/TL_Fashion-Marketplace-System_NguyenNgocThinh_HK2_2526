@@ -62,10 +62,10 @@ const Register = () => {
     try {
       setGoogleLoading(true);
       await loginWithGoogle(idToken);
-      addToast('Dang ky Google thanh cong', 'success');
+      addToast('Đăng ký Google thành công', 'success');
       navigate('/', { replace: true });
     } catch (error: unknown) {
-      addToast(getUiErrorMessage(error, 'Dang ky Google that bai'), 'error');
+      addToast(getUiErrorMessage(error, 'Đăng ký Google thất bại'), 'error');
     } finally {
       setGoogleLoading(false);
     }

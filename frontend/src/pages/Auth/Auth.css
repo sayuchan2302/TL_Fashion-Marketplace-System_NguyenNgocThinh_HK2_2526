@@ -131,6 +131,7 @@
   min-width: 0;
   height: 42px;
   position: relative;
+  overflow: hidden;
 }
 
 .google-login-display {
@@ -186,7 +187,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 0 14px;
+  height: 42px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   background: #fff;

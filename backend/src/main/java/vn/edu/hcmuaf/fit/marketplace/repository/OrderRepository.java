@@ -415,6 +415,26 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
                 BigDecimal getAvgOrderValue();
         }
 
+        interface PlatformDailyRevenueProjection {
+                String getDate();
+
+                BigDecimal getGmv();
+
+                BigDecimal getCommission();
+        }
+
+        @Query("""
+                        SELECT DATE(COALESCE(o.deliveredAt, o.createdAt)) AS date,
+                               COALESCE(SUM(o.total), 0) AS gmv,
+                               COALESCE(SUM(o.commissionFee), 0) AS commission
+                        FROM Order o
+                        WHERE o.parentOrder IS NULL
+                          AND o.status = 'DELIVERED'
+                        GROUP BY DATE(COALESCE(o.deliveredAt, o.createdAt))
+                        ORDER BY date ASC
+                        """)
+        List<PlatformDailyRevenueProjection> findPlatformDeliveredDailyRevenue();
+
         @Query("""
                         SELECT DATE(COALESCE(o.deliveredAt, o.createdAt)) AS date,
                                COALESCE(SUM(o.total), 0) AS revenue,

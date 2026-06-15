@@ -23,7 +23,6 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -32,7 +31,6 @@ import java.util.stream.Collectors;
 @Service
 public class AdminDashboardService {
 
-    private static final int TREND_DAYS = 7;
     private static final int PARENT_QUEUE_LIMIT = 5;
     private static final int TOP_CATEGORY_LIMIT = 3;
 
@@ -80,6 +78,7 @@ public class AdminDashboardService {
                         .lockedUsers(lockedUsers)
                         .totalCustomers(totalCustomers)
                         .runningCampaigns(runningCampaigns)
+                        .totalStores(storeRepository.count())
                         .build())
                 .quickViews(AdminDashboardResponse.QuickViews.builder()
                         .pendingStoreApprovals(pendingStores)
@@ -94,44 +93,14 @@ public class AdminDashboardService {
     }
 
     private List<AdminDashboardResponse.TrendPoint> buildTrend() {
-        LocalDate today = LocalDate.now();
-        LocalDate startDate = today.minusDays(TREND_DAYS - 1L);
-        LocalDateTime fromDate = startDate.atStartOfDay();
-        LocalDateTime toDate = today.plusDays(1L).atStartOfDay();
-
-        Map<LocalDate, BigDecimal> gmvByDay = new HashMap<>();
-        Map<LocalDate, BigDecimal> commissionByDay = new HashMap<>();
-        for (int i = 0; i < TREND_DAYS; i++) {
-            LocalDate date = startDate.plusDays(i);
-            gmvByDay.put(date, BigDecimal.ZERO);
-            commissionByDay.put(date, BigDecimal.ZERO);
-        }
-
-        List<Order> orders = orderRepository.findRootDeliveredOrdersByDeliveredAtBetween(fromDate, toDate);
-        for (Order order : orders) {
-            LocalDateTime deliveredAt = order.getDeliveredAt() != null ? order.getDeliveredAt() : order.getCreatedAt();
-            if (deliveredAt == null) {
-                continue;
-            }
-            LocalDate orderDate = deliveredAt.toLocalDate();
-            if (!gmvByDay.containsKey(orderDate)) {
-                continue;
-            }
-
-            gmvByDay.put(orderDate, gmvByDay.get(orderDate).add(safeAmount(order.getTotal())));
-            commissionByDay.put(orderDate, commissionByDay.get(orderDate).add(safeAmount(order.getCommissionFee())));
-        }
-
-        List<AdminDashboardResponse.TrendPoint> trend = new ArrayList<>();
-        for (int i = 0; i < TREND_DAYS; i++) {
-            LocalDate date = startDate.plusDays(i);
-            trend.add(AdminDashboardResponse.TrendPoint.builder()
-                    .date(date)
-                    .gmv(gmvByDay.get(date))
-                    .commission(commissionByDay.get(date))
-                    .build());
-        }
-        return trend;
+        return orderRepository.findPlatformDeliveredDailyRevenue()
+                .stream()
+                .map(row -> AdminDashboardResponse.TrendPoint.builder()
+                        .date(LocalDate.parse(row.getDate()))
+                        .gmv(safeAmount(row.getGmv()))
+                        .commission(safeAmount(row.getCommission()))
+                        .build())
+                .toList();
     }
 
     private List<AdminDashboardResponse.ParentOrderQueueItem> buildParentOrderQueue() {

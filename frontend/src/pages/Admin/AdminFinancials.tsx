@@ -338,9 +338,6 @@ const AdminFinancials = () => {
           <div className="admin-panel-head financial-commission-head">
             <div>
               <h2>Chính sách hoa hồng</h2>
-              <p className="admin-muted">
-                Mức mặc định áp dụng cho seller đang dùng chính sách chung. Seller override riêng vẫn giữ tỷ lệ đã cấu hình tại quản lý gian hàng.
-              </p>
             </div>
           </div>
           <div className="financial-commission-layout">

@@ -33,6 +33,7 @@ public class AdminDashboardResponse {
         private long lockedUsers;
         private long totalCustomers;
         private long runningCampaigns;
+        private long totalStores;
     }
 
     @Data

@@ -95,10 +95,10 @@ const Login = () => {
     try {
       setGoogleLoading(true);
       await loginWithGoogle(idToken);
-      addToast('Dang nhap Google thanh cong', 'success');
+      addToast('Đăng nhập Google thành công', 'success');
       navigate(redirectTo, { replace: true });
     } catch (error: unknown) {
-      addToast(getUiErrorMessage(error, 'Dang nhap Google that bai'), 'error');
+      addToast(getUiErrorMessage(error, 'Đăng nhập Google thất bại'), 'error');
     } finally {
       setGoogleLoading(false);
     }
