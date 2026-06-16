@@ -75,6 +75,26 @@ class CustomerSupportChatServiceImplTest {
         assertEquals("Cau tra loi tu FAQ keyword.", result);
     }
 
+    @Test
+    void findConfiguredProductFaqAnswer_returnsConfiguredAnswer() {
+        FaqContentLookupService faqLookupService = rawQuestion -> Optional.of("Cau tra loi da cau hinh.");
+        CustomerSupportChatServiceImpl service = new CustomerSupportChatServiceImpl(new StubOrderService(), faqLookupService);
+
+        Optional<String> result = service.findConfiguredProductFaqAnswer("phi van chuyen");
+
+        assertTrue(result.isPresent());
+        assertEquals("Cau tra loi da cau hinh.", result.get());
+    }
+
+    @Test
+    void answerProductFaq_matchesVietnameseFallbackWithAccents() {
+        CustomerSupportChatServiceImpl service = new CustomerSupportChatServiceImpl(new StubOrderService(), NOOP_FAQ_LOOKUP);
+
+        String result = service.answerProductFaq("Chính sách đổi trả như thế nào?");
+
+        assertTrue(result.contains("đổi/trả"));
+    }
+
     private Order buildOrder(String code, Order.OrderStatus status, Order.PaymentStatus paymentStatus, String phone) {
         Order order = new Order();
         order.setOrderCode(code);

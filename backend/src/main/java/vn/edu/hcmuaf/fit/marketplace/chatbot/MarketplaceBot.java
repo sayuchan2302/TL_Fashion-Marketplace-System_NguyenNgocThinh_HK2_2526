@@ -296,6 +296,12 @@ public class MarketplaceBot extends ActivityHandler {
                     .thenCompose(ignore -> sendMainMenu(turnContext, scenario.getProductFaqContinuePrompt(), scenario));
         }
 
+        Optional<String> configuredFaqAnswer = supportChatService.findConfiguredProductFaqAnswer(turnContext.getActivity().getText());
+        if (configuredFaqAnswer.isPresent()) {
+            return sendText(turnContext, configuredFaqAnswer.get())
+                    .thenCompose(ignore -> sendMainMenu(turnContext, scenario.getProductFaqContinuePrompt(), scenario));
+        }
+
         if (chatbotProperties.isAiFallbackEnabled()) {
             Optional<String> aiResponse = aiFallbackService.tryGenerateReply(turnContext.getActivity().getText());
             if (aiResponse.isPresent() && !aiResponse.get().isBlank()) {

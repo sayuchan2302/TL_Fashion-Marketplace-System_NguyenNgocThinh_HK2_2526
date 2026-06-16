@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.hcmuaf.fit.marketplace.entity.Order;
 import vn.edu.hcmuaf.fit.marketplace.exception.ResourceNotFoundException;
+import vn.edu.hcmuaf.fit.marketplace.service.ContentKeywordUtils;
 import vn.edu.hcmuaf.fit.marketplace.service.OrderService;
 
 import java.util.Locale;
@@ -91,13 +92,18 @@ public class CustomerSupportChatServiceImpl implements CustomerSupportChatServic
     }
 
     @Override
+    public Optional<String> findConfiguredProductFaqAnswer(String rawQuestion) {
+        return faqContentLookupService.findAnswerByKeyword(rawQuestion);
+    }
+
+    @Override
     public String answerProductFaq(String rawQuestion) {
-        Optional<String> configuredAnswer = faqContentLookupService.findAnswerByKeyword(rawQuestion);
+        Optional<String> configuredAnswer = findConfiguredProductFaqAnswer(rawQuestion);
         if (configuredAnswer.isPresent()) {
             return configuredAnswer.get();
         }
 
-        String question = rawQuestion == null ? "" : rawQuestion.toLowerCase(Locale.ROOT);
+        String question = ContentKeywordUtils.normalizeForSearch(rawQuestion);
         if (question.contains("doi tra") || question.contains("doi hang") || question.contains("tra hang")) {
             return "Bạn có thể gửi yêu cầu đổi/trả trong trang Đơn hàng của tôi theo đúng chính sách hiện hành.";
         }

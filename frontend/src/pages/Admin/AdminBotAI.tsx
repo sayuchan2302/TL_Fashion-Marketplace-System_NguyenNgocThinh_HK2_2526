@@ -147,8 +147,11 @@ const normalizeSearch = (value: string) =>
   value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
     .toLowerCase()
-    .trim();
+    .trim()
+    .replace(/\s+/g, ' ');
 
 const digitsOnly = (value: string) => value.replace(/\D+/g, '');
 
@@ -471,7 +474,15 @@ const AdminBotAI = () => {
         startSimulatorAction(matchedAction.key, matchedAction.label, { includeUserMessage: false, prefix: nextMessages });
         return;
       }
-      nextMessages.push(createMenuMessage(draft.unknownPrompt, draft));
+      const matchedFaq = findFaqMatch(value, faqItems);
+      if (matchedFaq) {
+        nextMessages.push(
+          createBotMessage(matchedFaq.body),
+          createMenuMessage(draft.productFaqContinuePrompt, draft),
+        );
+      } else {
+        nextMessages.push(createMenuMessage(draft.unknownPrompt, draft));
+      }
     }
 
     if (simulatorStep === 'awaitOrderCode') {
