@@ -9,6 +9,7 @@ node_modules
 .skills-lock.json
 CLAUDE.md
 .ci-logs/
+.claude/
 # Dependencies
 node_modules/
 frontend/node_modules/
