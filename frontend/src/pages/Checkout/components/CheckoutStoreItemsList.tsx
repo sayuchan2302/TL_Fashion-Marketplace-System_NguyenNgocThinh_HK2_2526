@@ -1,4 +1,4 @@
-﻿import { Check, ChevronRight, Trash2 } from 'lucide-react';
+import { ChevronRight, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { CartItem } from '../../../contexts/CartContext';
 import { formatPrice } from '../../../utils/formatters';
@@ -14,7 +14,7 @@ interface CheckoutStoreItemsListProps {
   onQuantityChange: (cartId: string, delta: number) => void;
 }
 
-const CheckoutStoreItemsList = ({ checkoutItems, subtotal, onRemoveItem, onQuantityChange }: CheckoutStoreItemsListProps) => (
+const CheckoutStoreItemsList = ({ checkoutItems, onRemoveItem, onQuantityChange }: CheckoutStoreItemsListProps) => (
   <>
     <div className="cart-header-actions">
       <span className="cart-item-count">{t.cartItemCount.replace('{count}', String(checkoutItems.length))}</span>

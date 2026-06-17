@@ -9,20 +9,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.time.LocalDate;
 import java.util.UUID;
 
-@Getter
-@Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 @Entity
 @Table(
         name = "public_code_counters",
@@ -46,4 +36,39 @@ public class PublicCodeCounter {
 
     @Column(name = "last_value", nullable = false)
     private Long lastValue;
+
+    public PublicCodeCounter() {
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
+    public PublicCodeType getCodeType() {
+        return codeType;
+    }
+
+    public void setCodeType(PublicCodeType codeType) {
+        this.codeType = codeType;
+    }
+
+    public LocalDate getCodeDate() {
+        return codeDate;
+    }
+
+    public void setCodeDate(LocalDate codeDate) {
+        this.codeDate = codeDate;
+    }
+
+    public Long getLastValue() {
+        return lastValue;
+    }
+
+    public void setLastValue(Long lastValue) {
+        this.lastValue = lastValue;
+    }
 }

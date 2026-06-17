@@ -21,14 +21,18 @@ public class PublicCodeCounterService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public long reserve(PublicCodeType type, LocalDate date, long defaultValue) {
         PublicCodeCounter counter = repository.findByCodeTypeAndCodeDate(type, date)
-                .orElseGet(() -> PublicCodeCounter.builder()
-                        .codeType(type)
-                        .codeDate(date)
-                        .lastValue(defaultValue)
-                        .build());
+                .orElseGet(() -> newCounter(type, date, defaultValue));
         long nextValue = counter.getLastValue() + 1L;
         counter.setLastValue(nextValue);
         repository.saveAndFlush(counter);
         return nextValue;
+    }
+
+    private PublicCodeCounter newCounter(PublicCodeType type, LocalDate date, long defaultValue) {
+        PublicCodeCounter counter = new PublicCodeCounter();
+        counter.setCodeType(type);
+        counter.setCodeDate(date);
+        counter.setLastValue(defaultValue);
+        return counter;
     }
 }

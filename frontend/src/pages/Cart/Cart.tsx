@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Trash2, ChevronRight, Check, ShieldCheck, Truck, ShoppingCart, Store, BadgeCheck } from 'lucide-react';
+import { Trash2, ChevronRight, ShieldCheck, Truck, ShoppingCart, Store, BadgeCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import EmptyState from '../../components/EmptyState/EmptyState';
 import { useCart, type StoreGroup } from '../../contexts/CartContext';
