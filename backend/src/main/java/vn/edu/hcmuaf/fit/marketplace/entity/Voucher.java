@@ -30,6 +30,10 @@ import java.util.UUID;
 )
 public class Voucher extends BaseEntity {
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "creator_role", nullable = false, length = 20)
+    private CreatorRole creatorRole;
+
     @Column(name = "store_id", nullable = false)
     private UUID storeId;
 
@@ -70,6 +74,10 @@ public class Voucher extends BaseEntity {
 
     @Column(name = "updated_by")
     private String updatedBy;
+
+    public enum CreatorRole {
+        ADMIN, VENDOR
+    }
 
     public enum DiscountType {
         PERCENT, FIXED

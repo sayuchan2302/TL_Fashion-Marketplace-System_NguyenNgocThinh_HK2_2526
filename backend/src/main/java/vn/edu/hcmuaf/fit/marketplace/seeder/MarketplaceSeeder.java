@@ -529,6 +529,7 @@ public class MarketplaceSeeder implements ApplicationRunner {
                         LocalDate startDate,
                         LocalDate endDate) {
                 Voucher voucher = new Voucher();
+                voucher.setCreatorRole(Voucher.CreatorRole.VENDOR);
                 voucher.setStoreId(storeId);
                 voucher.setCode(code);
                 voucher.setName(name);

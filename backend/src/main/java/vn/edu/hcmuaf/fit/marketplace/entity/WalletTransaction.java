@@ -17,7 +17,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Check(constraints = "type IN ('CREDIT', 'DEBIT', 'WITHDRAWAL', 'ESCROW_CREDIT', 'ESCROW_RELEASE', 'PAYOUT_DEBIT', 'REFUND_DEBIT', 'RETURN_REFUND_DEBIT')")
+@Check(constraints = "type IN ('CREDIT', 'DEBIT', 'WITHDRAWAL', 'ESCROW_CREDIT', 'ESCROW_RELEASE', 'PAYOUT_DEBIT', 'REFUND_DEBIT', 'RETURN_REFUND_DEBIT', 'COMMISSION_REFUND')")
 @Table(
         name = "wallet_transactions",
         indexes = {
@@ -53,6 +53,6 @@ public class WalletTransaction extends BaseEntity {
     private String description;
 
     public enum TransactionType {
-        CREDIT, DEBIT, WITHDRAWAL, ESCROW_CREDIT, ESCROW_RELEASE, PAYOUT_DEBIT, REFUND_DEBIT, RETURN_REFUND_DEBIT
+        CREDIT, DEBIT, WITHDRAWAL, ESCROW_CREDIT, ESCROW_RELEASE, PAYOUT_DEBIT, REFUND_DEBIT, RETURN_REFUND_DEBIT, COMMISSION_REFUND
     }
 }

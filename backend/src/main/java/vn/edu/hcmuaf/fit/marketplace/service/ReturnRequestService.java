@@ -385,6 +385,9 @@ public class ReturnRequestService {
                 saved.getOrder(),
                 refundAmount,
                 "Refund for return " + resolveReturnCode(saved));
+        walletService.refundCommissionToVendor(
+                saved.getId(),
+                saved.getOrder());
 
         Order order = saved.getOrder();
         order.setPaymentStatus(Order.PaymentStatus.REFUNDED);
@@ -592,6 +595,9 @@ public class ReturnRequestService {
                         saved.getOrder(),
                         refundAmount,
                         "Dispute refund for return " + resolveReturnCode(saved));
+                walletService.refundCommissionToVendor(
+                        saved.getId(),
+                        saved.getOrder());
 
                 Order order = saved.getOrder();
                 order.setPaymentStatus(Order.PaymentStatus.REFUNDED);

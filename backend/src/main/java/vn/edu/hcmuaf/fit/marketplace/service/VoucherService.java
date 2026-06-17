@@ -16,6 +16,7 @@ import vn.edu.hcmuaf.fit.marketplace.dto.response.VoucherResponse;
 import java.math.BigDecimal;
 import vn.edu.hcmuaf.fit.marketplace.entity.Store;
 import vn.edu.hcmuaf.fit.marketplace.entity.Voucher;
+import vn.edu.hcmuaf.fit.marketplace.repository.CustomerVoucherRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.StoreRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.VoucherRepository;
 
@@ -33,17 +34,20 @@ public class VoucherService {
     private final StoreRepository storeRepository;
     private final PromotionNotificationService promotionNotificationService;
     private final CustomerVoucherService customerVoucherService;
+    private final CustomerVoucherRepository customerVoucherRepository;
 
     public VoucherService(
             VoucherRepository voucherRepository,
             StoreRepository storeRepository,
             PromotionNotificationService promotionNotificationService,
-            CustomerVoucherService customerVoucherService
+            CustomerVoucherService customerVoucherService,
+            CustomerVoucherRepository customerVoucherRepository
     ) {
         this.voucherRepository = voucherRepository;
         this.storeRepository = storeRepository;
         this.promotionNotificationService = promotionNotificationService;
         this.customerVoucherService = customerVoucherService;
+        this.customerVoucherRepository = customerVoucherRepository;
     }
 
     @Transactional(readOnly = true)
@@ -127,6 +131,7 @@ public class VoucherService {
 
         Voucher voucher = buildVoucher(
                 storeId,
+                Voucher.CreatorRole.VENDOR,
                 request.getName(),
                 normalizedCode,
                 request.getDescription(),
@@ -157,6 +162,7 @@ public class VoucherService {
 
         Voucher voucher = buildVoucher(
                 storeId,
+                Voucher.CreatorRole.ADMIN,
                 request.getName(),
                 normalizedCode,
                 request.getDescription(),
@@ -278,12 +284,15 @@ public class VoucherService {
     @Transactional
     public void delete(UUID storeId, UUID voucherId) {
         Voucher voucher = getOwnedVoucher(storeId, voucherId);
+        customerVoucherRepository.deleteByVoucherId(voucherId);
         voucherRepository.delete(voucher);
     }
 
     @Transactional
     public void deleteAdmin(UUID voucherId) {
-        voucherRepository.delete(getVoucherById(voucherId));
+        getVoucherById(voucherId);
+        customerVoucherRepository.deleteByVoucherId(voucherId);
+        voucherRepository.deleteById(voucherId);
     }
 
     @Transactional
@@ -318,6 +327,7 @@ public class VoucherService {
 
             Voucher voucher = buildVoucher(
                     store.getId(),
+                    Voucher.CreatorRole.ADMIN,
                     request.getName(),
                     normalizedCode,
                     request.getDescription(),
@@ -353,6 +363,7 @@ public class VoucherService {
 
     private Voucher buildVoucher(
             UUID storeId,
+            Voucher.CreatorRole creatorRole,
             String name,
             String normalizedCode,
             String description,
@@ -366,6 +377,7 @@ public class VoucherService {
             String actor
     ) {
         return Voucher.builder()
+                .creatorRole(creatorRole)
                 .storeId(storeId)
                 .name(name == null ? "" : name.trim())
                 .code(normalizedCode)

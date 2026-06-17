@@ -22,6 +22,7 @@ public interface VoucherRepository extends JpaRepository<Voucher, UUID> {
     @Query("""
             SELECT v FROM Voucher v
             WHERE v.storeId = :storeId
+              AND v.creatorRole = 'VENDOR'
               AND (:status IS NULL OR v.status = :status)
               AND (
                   COALESCE(:keyword, '') = ''
@@ -53,7 +54,11 @@ public interface VoucherRepository extends JpaRepository<Voucher, UUID> {
             Pageable pageable
     );
 
-    Optional<Voucher> findByIdAndStoreId(UUID id, UUID storeId);
+    @Query("""
+            SELECT v FROM Voucher v
+            WHERE v.id = :id AND v.storeId = :storeId AND v.creatorRole = 'VENDOR'
+            """)
+    Optional<Voucher> findByIdAndStoreId(@Param("id") UUID id, @Param("storeId") UUID storeId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -104,6 +109,7 @@ public interface VoucherRepository extends JpaRepository<Voucher, UUID> {
     @Query("""
             SELECT v FROM Voucher v
             WHERE v.status = :status
+              AND v.creatorRole = 'VENDOR'
               AND v.storeId IN :storeIds
               AND (v.startDate IS NULL OR v.startDate <= :today)
               AND (v.endDate IS NULL OR v.endDate >= :today)
@@ -119,6 +125,7 @@ public interface VoucherRepository extends JpaRepository<Voucher, UUID> {
     @Query("""
             SELECT v FROM Voucher v
             WHERE v.status = :status
+              AND v.creatorRole = 'VENDOR'
               AND (v.startDate IS NULL OR v.startDate <= :today)
               AND (v.endDate IS NULL OR v.endDate >= :today)
               AND COALESCE(v.usedCount, 0) < COALESCE(v.totalIssued, 0)
@@ -129,15 +136,17 @@ public interface VoucherRepository extends JpaRepository<Voucher, UUID> {
             @Param("today") LocalDate today
     );
 
-    long countByStoreId(UUID storeId);
+    @Query("SELECT COUNT(v) FROM Voucher v WHERE v.storeId = :storeId AND v.creatorRole = 'VENDOR'")
+    long countByStoreId(@Param("storeId") UUID storeId);
 
-    long countByStoreIdAndStatus(UUID storeId, Voucher.VoucherStatus status);
+    @Query("SELECT COUNT(v) FROM Voucher v WHERE v.storeId = :storeId AND v.status = :status AND v.creatorRole = 'VENDOR'")
+    long countByStoreIdAndStatus(@Param("storeId") UUID storeId, @Param("status") Voucher.VoucherStatus status);
 
     long countByStatus(Voucher.VoucherStatus status);
 
     @Query("""
             SELECT COALESCE(SUM(v.usedCount), 0) FROM Voucher v
-            WHERE v.storeId = :storeId
+            WHERE v.storeId = :storeId AND v.creatorRole = 'VENDOR'
             """)
     long sumUsedCountByStoreId(@Param("storeId") UUID storeId);
 

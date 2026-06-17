@@ -2683,10 +2683,6 @@ public class OrderService {
     }
 
     private BigDecimal calculateShippingFee(Address address, StoreOrderGroup group) {
-        if (group.subtotal().compareTo(FREE_SHIPPING_THRESHOLD) >= 0) {
-            return BigDecimal.ZERO;
-        }
-
         if (address != null && address.getGhnDistrictId() != null && address.getGhnWardCode() != null
                 && ghnService != null) {
             Integer fromDistrictId = 1450;

@@ -627,6 +627,58 @@ public class WalletService {
         orderRepository.save(lockedOrder);
     }
 
+    @Transactional
+    public void refundCommissionToVendor(UUID returnRequestId, Order order) {
+        if (returnRequestId == null || order == null || order.getId() == null) return;
+        BigDecimal commissionFee = order.getCommissionFee();
+        if (commissionFee == null || commissionFee.compareTo(BigDecimal.ZERO) <= 0) return;
+
+        if (walletTransactionRepository.existsByReturnRequestIdAndType(
+                returnRequestId,
+                WalletTransaction.TransactionType.COMMISSION_REFUND
+        )) {
+            return;
+        }
+
+        Order lockedOrder = orderRepository.findByIdForUpdate(order.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+
+        if (lockedOrder.getStoreId() == null) {
+            throw new ForbiddenException("Order does not belong to a vendor store");
+        }
+
+        if (walletTransactionRepository.existsByReturnRequestIdAndType(
+                returnRequestId,
+                WalletTransaction.TransactionType.COMMISSION_REFUND
+        )) {
+            return;
+        }
+
+        VendorWallet wallet = vendorWalletRepository.findByStoreIdForUpdate(lockedOrder.getStoreId())
+                .orElseGet(() -> createWallet(lockedOrder.getStoreId()));
+
+        WalletTransaction transaction = WalletTransaction.builder()
+                .transactionCode(publicCodeService.nextTransactionCode())
+                .wallet(wallet)
+                .orderId(lockedOrder.getId())
+                .returnRequestId(returnRequestId)
+                .amount(commissionFee)
+                .type(WalletTransaction.TransactionType.COMMISSION_REFUND)
+                .description("Commission refund for return of Order "
+                        + (lockedOrder.getOrderCode() != null ? lockedOrder.getOrderCode() : lockedOrder.getId()))
+                .build();
+        try {
+            walletTransactionRepository.save(transaction);
+        } catch (DataIntegrityViolationException ex) {
+            if (isUniqueConstraintViolation(ex, UQ_WALLET_TX_RETURN_TYPE)) return;
+            throw ex;
+        }
+
+        wallet.setAvailableBalance(wallet.getAvailableBalance().add(commissionFee));
+        wallet.setLastUpdated(LocalDateTime.now());
+        vendorWalletRepository.save(wallet);
+    }
+
     private CustomerWallet createCustomerWallet(UUID userId) {
         return customerWalletRepository.save(CustomerWallet.builder()
                 .userId(userId)

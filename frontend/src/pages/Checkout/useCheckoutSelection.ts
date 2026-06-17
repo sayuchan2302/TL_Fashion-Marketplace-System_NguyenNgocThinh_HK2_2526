@@ -7,7 +7,6 @@ import {
 } from '../../services/checkoutSelectionStore';
 import {
   DEFAULT_SHIPPING_FEE,
-  FREE_SHIPPING_THRESHOLD,
   UUID_PATTERN,
 } from './checkout.types';
 
@@ -74,9 +73,9 @@ export const useCheckoutSelection = ({
 
   const storeGroups = useMemo(() => (
     shippingCalculationGroups.map((group) => {
-      let fee: number | null = group.subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : null;
+      let fee: number | null = null;
 
-      if (toDistrictCode && toWardCode && group.subtotal < FREE_SHIPPING_THRESHOLD) {
+      if (toDistrictCode && toWardCode) {
         fee = group.storeId in dynamicFees ? dynamicFees[group.storeId] : DEFAULT_SHIPPING_FEE;
       }
 
@@ -139,11 +138,6 @@ export const useCheckoutSelection = ({
       try {
         await Promise.all(
           shippingCalculationGroups.map(async (group) => {
-            if (group.subtotal >= FREE_SHIPPING_THRESHOLD) {
-              nextFees[group.storeId] = 0;
-              return;
-            }
-
             try {
               const weight = group.items.reduce((sum, item) => sum + item.quantity * 300, 0);
               const data = await apiRequest<{ fee: number }>('/api/shipping/ghn/calculate-fee', {

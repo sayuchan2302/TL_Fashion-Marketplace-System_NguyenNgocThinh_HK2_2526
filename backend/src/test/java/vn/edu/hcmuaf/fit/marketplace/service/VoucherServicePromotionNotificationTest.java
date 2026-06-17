@@ -3,6 +3,7 @@ package vn.edu.hcmuaf.fit.marketplace.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import vn.edu.hcmuaf.fit.marketplace.dto.request.MarketplaceCampaignRequest;
@@ -11,6 +12,7 @@ import vn.edu.hcmuaf.fit.marketplace.dto.request.VoucherStatusUpdateRequest;
 import vn.edu.hcmuaf.fit.marketplace.dto.response.MarketplaceCampaignResponse;
 import vn.edu.hcmuaf.fit.marketplace.entity.Store;
 import vn.edu.hcmuaf.fit.marketplace.entity.Voucher;
+import vn.edu.hcmuaf.fit.marketplace.repository.CustomerVoucherRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.StoreRepository;
 import vn.edu.hcmuaf.fit.marketplace.repository.VoucherRepository;
 
@@ -25,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,6 +38,9 @@ class VoucherServicePromotionNotificationTest {
 
     @Mock
     private StoreRepository storeRepository;
+
+    @Mock
+    private CustomerVoucherRepository customerVoucherRepository;
 
     private CapturingPromotionNotificationService promotionNotificationService;
     private NoopCustomerVoucherService customerVoucherService;
@@ -48,7 +54,8 @@ class VoucherServicePromotionNotificationTest {
                 voucherRepository,
                 storeRepository,
                 promotionNotificationService,
-                customerVoucherService
+                customerVoucherService,
+                customerVoucherRepository
         );
     }
 
@@ -123,6 +130,36 @@ class VoucherServicePromotionNotificationTest {
         assertEquals("MEGA123", promotionNotificationService.marketplaceCampaignCodes.get(0));
         assertEquals(request.getStartDate(), promotionNotificationService.marketplaceCampaignStartDates.get(0));
         assertEquals(request.getEndDate(), promotionNotificationService.marketplaceCampaignEndDates.get(0));
+    }
+
+    @Test
+    void deleteVoucherDeletesCustomerWalletRowsBeforeVoucher() {
+        UUID storeId = UUID.randomUUID();
+        UUID voucherId = UUID.randomUUID();
+        Voucher existing = buildExistingVoucher(storeId, voucherId, Voucher.VoucherStatus.RUNNING);
+
+        when(voucherRepository.findByIdAndStoreId(voucherId, storeId)).thenReturn(Optional.of(existing));
+
+        voucherService.delete(storeId, voucherId);
+
+        InOrder inOrder = inOrder(customerVoucherRepository, voucherRepository);
+        inOrder.verify(customerVoucherRepository).deleteByVoucherId(voucherId);
+        inOrder.verify(voucherRepository).delete(existing);
+    }
+
+    @Test
+    void deleteAdminVoucherDeletesCustomerWalletRowsBeforeVoucher() {
+        UUID storeId = UUID.randomUUID();
+        UUID voucherId = UUID.randomUUID();
+        Voucher existing = buildExistingVoucher(storeId, voucherId, Voucher.VoucherStatus.RUNNING);
+
+        when(voucherRepository.findById(voucherId)).thenReturn(Optional.of(existing));
+
+        voucherService.deleteAdmin(voucherId);
+
+        InOrder inOrder = inOrder(customerVoucherRepository, voucherRepository);
+        inOrder.verify(customerVoucherRepository).deleteByVoucherId(voucherId);
+        inOrder.verify(voucherRepository).deleteById(voucherId);
     }
 
     private VoucherRequest buildVoucherRequest(

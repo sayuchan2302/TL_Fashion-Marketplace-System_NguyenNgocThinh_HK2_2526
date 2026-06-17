@@ -83,7 +83,6 @@ interface BackendCartResponse {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-const FREE_SHIPPING_THRESHOLD = 500000;
 const DEFAULT_SHIPPING_FEE = 30000;
 const OWN_STORE_PURCHASE_MESSAGE = 'Khong the mua san pham tu gian hang cua chinh ban.';
 
@@ -169,7 +168,7 @@ const normalizeStoreGroups = (items: CartItem[]): StoreGroup[] => {
   }, {} as Record<string, StoreGroup>);
 
   Object.values(groups).forEach((group) => {
-    group.shippingFee = group.subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : DEFAULT_SHIPPING_FEE;
+    group.shippingFee = DEFAULT_SHIPPING_FEE;
   });
 
   return Object.values(groups);

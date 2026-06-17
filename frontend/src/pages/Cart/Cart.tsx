@@ -16,8 +16,6 @@ const t = CLIENT_TEXT.cart;
 const tCommon = CLIENT_TEXT.common;
 const tMarket = MARKETPLACE_DICTIONARY.cart;
 
-const FREE_SHIPPING_THRESHOLD = 500000;
-
 const pageTransition = {
   initial: { opacity: 0, y: 10 },
   animate: { opacity: 1, y: 0 },
@@ -74,7 +72,7 @@ const Cart = () => {
     const subtotal = groupSelectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const totalOriginal = groupSelectedItems.reduce((sum, item) => sum + (item.originalPrice ?? item.price) * item.quantity, 0);
     const discount = totalOriginal - subtotal;
-    const shippingFee = subtotal >= FREE_SHIPPING_THRESHOLD || subtotal === 0 ? 0 : 30000;
+    const shippingFee = subtotal === 0 ? 0 : 30000;
     return { subtotal, discount, shippingFee, total: subtotal + shippingFee };
   };
 
@@ -89,9 +87,6 @@ const Cart = () => {
   }, 0);
   
   const globalTotal = globalSubtotal + totalShipping;
-
-  const remainingForFreeship = Math.max(0, FREE_SHIPPING_THRESHOLD - globalSubtotal);
-  const freeshipProgress = Math.min(100, (globalSubtotal / FREE_SHIPPING_THRESHOLD) * 100);
 
   const handleQuantityChange = (cartId: string, delta: number) => {
     const item = items.find(i => i.cartId === cartId);
@@ -193,20 +188,6 @@ const Cart = () => {
         <div className="cart-layout">
           {/* ========== LEFT: Items by Store ========== */}
           <div className="cart-left-col">
-
-            {/* Free Shipping Progress */}
-            <div className="cart-freeship-banner">
-              <div className="freeship-text">
-                {remainingForFreeship > 0 ? (
-                  <span>{t.freeship.remaining(formatPrice(remainingForFreeship))}</span>
-                ) : (
-                  <span className="freeship-done"><Check size={16} /> {t.freeship.achieved}</span>
-                )}
-              </div>
-              <div className="progress-track">
-                <div className={`progress-fill ${freeshipProgress >= 100 ? 'done' : ''}`} style={{ width: `${freeshipProgress}%` }}></div>
-              </div>
-            </div>
 
             {/* Select All Header */}
             <div className="cart-select-header">
