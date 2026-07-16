@@ -85,6 +85,7 @@ class NotificationSocketService {
       return token;
     }
     if (!authService.getRefreshToken()) {
+      authService.logout('session-expired');
       return null;
     }
     try {

@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { authService } from '../services/authService';
+import { AUTH_SESSION_CHANGED_EVENT, authService } from '../services/authService';
 import type { AuthResponse, User } from '../types';
 
 interface AuthContextValue {
@@ -18,10 +18,19 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const requiresBackendRole = (role?: User['role']) => role === 'VENDOR' || role === 'SUPER_ADMIN';
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<AuthResponse | null>(() => authService.getSession() || authService.getAdminSession());
+
+  useEffect(() => {
+    const syncSession = () => {
+      setSession(authService.getSession() || authService.getAdminSession());
+    };
+
+    window.addEventListener(AUTH_SESSION_CHANGED_EVENT, syncSession);
+    return () => {
+      window.removeEventListener(AUTH_SESSION_CHANGED_EVENT, syncSession);
+    };
+  }, []);
 
   useEffect(() => {
     const init = async () => {
@@ -31,10 +40,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      const needsBackend = requiresBackendRole(stored.user?.role);
       const hasValidBackendJwt = authService.isBackendJwtToken(stored.token) && !authService.isJwtExpired(stored.token);
 
-      if (needsBackend && !hasValidBackendJwt) {
+      if (!hasValidBackendJwt) {
         if (authService.getRefreshToken()) {
           try {
             const refreshed = await authService.refresh();

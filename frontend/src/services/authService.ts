@@ -5,6 +5,18 @@ const ADMIN_AUTH_KEY = 'coolmate_admin_auth_v1';
 const SESSION_REASON_KEY = 'coolmate_auth_reason_v1';
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
+export const AUTH_SESSION_CHANGED_EVENT = 'coolmate-auth-session-changed';
+
+export class AuthRefreshError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'AuthRefreshError';
+    this.status = status;
+  }
+}
+
 if (!API_BASE) {
   console.warn('[auth] VITE_API_URL is empty. Authentication requests will fail until backend URL is configured.');
 }
@@ -226,6 +238,10 @@ const persist = (data: AuthResponse | null) => {
     localStorage.removeItem(AUTH_KEY);
     localStorage.removeItem(SESSION_REASON_KEY);
   }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AUTH_SESSION_CHANGED_EVENT));
+  }
 };
 
 const persistAdmin = (data: AuthResponse | null) => {
@@ -301,7 +317,8 @@ export const authService = {
     }
     const refreshToken = this.getRefreshToken();
     if (!refreshToken) {
-      throw new Error('Missing refresh token.');
+      this.logout('session-expired');
+      throw new AuthRefreshError('Missing refresh token.', 401);
     }
 
     const response = await fetch(buildApiUrl('/api/auth/refresh'), {
@@ -312,7 +329,11 @@ export const authService = {
 
     if (!response.ok) {
       const message = await parseBackendError(response);
-      throw new Error(message);
+      if (response.status >= 400 && response.status < 500) {
+        this.logout('session-expired');
+        throw new AuthRefreshError(message, response.status);
+      }
+      throw new AuthRefreshError(message, response.status);
     }
 
     const payload = await parseJsonSafely<BackendAuthResponse>(response);

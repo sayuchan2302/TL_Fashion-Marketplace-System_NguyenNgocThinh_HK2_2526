@@ -1,4 +1,4 @@
-import { authService } from './authService';
+import { AuthRefreshError, authService } from './authService';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
 
@@ -69,6 +69,7 @@ const ensureAuthToken = async (): Promise<string> => {
   const token = stored?.token;
 
   if (!token || !authService.isBackendJwtToken(token)) {
+    redirectToLogin('session-expired');
     throw new ApiError('Current session is not using a backend JWT.', 401);
   }
 
@@ -77,17 +78,26 @@ const ensureAuthToken = async (): Promise<string> => {
   }
 
   if (!authService.getRefreshToken()) {
+    redirectToLogin('session-expired');
     throw new ApiError('Session expired. Please log in again.', 401);
   }
 
-  if (!refreshPromise) {
-    refreshPromise = authService.refresh().finally(() => {
-      refreshPromise = null;
-    });
-  }
+  try {
+    if (!refreshPromise) {
+      refreshPromise = authService.refresh().finally(() => {
+        refreshPromise = null;
+      });
+    }
 
-  const refreshed = await refreshPromise as { token: string };
-  return refreshed.token;
+    const refreshed = await refreshPromise as { token: string };
+    return refreshed.token;
+  } catch (error) {
+    if (error instanceof AuthRefreshError && error.status >= 400 && error.status < 500) {
+      redirectToLogin('session-expired');
+      throw new ApiError('Hết phiên đăng nhập. Vui lòng đăng nhập lại.', 401);
+    }
+    throw error;
+  }
 };
 
 export const hasBackendJwt = () => {
@@ -130,8 +140,11 @@ export const apiRequest = async <T>(
         }
         await refreshPromise;
         return apiRequest<T>(path, init, options, true);
-      } catch {
+      } catch (error) {
         redirectToLogin('session-expired');
+        if (error instanceof AuthRefreshError && error.status >= 400 && error.status < 500) {
+          throw new ApiError('Hết phiên đăng nhập. Vui lòng đăng nhập lại.', 401);
+        }
         const { message, payload } = await parseErrorMessage(response);
         throw new ApiError(message, response.status, payload);
       }
