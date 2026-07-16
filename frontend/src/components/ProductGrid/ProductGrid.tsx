@@ -34,6 +34,7 @@ interface ProductGridViewState {
 
 interface ProductGridProps {
   customResults?: Product[];
+  isLoading?: boolean;
   viewState?: ProductGridViewState;
   itemsPerPage?: number;
   scrollToTopOnPageChange?: boolean;
@@ -66,7 +67,13 @@ const buildPaginationTokens = (currentPage: number, totalPages: number): Paginat
   return tokens;
 };
 
-const ProductGrid = ({ customResults, viewState, itemsPerPage, scrollToTopOnPageChange = false }: ProductGridProps) => {
+const ProductGrid = ({
+  customResults,
+  isLoading: isLoadingOverride,
+  viewState,
+  itemsPerPage,
+  scrollToTopOnPageChange = false,
+}: ProductGridProps) => {
   const hasCustomResults = customResults !== undefined;
   const [isLoading, setIsLoading] = useState(!hasCustomResults);
   const [catalog, setCatalog] = useState<Product[]>(() => customResults || productService.list());
@@ -178,10 +185,10 @@ const ProductGrid = ({ customResults, viewState, itemsPerPage, scrollToTopOnPage
     [hasPagination, currentPage, totalPages],
   );
   const dictionary = CLIENT_DICTIONARY.listing;
-  const showLoading = hasCustomResults ? false : isLoading;
+  const showLoading = isLoadingOverride ?? (!hasCustomResults && isLoading);
 
   return (
-    <div className="product-grid-container">
+    <div className="product-grid-container" aria-busy={showLoading}>
       <div className="plp-toolbar">
         <div className="toolbar-left">
           <span className="results-count">

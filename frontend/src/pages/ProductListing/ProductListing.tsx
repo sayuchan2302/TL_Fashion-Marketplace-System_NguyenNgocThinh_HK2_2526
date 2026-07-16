@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronRight, SlidersHorizontal, X } from 'lucide-react';
+import { AlertCircle, ChevronRight, RotateCcw, SlidersHorizontal, X } from 'lucide-react';
 import FilterSidebar from '../../components/FilterSidebar/FilterSidebar';
 import ProductGrid from '../../components/ProductGrid/ProductGrid';
 import { useFilter } from '../../contexts/FilterContext';
@@ -28,6 +28,8 @@ const CATEGORY_PAGE_TITLES: Record<string, string> = {
   women: 'Thời trang nữ',
 };
 
+type CategoryLoadState = 'loading' | 'success' | 'error';
+
 const formatCategorySlug = (value: string) => {
   try {
     return decodeURIComponent(value)
@@ -46,6 +48,10 @@ const ProductListing = () => {
   const { id } = useParams<{ id: string }>();
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [categoryProducts, setCategoryProducts] = useState<Product[]>([]);
+  const [categoryLoadState, setCategoryLoadState] = useState<CategoryLoadState>('loading');
+  const [categoryRequestKey, setCategoryRequestKey] = useState(0);
+  const [loadedCategoryKey, setLoadedCategoryKey] = useState<string | null>(null);
+  const [loadedRequestKey, setLoadedRequestKey] = useState(-1);
   const { setFiltersState } = useFilter();
   const view = useClientViewState({
     validSortKeys: ['newest', 'bestseller', 'price-asc', 'price-desc', 'discount'],
@@ -67,11 +73,12 @@ const ProductListing = () => {
 
   useEffect(() => {
     let cancelled = false;
+    const resolvedCategory = (id || '').trim();
 
     const loadCategoryProducts = async () => {
       setCategoryProducts([]);
+      setCategoryLoadState('loading');
       try {
-        const resolvedCategory = (id || '').trim();
         const response = await marketplaceService.searchProducts(
           '',
           0,
@@ -90,10 +97,16 @@ const ProductListing = () => {
 
         if (!cancelled) {
           setCategoryProducts(items);
+          setLoadedCategoryKey(resolvedCategory);
+          setLoadedRequestKey(categoryRequestKey);
+          setCategoryLoadState('success');
         }
       } catch {
         if (!cancelled) {
           setCategoryProducts([]);
+          setLoadedCategoryKey(resolvedCategory);
+          setLoadedRequestKey(categoryRequestKey);
+          setCategoryLoadState('error');
         }
       }
     };
@@ -102,7 +115,7 @@ const ProductListing = () => {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, categoryRequestKey]);
 
   useEffect(() => {
     setFiltersState({
@@ -125,7 +138,16 @@ const ProductListing = () => {
     setFiltersState,
   ]);
 
-  const facets = useMemo(() => collectFilterFacets(categoryProducts), [categoryProducts]);
+  const currentCategoryKey = (id || '').trim();
+  const hasCurrentRequest = loadedCategoryKey === currentCategoryKey && loadedRequestKey === categoryRequestKey;
+  const isCategoryLoading = !hasCurrentRequest || categoryLoadState === 'loading';
+  const isCategoryError = hasCurrentRequest && categoryLoadState === 'error';
+  const productsForGrid = useMemo(
+    () => (hasCurrentRequest && categoryLoadState === 'success' ? categoryProducts : []),
+    [categoryLoadState, categoryProducts, hasCurrentRequest],
+  );
+
+  const facets = useMemo(() => collectFilterFacets(productsForGrid), [productsForGrid]);
   const colorLabelByValue = useMemo(
     () => new Map(facets.colors.map((color) => [color.value, color.label])),
     [facets.colors],
@@ -251,24 +273,39 @@ const ProductListing = () => {
             />
           )}
 
-          <main className="plp-main">
-            <ProductGrid
-              customResults={categoryProducts}
-              itemsPerPage={12}
-              scrollToTopOnPageChange
-              viewState={{
-                priceRanges: view.priceRanges,
-                sizes: view.sizes,
-                colors: view.colors,
-                genders: view.genders,
-                fits: view.fits,
-                materials: view.materials,
-                sortKey: view.sortKey,
-                page: view.page,
-                setSort: (value) => view.setSort(value),
-                setPage: (value) => view.setPage(value),
-              }}
-            />
+          <main className="plp-main" aria-busy={isCategoryLoading}>
+            {isCategoryError ? (
+              <div className="category-load-error" role="alert">
+                <AlertCircle size={44} aria-hidden="true" />
+                <p>{dictionary.error}</p>
+                <button
+                  type="button"
+                  onClick={() => setCategoryRequestKey((requestKey) => requestKey + 1)}
+                >
+                  <RotateCcw size={16} aria-hidden="true" />
+                  {dictionary.retry}
+                </button>
+              </div>
+            ) : (
+              <ProductGrid
+                customResults={productsForGrid}
+                isLoading={isCategoryLoading}
+                itemsPerPage={12}
+                scrollToTopOnPageChange
+                viewState={{
+                  priceRanges: view.priceRanges,
+                  sizes: view.sizes,
+                  colors: view.colors,
+                  genders: view.genders,
+                  fits: view.fits,
+                  materials: view.materials,
+                  sortKey: view.sortKey,
+                  page: view.page,
+                  setSort: (value) => view.setSort(value),
+                  setPage: (value) => view.setPage(value),
+                }}
+              />
+            )}
           </main>
         </div>
       </div>

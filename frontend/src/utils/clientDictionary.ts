@@ -10,6 +10,8 @@ export const CLIENT_DICTIONARY = {
     clearAll: 'Xóa tất cả',
     resultsLabel: 'Hiển thị {start}-{end} trên tổng {total} sản phẩm',
     empty: 'Không tìm thấy sản phẩm phù hợp',
+    error: 'Không thể tải sản phẩm. Vui lòng thử lại.',
+    retry: 'Thử lại',
     breadcrumbs: {
       home: 'Trang Chủ',
       all: 'Danh mục',
