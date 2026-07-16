@@ -27,16 +27,27 @@ public class VendorAnalyticsService {
     private final OrderRepository orderRepository;
     private final StoreRepository storeRepository;
     private final PlatformCommissionSettingsService platformCommissionSettingsService;
+    private final AnalyticsAggregationService analyticsAggregationService;
 
     @Autowired
     public VendorAnalyticsService(
             OrderRepository orderRepository,
             StoreRepository storeRepository,
-            PlatformCommissionSettingsService platformCommissionSettingsService
+            PlatformCommissionSettingsService platformCommissionSettingsService,
+            AnalyticsAggregationService analyticsAggregationService
     ) {
         this.orderRepository = orderRepository;
         this.storeRepository = storeRepository;
         this.platformCommissionSettingsService = platformCommissionSettingsService;
+        this.analyticsAggregationService = analyticsAggregationService;
+    }
+
+    public VendorAnalyticsService(
+            OrderRepository orderRepository,
+            StoreRepository storeRepository,
+            PlatformCommissionSettingsService platformCommissionSettingsService
+    ) {
+        this(orderRepository, storeRepository, platformCommissionSettingsService, new AnalyticsAggregationService());
     }
 
     public VendorAnalyticsService(OrderRepository orderRepository, StoreRepository storeRepository) {
@@ -90,6 +101,53 @@ public class VendorAnalyticsService {
                 .dailyData(dailyData)
                 .commissionRate(currentCommissionRate)
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public VendorAnalyticsResponse getAnalytics(UUID storeId, AnalyticsRange range) {
+        AnalyticsRange previousRange = range.previous();
+        List<AnalyticsDailyValue> currentRows = toAnalyticsRows(orderRepository.findDailySeriesByStoreBetween(
+                storeId,
+                range.fromDateTime(),
+                range.toExclusiveDateTime()));
+        List<AnalyticsDailyValue> previousRows = toAnalyticsRows(orderRepository.findDailySeriesByStoreBetween(
+                storeId,
+                previousRange.fromDateTime(),
+                previousRange.toExclusiveDateTime()));
+        BigDecimal currentCommissionRate = storeRepository.findById(storeId)
+                .map(this::resolveEffectiveCommissionRate)
+                .orElse(PlatformCommissionSettingsService.DEFAULT_COMMISSION_RATE_PERCENT);
+
+        return VendorAnalyticsResponse.builder()
+                .commissionRate(currentCommissionRate)
+                .analytics(analyticsAggregationService.aggregate(
+                        range,
+                        currentRows,
+                        orderRepository.countDistinctCustomersByStoreBetween(
+                                storeId,
+                                range.fromDateTime(),
+                                range.toExclusiveDateTime()),
+                        previousRows,
+                        orderRepository.countDistinctCustomersByStoreBetween(
+                                storeId,
+                                previousRange.fromDateTime(),
+                                previousRange.toExclusiveDateTime())))
+                .build();
+    }
+
+    private List<AnalyticsDailyValue> toAnalyticsRows(List<DailySeriesProjection> rows) {
+        return rows.stream()
+                .map(row -> new AnalyticsDailyValue(
+                        LocalDate.parse(row.getDate()),
+                        safeAmount(row.getRevenue()),
+                        safeAmount(row.getPayout()),
+                        safeAmount(row.getCommission()),
+                        row.getOrderCount() == null ? 0L : row.getOrderCount()))
+                .toList();
+    }
+
+    private BigDecimal safeAmount(BigDecimal value) {
+        return value == null ? BigDecimal.ZERO : value;
     }
 
     private BigDecimal resolveEffectiveCommissionRate(Store store) {

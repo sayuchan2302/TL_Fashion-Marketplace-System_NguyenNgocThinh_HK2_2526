@@ -20,6 +20,7 @@ public class AdminDashboardResponse {
     private List<TrendPoint> trend;
     private List<ParentOrderQueueItem> parentOrders;
     private List<TopCategorySignal> topCategories;
+    private AnalyticsRangeResponse analytics;
 
     @Data
     @Builder

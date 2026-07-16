@@ -1,5 +1,5 @@
 import './Admin.css';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowUpRight,
   ChevronRight,
@@ -16,17 +16,33 @@ import {
   Zap,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import AdminLayout from './AdminLayout';
 import { AdminStateBlock } from './AdminStateBlocks';
+import DateRangeFilter from '../../components/Analytics/DateRangeFilter';
 import {
   adminDashboardService,
   type AdminDashboardTopCategory,
 } from '../../services/adminDashboardService';
+import type { AnalyticsMetricChange } from '../../services/analyticsTypes';
+import {
+  getAnalyticsRangeLabel,
+  getAnalyticsQueryFromSearchParams,
+} from '../../components/Analytics/analyticsRange';
 import { getOptimizedImageUrl } from '../../utils/getOptimizedImageUrl';
 
 const formatCurrency = (value: number) => `${(value || 0).toLocaleString('vi-VN')} ₫`;
+
+const formatAnalyticsChange = (change?: AnalyticsMetricChange) => {
+  if (!change) return 'Hiện tại';
+  if (change.percent === null) return change.absolute > 0 ? 'Mới phát sinh' : '—';
+  return `${change.percent >= 0 ? '+' : ''}${change.percent.toFixed(1)}%`;
+};
+
+const getAnalyticsChangeTone = (change?: AnalyticsMetricChange) => (
+  !change || change.percent === null || change.percent >= 0 ? 'up' : 'down'
+);
 
 const buildCategoryFallbackImage = (name: string) =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=E2E8F0&color=334155&size=160&font-size=0.45`;
@@ -210,16 +226,17 @@ const getYAxisMax = (points: RevenueChartPoint[]) => {
 };
 
 const Admin = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [dashboard, setDashboard] = useState<Awaited<ReturnType<typeof adminDashboardService.get>> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [revenueRange, setRevenueRange] = useState<RevenueRange>('week');
+  const [rangeQuery, setRangeQuery] = useState(() => getAnalyticsQueryFromSearchParams(searchParams));
 
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     try {
       setIsLoading(true);
       setLoadError(null);
-      const data = await adminDashboardService.get();
+      const data = await adminDashboardService.get(rangeQuery);
       setDashboard(data);
     } catch (error: unknown) {
       const message = error instanceof Error && error.message.trim()
@@ -229,81 +246,83 @@ const Admin = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [rangeQuery]);
 
   useEffect(() => {
-    loadDashboard();
-  }, []);
+    setSearchParams({ from: rangeQuery.from, to: rangeQuery.to, bucket: rangeQuery.bucket }, { replace: true });
+  }, [rangeQuery, setSearchParams]);
+
+  useEffect(() => {
+    void loadDashboard();
+  }, [loadDashboard]);
 
   const chartData = useMemo(
-    () => buildChartDataByRange(dashboard?.trend || [], revenueRange),
-    [dashboard?.trend, revenueRange]
+    () => dashboard?.analytics?.series.map((point) => ({
+      ts: new Date(`${point.from}T00:00:00`).getTime(),
+      dateLabel: point.label,
+      fullDate: `${point.from} - ${point.to}`,
+      gmv: Number(point.grossRevenue || 0),
+      netRevenue: Number(point.netRevenue || 0),
+    })) || buildChartDataByRange(dashboard?.trend || [], 'month'),
+    [dashboard?.analytics, dashboard?.trend]
   );
   const yAxisMax = useMemo(() => getYAxisMax(chartData), [chartData]);
 
-  const revenueRangeMeta = useMemo(() => {
-    if (revenueRange === 'week') {
-      return {
-        description: 'Doanh thu gộp và thực nhận theo tuần',
-      };
-    }
-    if (revenueRange === 'month') {
-      return {
-        description: 'Doanh thu gộp và thực nhận theo tháng',
-      };
-    }
-    return {
-      description: 'Doanh thu gộp và thực nhận theo năm',
-    };
-  }, [revenueRange]);
-
   const stats = useMemo(() => {
     const metrics = dashboard?.metrics;
+    const summary = dashboard?.analytics?.summary;
+    const changes = dashboard?.analytics?.changes;
     return [
       {
         label: 'GMV đã giao thành công',
-        value: formatCurrency(Number(metrics?.gmvDelivered || 0)),
-        change: 'Live',
+        value: formatCurrency(Number(summary?.grossRevenue ?? metrics?.gmvDelivered ?? 0)),
+        change: formatAnalyticsChange(changes?.grossRevenue),
+        tone: getAnalyticsChangeTone(changes?.grossRevenue),
         icon: <DollarSign size={18} />,
         to: '/admin/financials',
       },
       {
         label: 'Commission đã ghi nhận',
-        value: formatCurrency(Number(metrics?.commissionDelivered || 0)),
-        change: 'Live',
+        value: formatCurrency(Number(summary?.commission ?? metrics?.commissionDelivered ?? 0)),
+        change: formatAnalyticsChange(changes?.commission),
+        tone: getAnalyticsChangeTone(changes?.commission),
         icon: <WalletCards size={18} />,
         to: '/admin/financials',
       },
       {
-        label: 'Đơn hàng toàn sàn',
-        value: String(metrics?.totalOrders || 0),
-        change: 'Live',
+        label: 'Đơn giao thành công',
+        value: String(summary?.deliveredOrders ?? metrics?.totalOrders ?? 0),
+        change: formatAnalyticsChange(changes?.deliveredOrders),
+        tone: getAnalyticsChangeTone(changes?.deliveredOrders),
         icon: <Package size={18} />,
         to: '/admin/orders',
       },
       {
-        label: 'Tổng gian hàng',
-        value: String(metrics?.totalStores || 0),
-        change: 'Live',
-        icon: <Store size={18} />,
-        to: '/admin/stores',
+        label: 'Giá trị đơn trung bình',
+        value: formatCurrency(Number(summary?.averageOrderValue || 0)),
+        change: formatAnalyticsChange(changes?.averageOrderValue),
+        tone: getAnalyticsChangeTone(changes?.averageOrderValue),
+        icon: <Users size={18} />,
+        to: '/admin/orders',
       },
       {
-        label: 'Tổng khách hàng',
-        value: String(metrics?.totalCustomers || 0),
-        change: 'Live',
+        label: 'Khách hàng đã mua',
+        value: String(summary?.distinctCustomers ?? metrics?.totalCustomers ?? 0),
+        change: formatAnalyticsChange(changes?.distinctCustomers),
+        tone: getAnalyticsChangeTone(changes?.distinctCustomers),
         icon: <Users size={18} />,
         to: '/admin/users',
       },
       {
-        label: 'Chiến dịch đang chạy',
-        value: String(metrics?.runningCampaigns || 0),
-        change: 'Live',
-        icon: <TicketPercent size={18} />,
-        to: '/admin/promotions',
+        label: 'Tổng gian hàng',
+        value: String(metrics?.totalStores || 0),
+        change: 'Hiện tại',
+        tone: 'up',
+        icon: <Store size={18} />,
+        to: '/admin/stores',
       },
     ];
-  }, [dashboard?.metrics]);
+  }, [dashboard?.analytics, dashboard?.metrics]);
 
   const governanceFeed = useMemo(() => {
     const quick = dashboard?.quickViews;
@@ -389,6 +408,7 @@ const Admin = () => {
 
   return (
     <AdminLayout title="Dashboard">
+      <DateRangeFilter value={rangeQuery} onChange={setRangeQuery} loading={isLoading} />
       <section className="admin-stats grid-6">
         {stats.map((item) => (
           <motion.div
@@ -398,7 +418,7 @@ const Admin = () => {
           >
             <div className="admin-stat-header">
               <div className="admin-stat-icon">{item.icon}</div>
-              <div className="admin-stat-change up">
+              <div className={`admin-stat-change ${item.tone}`}>
                 <ArrowUpRight size={14} />
                 <span>{item.change}</span>
               </div>
@@ -416,36 +436,11 @@ const Admin = () => {
         <div className="admin-panel-head">
           <div>
             <h2>Biểu đồ doanh thu</h2>
-            <span className="admin-muted">{revenueRangeMeta.description}</span>
-          </div>
-          <div className="admin-chart-range-controls" role="tablist" aria-label="Khoảng thời gian doanh thu">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={revenueRange === 'week'}
-              className={`admin-chart-range-btn ${revenueRange === 'week' ? 'active' : ''}`}
-              onClick={() => setRevenueRange('week')}
-            >
-              Tuần
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={revenueRange === 'month'}
-              className={`admin-chart-range-btn ${revenueRange === 'month' ? 'active' : ''}`}
-              onClick={() => setRevenueRange('month')}
-            >
-              Tháng
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={revenueRange === 'year'}
-              className={`admin-chart-range-btn ${revenueRange === 'year' ? 'active' : ''}`}
-              onClick={() => setRevenueRange('year')}
-            >
-              Năm
-            </button>
+            <span className="admin-muted">
+              {dashboard?.analytics
+                ? `Doanh thu gộp và thực nhận ${getAnalyticsRangeLabel(dashboard.analytics.bucket).toLowerCase()}`
+                : 'Doanh thu gộp và thực nhận theo khoảng đã chọn'}
+            </span>
           </div>
         </div>
         <div className="area-chart-wrap">

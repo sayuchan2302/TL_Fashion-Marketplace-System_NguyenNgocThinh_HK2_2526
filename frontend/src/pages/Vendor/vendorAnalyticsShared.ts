@@ -37,6 +37,7 @@ export const emptyVendorAnalytics: VendorAnalyticsData = {
   dailyData: [],
   topProducts: [],
   commissionRate: 5,
+  analytics: null,
 };
 
 export const vendorAnalyticsPeriodLabels: Record<VendorAnalyticsPeriod, string> = {

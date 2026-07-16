@@ -13,12 +13,11 @@ import {
 import { formatCurrency } from '../../../../services/commissionService';
 import type {
   VendorAnalyticsData,
-  VendorAnalyticsPeriod,
 } from '../../../../services/vendorPortalService';
+import { getAnalyticsRangeLabel } from '../../../../components/Analytics/analyticsRange';
 import {
   buildVendorAnalyticsChartData,
   getVendorAnalyticsChartMeta,
-  vendorAnalyticsPeriodLabels,
 } from '../../vendorAnalyticsShared';
 
 type AnalyticsTooltipEntry = {
@@ -32,11 +31,9 @@ type AnalyticsTooltipEntry = {
 };
 
 interface VendorAnalyticsSectionProps {
-  activePeriod: VendorAnalyticsPeriod;
   analytics: VendorAnalyticsData;
   loading: boolean;
   error: string;
-  onPeriodChange: (period: VendorAnalyticsPeriod) => void;
   onRetry: () => void;
 }
 
@@ -74,20 +71,31 @@ const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: Analyt
 };
 
 const VendorAnalyticsSection = ({
-  activePeriod,
   analytics,
   loading,
   error,
-  onPeriodChange,
   onRetry,
 }: VendorAnalyticsSectionProps) => {
   const chartData = useMemo(
-    () => buildVendorAnalyticsChartData(analytics.dailyData, activePeriod),
-    [analytics.dailyData, activePeriod],
+    () => analytics.analytics?.series.map((point) => ({
+      ts: new Date(`${point.from}T00:00:00`).getTime(),
+      dateLabel: point.label,
+      fullDate: `${point.from} - ${point.to}`,
+      revenue: Number(point.grossRevenue || 0),
+      payout: Number(point.payout || 0),
+      commission: Number(point.commission || 0),
+      orders: Number(point.deliveredOrders || 0),
+    })) || buildVendorAnalyticsChartData(analytics.dailyData, 'year'),
+    [analytics.analytics, analytics.dailyData],
   );
   const chartMeta = useMemo(
-    () => getVendorAnalyticsChartMeta(activePeriod),
-    [activePeriod],
+    () => analytics.analytics
+      ? {
+          description: `Doanh thu gộp và thực nhận ${getAnalyticsRangeLabel(analytics.analytics.bucket).toLowerCase()}`,
+          emptyLabel: 'Dữ liệu sẽ xuất hiện khi shop có đơn hàng trong khoảng thời gian đã chọn.',
+        }
+      : getVendorAnalyticsChartMeta('year'),
+    [analytics.analytics],
   );
 
   return (
@@ -96,20 +104,6 @@ const VendorAnalyticsSection = ({
         <div>
           <h2>Biểu đồ doanh thu</h2>
           <span className="analytics-muted">{chartMeta.description}</span>
-        </div>
-        <div className="admin-chart-range-controls vendor-chart-range-controls" role="tablist" aria-label="Khoảng thời gian thống kê">
-          {(['week', 'month', 'year'] as VendorAnalyticsPeriod[]).map((period) => (
-            <button
-              key={period}
-              type="button"
-              role="tab"
-              className={`admin-chart-range-btn vendor-chart-range-btn ${activePeriod === period ? 'active' : ''}`}
-              aria-selected={activePeriod === period}
-              onClick={() => onPeriodChange(period)}
-            >
-              {vendorAnalyticsPeriodLabels[period]}
-            </button>
-          ))}
         </div>
       </div>
 

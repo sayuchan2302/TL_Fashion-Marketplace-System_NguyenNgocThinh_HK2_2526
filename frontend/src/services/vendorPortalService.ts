@@ -2,6 +2,7 @@ import { apiRequest } from './apiClient';
 import { storeService, type StoreProfile } from './storeService';
 import { getOptimizedImageUrl } from '../utils/getOptimizedImageUrl';
 import { PLACEHOLDER_PRODUCT_IMAGE, PLACEHOLDER_STORE_BANNER, PLACEHOLDER_STORE_IMAGE } from '../constants/placeholders';
+import type { AnalyticsRangeData, AnalyticsRangeQuery } from './analyticsTypes';
 
 interface BackendPage<T> {
   content?: T[];
@@ -109,7 +110,7 @@ interface BackendTopProduct {
 }
 
 interface BackendVendorAnalyticsResponse {
-  today: {
+  today?: {
     revenue: number;
     payout: number;
     commission: number;
@@ -121,7 +122,7 @@ interface BackendVendorAnalyticsResponse {
     previousCommission: number;
     previousOrders: number;
   };
-  week: {
+  week?: {
     revenue: number;
     payout: number;
     commission: number;
@@ -133,7 +134,7 @@ interface BackendVendorAnalyticsResponse {
     previousCommission: number;
     previousOrders: number;
   };
-  month: {
+  month?: {
     revenue: number;
     payout: number;
     commission: number;
@@ -145,7 +146,7 @@ interface BackendVendorAnalyticsResponse {
     previousCommission: number;
     previousOrders: number;
   };
-  year: {
+  year?: {
     revenue: number;
     payout: number;
     commission: number;
@@ -157,14 +158,15 @@ interface BackendVendorAnalyticsResponse {
     previousCommission: number;
     previousOrders: number;
   };
-  dailyData: Array<{
+  dailyData?: Array<{
     date: string;
     revenue: number;
     payout: number;
     commission: number;
     orders: number;
   }>;
-  commissionRate: number;
+  commissionRate?: number;
+  analytics?: AnalyticsRangeData;
 }
 
 interface VendorStatsResponse {
@@ -300,6 +302,8 @@ export interface VendorAnalyticsPeriodSnapshot {
   previousOrders: number;
 }
 
+type BackendAnalyticsPeriod = NonNullable<BackendVendorAnalyticsResponse['today']>;
+
 export interface VendorAnalyticsChartDay {
   date: string;
   revenue: number;
@@ -313,6 +317,7 @@ export interface VendorAnalyticsData {
   dailyData: VendorAnalyticsChartDay[];
   topProducts: VendorTopProduct[];
   commissionRate: number;
+  analytics: AnalyticsRangeData | null;
 }
 
 export interface VendorSettingsData {
@@ -351,7 +356,7 @@ export interface VendorSettingsData {
 
 const FALLBACK_IMAGE = PLACEHOLDER_PRODUCT_IMAGE;
 let dashboardDataRequest: Promise<VendorDashboardData> | null = null;
-let analyticsDataRequest: Promise<VendorAnalyticsData> | null = null;
+let analyticsDataRequest: { key: string; promise: Promise<VendorAnalyticsData> } | null = null;
 
 const DEFAULT_SETTINGS: VendorSettingsData = {
   storeInfo: {
@@ -719,68 +724,38 @@ export const vendorPortalService = {
     return toVendorSettings(updatedStore);
   },
 
-  async getAnalytics(): Promise<VendorAnalyticsData> {
-    if (analyticsDataRequest) return analyticsDataRequest;
+  async getAnalytics(query?: AnalyticsRangeQuery): Promise<VendorAnalyticsData> {
+    const key = query ? `${query.from}:${query.to}:${query.bucket}` : 'legacy';
+    if (analyticsDataRequest?.key === key) return analyticsDataRequest.promise;
 
-    analyticsDataRequest = (async () => {
+    const request = (async () => {
       const analytics = await apiRequest<BackendVendorAnalyticsResponse>(
-        '/api/orders/my-store/analytics',
+        `/api/orders/my-store/analytics${query ? `?from=${encodeURIComponent(query.from)}&to=${encodeURIComponent(query.to)}&bucket=${query.bucket}` : ''}`,
         {},
         { auth: true },
       );
 
+      const mapPeriod = (period?: BackendAnalyticsPeriod): VendorAnalyticsPeriodSnapshot => ({
+        revenue: Number(period?.revenue || 0),
+        payout: Number(period?.payout || 0),
+        commission: Number(period?.commission || 0),
+        orders: Number(period?.orders || 0),
+        avgOrderValue: Number(period?.avgOrderValue || 0),
+        conversionRate: Number(period?.conversionRate || 0),
+        previousRevenue: Number(period?.previousRevenue || 0),
+        previousPayout: Number(period?.previousPayout || 0),
+        previousCommission: Number(period?.previousCommission || 0),
+        previousOrders: Number(period?.previousOrders || 0),
+      });
+
       return {
         periods: {
-          today: {
-            revenue: analytics.today.revenue,
-            payout: analytics.today.payout,
-            commission: analytics.today.commission,
-            orders: analytics.today.orders,
-            avgOrderValue: analytics.today.avgOrderValue,
-            conversionRate: analytics.today.conversionRate,
-            previousRevenue: analytics.today.previousRevenue,
-            previousPayout: analytics.today.previousPayout,
-            previousCommission: analytics.today.previousCommission,
-            previousOrders: analytics.today.previousOrders,
-          },
-          week: {
-            revenue: analytics.week.revenue,
-            payout: analytics.week.payout,
-            commission: analytics.week.commission,
-            orders: analytics.week.orders,
-            avgOrderValue: analytics.week.avgOrderValue,
-            conversionRate: analytics.week.conversionRate,
-            previousRevenue: analytics.week.previousRevenue,
-            previousPayout: analytics.week.previousPayout,
-            previousCommission: analytics.week.previousCommission,
-            previousOrders: analytics.week.previousOrders,
-          },
-          month: {
-            revenue: analytics.month.revenue,
-            payout: analytics.month.payout,
-            commission: analytics.month.commission,
-            orders: analytics.month.orders,
-            avgOrderValue: analytics.month.avgOrderValue,
-            conversionRate: analytics.month.conversionRate,
-            previousRevenue: analytics.month.previousRevenue,
-            previousPayout: analytics.month.previousPayout,
-            previousCommission: analytics.month.previousCommission,
-            previousOrders: analytics.month.previousOrders,
-          },
-          year: {
-            revenue: analytics.year.revenue,
-            payout: analytics.year.payout,
-            commission: analytics.year.commission,
-            orders: analytics.year.orders,
-            avgOrderValue: analytics.year.avgOrderValue,
-            conversionRate: analytics.year.conversionRate,
-            previousRevenue: analytics.year.previousRevenue,
-            previousPayout: analytics.year.previousPayout,
-            previousCommission: analytics.year.previousCommission,
-            previousOrders: analytics.year.previousOrders,
-          },
+          today: mapPeriod(analytics.today),
+          week: mapPeriod(analytics.week),
+          month: mapPeriod(analytics.month),
+          year: mapPeriod(analytics.year),
         },
-        dailyData: analytics.dailyData.map((d) => ({
+        dailyData: (analytics.dailyData || []).map((d) => ({
           date: d.date,
           revenue: d.revenue,
           payout: d.payout,
@@ -788,14 +763,16 @@ export const vendorPortalService = {
           orders: d.orders,
         })),
         topProducts: [],
-        commissionRate: analytics.commissionRate,
+        commissionRate: Number(analytics.commissionRate || 5),
+        analytics: analytics.analytics || null,
       };
     })();
+    analyticsDataRequest = { key, promise: request };
 
     try {
-      return await analyticsDataRequest;
+      return await request;
     } finally {
-      analyticsDataRequest = null;
+      if (analyticsDataRequest?.key === key) analyticsDataRequest = null;
     }
   },
 };

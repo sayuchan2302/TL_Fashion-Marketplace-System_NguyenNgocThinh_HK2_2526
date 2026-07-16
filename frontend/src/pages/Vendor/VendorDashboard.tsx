@@ -1,5 +1,5 @@
 ﻿import './Vendor.css';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   Store,
   TicketPercent,
+  Users,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
@@ -22,10 +23,10 @@ import { formatCurrency } from '../../services/commissionService';
 import {
   vendorPortalService,
   type VendorAnalyticsData,
-  type VendorAnalyticsPeriod,
   type VendorDashboardData,
   type VendorOrderSummary,
 } from '../../services/vendorPortalService';
+import type { AnalyticsMetricChange } from '../../services/analyticsTypes';
 import { vendorVoucherService } from '../../services/vendorVoucherService';
 import { walletService, type VendorWallet } from '../../services/walletService';
 import { useToast } from '../../contexts/ToastContext';
@@ -33,6 +34,8 @@ import { getUiErrorMessage } from '../../utils/errorMessage';
 import { AdminStateBlock } from '../Admin/AdminStateBlocks';
 import VendorAnalyticsSection from './components/analytics/VendorAnalyticsSection';
 import { emptyVendorAnalytics } from './vendorAnalyticsShared';
+import DateRangeFilter from '../../components/Analytics/DateRangeFilter';
+import { getAnalyticsQueryFromSearchParams } from '../../components/Analytics/analyticsRange';
 import {
   resolveDetailRouteKey,
   toDisplayOrderCode,
@@ -52,9 +55,20 @@ const initialData: VendorDashboardData = {
   topProducts: [],
 };
 
+const formatAnalyticsChange = (change?: AnalyticsMetricChange) => {
+  if (!change) return 'Hiện tại';
+  if (change.percent === null) return change.absolute > 0 ? 'Mới phát sinh' : '—';
+  return `${change.percent >= 0 ? '+' : ''}${change.percent.toFixed(1)}%`;
+};
+
+const getAnalyticsChangeTone = (change?: AnalyticsMetricChange) => (
+  !change || change.percent === null || change.percent >= 0 ? 'up' : 'down'
+);
+
 const VendorDashboard = () => {
   const { addToast } = useToast();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const analyticsSectionRef = useRef<HTMLElement | null>(null);
   const [data, setData] = useState<VendorDashboardData>(initialData);
   const [loading, setLoading] = useState(true);
@@ -66,8 +80,12 @@ const VendorDashboard = () => {
   const [analytics, setAnalytics] = useState<VendorAnalyticsData>(emptyVendorAnalytics);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState('');
-  const [analyticsPeriod, setAnalyticsPeriod] = useState<VendorAnalyticsPeriod>('week');
   const [analyticsReloadKey, setAnalyticsReloadKey] = useState(0);
+  const [rangeQuery, setRangeQuery] = useState(() => getAnalyticsQueryFromSearchParams(searchParams));
+
+  useEffect(() => {
+    setSearchParams({ from: rangeQuery.from, to: rangeQuery.to, bucket: rangeQuery.bucket }, { replace: true });
+  }, [rangeQuery, setSearchParams]);
 
   useEffect(() => {
     let active = true;
@@ -115,7 +133,7 @@ const VendorDashboard = () => {
       setAnalyticsLoading(true);
       try {
         setAnalyticsError('');
-        const next = await vendorPortalService.getAnalytics();
+        const next = await vendorPortalService.getAnalytics(rangeQuery);
         if (!active) return;
         startTransition(() => {
           setAnalytics(next);
@@ -137,7 +155,7 @@ const VendorDashboard = () => {
     return () => {
       active = false;
     };
-  }, [analyticsReloadKey]);
+  }, [analyticsReloadKey, rangeQuery]);
 
   const handleAnalyticsRetry = useCallback(() => {
     setAnalyticsReloadKey((key) => key + 1);
@@ -158,59 +176,59 @@ const VendorDashboard = () => {
   }, [location.hash, analyticsLoading]);
 
   const stats = data.stats;
+  const selectedSummary = analytics.analytics?.summary;
+  const selectedChanges = analytics.analytics?.changes;
   const topSaleBase = Math.max(...data.topProducts.map((product) => product.sales), 1);
 
   const statCards = [
     {
-      label: 'Đơn mới hôm nay',
-      value: stats.todayOrders,
-      change: `${stats.todayOrders > 0 ? '+' : ''}${stats.todayOrders}`,
-      tone: stats.todayOrders > 0 ? 'up' : 'down',
+      label: 'Đơn giao thành công',
+      value: selectedSummary?.deliveredOrders ?? stats.todayOrders,
+      change: formatAnalyticsChange(selectedChanges?.deliveredOrders),
+      tone: getAnalyticsChangeTone(selectedChanges?.deliveredOrders),
       icon: <ShoppingCart size={18} />,
-      to: '/vendor/orders',
-    },
-    {
-      label: 'Chờ xác nhận',
-      value: stats.pendingOrders,
-      change: `${stats.pendingOrders > 0 ? '+' : ''}${stats.pendingOrders}`,
-      tone: stats.pendingOrders > 0 ? 'up' : 'down',
-      icon: <Clock size={18} />,
-      to: '/vendor/orders?status=pending',
-      cardTone: stats.pendingOrders > 0 ? 'warning' : undefined,
+      to: '/vendor/orders?status=delivered',
     },
     {
       label: 'Doanh thu gộp',
-      value: formatCurrency(stats.totalRevenue),
-      change: `${stats.totalRevenue > 0 ? '+' : ''}${Math.round(stats.totalRevenue / 1000000)}M`,
-      tone: stats.totalRevenue > 0 ? 'up' : 'down',
+      value: formatCurrency(selectedSummary?.grossRevenue ?? stats.totalRevenue),
+      change: formatAnalyticsChange(selectedChanges?.grossRevenue),
+      tone: getAnalyticsChangeTone(selectedChanges?.grossRevenue),
       icon: <DollarSign size={18} />,
       to: '/vendor/dashboard#analytics',
     },
     {
       label: 'Tiền thực nhận',
-      value: formatCurrency(stats.totalPayout),
-      change: `${stats.totalPayout > 0 ? '+' : ''}${Math.round(stats.totalPayout / 1000000)}M`,
-      tone: stats.totalPayout > 0 ? 'up' : 'down',
+      value: formatCurrency(selectedSummary?.payout ?? stats.totalPayout),
+      change: formatAnalyticsChange(selectedChanges?.payout),
+      tone: getAnalyticsChangeTone(selectedChanges?.payout),
       icon: <BarChart3 size={18} />,
       to: '/vendor/dashboard#analytics',
       cardTone: 'teal',
     },
     {
-      label: 'Sản phẩm đang bán',
-      value: stats.totalProducts,
-      change: `${stats.totalProducts > 0 ? '+' : ''}${stats.totalProducts}`,
-      tone: stats.totalProducts > 0 ? 'up' : 'down',
-      icon: <Package size={18} />,
-      to: '/vendor/products',
+      label: 'Phí sàn',
+      value: formatCurrency(selectedSummary?.commission ?? 0),
+      change: formatAnalyticsChange(selectedChanges?.commission),
+      tone: getAnalyticsChangeTone(selectedChanges?.commission),
+      icon: <TicketPercent size={18} />,
+      to: '/vendor/finance',
     },
     {
-      label: 'Voucher đang chạy',
-      value: runningVoucherCount,
-      change: `${runningVoucherCount}`,
-      tone: runningVoucherCount > 0 ? 'up' : 'down',
-      icon: <TicketPercent size={18} />,
-      to: '/vendor/promotions',
-      cardTone: 'success',
+      label: 'Giá trị đơn trung bình',
+      value: formatCurrency(selectedSummary?.averageOrderValue ?? 0),
+      change: formatAnalyticsChange(selectedChanges?.averageOrderValue),
+      tone: getAnalyticsChangeTone(selectedChanges?.averageOrderValue),
+      icon: <DollarSign size={18} />,
+      to: '/vendor/dashboard#analytics',
+    },
+    {
+      label: 'Khách hàng đã mua',
+      value: selectedSummary?.distinctCustomers ?? 0,
+      change: formatAnalyticsChange(selectedChanges?.distinctCustomers),
+      tone: getAnalyticsChangeTone(selectedChanges?.distinctCustomers),
+      icon: <Users size={18} />,
+      to: '/vendor/dashboard#analytics',
     },
   ];
 
@@ -246,6 +264,7 @@ const VendorDashboard = () => {
       title="Dashboard"
       breadcrumbs={['Kênh Người Bán', 'Dashboard']}
     >
+      <DateRangeFilter value={rangeQuery} onChange={setRangeQuery} loading={analyticsLoading} />
       {loadError ? (
         <section className="admin-panels single">
           <AdminStateBlock
@@ -287,6 +306,24 @@ const VendorDashboard = () => {
         ))}
       </section>
 
+      <section className="vendor-operational-summary" aria-label="Chỉ số vận hành hiện tại">
+        <Link to="/vendor/orders?status=pending" className="vendor-operational-item">
+          <Clock size={16} />
+          <span>Chờ xác nhận</span>
+          <strong>{stats.pendingOrders}</strong>
+        </Link>
+        <Link to="/vendor/products" className="vendor-operational-item">
+          <Package size={16} />
+          <span>Sản phẩm đang bán</span>
+          <strong>{stats.totalProducts}</strong>
+        </Link>
+        <Link to="/vendor/promotions" className="vendor-operational-item">
+          <TicketPercent size={16} />
+          <span>Voucher đang chạy</span>
+          <strong>{runningVoucherCount}</strong>
+        </Link>
+      </section>
+
       {!loadError ? (
         <motion.section
           ref={analyticsSectionRef}
@@ -297,11 +334,9 @@ const VendorDashboard = () => {
           style={{ marginBottom: 16, scrollMarginTop: 24 }}
         >
           <VendorAnalyticsSection
-            activePeriod={analyticsPeriod}
             analytics={analytics}
             loading={analyticsLoading}
             error={analyticsError}
-            onPeriodChange={setAnalyticsPeriod}
             onRetry={handleAnalyticsRetry}
           />
         </motion.section>

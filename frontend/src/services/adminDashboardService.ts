@@ -1,4 +1,5 @@
 import { apiRequest } from './apiClient';
+import type { AnalyticsRangeData, AnalyticsRangeQuery } from './analyticsTypes';
 
 export interface AdminDashboardMetrics {
   gmvDelivered: number;
@@ -48,10 +49,22 @@ export interface AdminDashboardResponse {
   trend: AdminDashboardTrendPoint[];
   parentOrders: AdminDashboardParentOrder[];
   topCategories: AdminDashboardTopCategory[];
+  analytics?: AnalyticsRangeData;
 }
 
 export const adminDashboardService = {
-  async get(): Promise<AdminDashboardResponse> {
-    return apiRequest<AdminDashboardResponse>('/api/admin/dashboard', {}, { auth: true });
+  async get(query?: AnalyticsRangeQuery): Promise<AdminDashboardResponse> {
+    const searchParams = new URLSearchParams();
+    if (query) {
+      searchParams.set('from', query.from);
+      searchParams.set('to', query.to);
+      searchParams.set('bucket', query.bucket);
+    }
+    const queryString = searchParams.toString();
+    return apiRequest<AdminDashboardResponse>(
+      `/api/admin/dashboard${queryString ? `?${queryString}` : ''}`,
+      {},
+      { auth: true },
+    );
   },
 };

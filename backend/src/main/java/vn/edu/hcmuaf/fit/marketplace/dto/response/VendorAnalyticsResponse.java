@@ -20,6 +20,7 @@ public class VendorAnalyticsResponse {
     private PeriodData year;
     private List<DailySeriesData> dailyData;
     private BigDecimal commissionRate;
+    private AnalyticsRangeResponse analytics;
 
     @Getter
     @Builder

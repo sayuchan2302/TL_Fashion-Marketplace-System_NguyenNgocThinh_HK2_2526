@@ -1,9 +1,11 @@
 package vn.edu.hcmuaf.fit.marketplace.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.hcmuaf.fit.marketplace.dto.response.AdminDashboardResponse;
+import vn.edu.hcmuaf.fit.marketplace.dto.response.AnalyticsRangeResponse;
 import vn.edu.hcmuaf.fit.marketplace.entity.Category;
 import vn.edu.hcmuaf.fit.marketplace.entity.Order;
 import vn.edu.hcmuaf.fit.marketplace.entity.ReturnRequest;
@@ -41,6 +43,7 @@ public class AdminDashboardService {
     private final ReturnRequestRepository returnRequestRepository;
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
+    private final AnalyticsAggregationService analyticsAggregationService;
 
     public AdminDashboardService(
             OrderRepository orderRepository,
@@ -50,6 +53,27 @@ public class AdminDashboardService {
             ReturnRequestRepository returnRequestRepository,
             CategoryRepository categoryRepository,
             ProductRepository productRepository) {
+        this(
+                orderRepository,
+                storeRepository,
+                userRepository,
+                voucherRepository,
+                returnRequestRepository,
+                categoryRepository,
+                productRepository,
+                new AnalyticsAggregationService());
+    }
+
+    @Autowired
+    public AdminDashboardService(
+            OrderRepository orderRepository,
+            StoreRepository storeRepository,
+            UserRepository userRepository,
+            VoucherRepository voucherRepository,
+            ReturnRequestRepository returnRequestRepository,
+            CategoryRepository categoryRepository,
+            ProductRepository productRepository,
+            AnalyticsAggregationService analyticsAggregationService) {
         this.orderRepository = orderRepository;
         this.storeRepository = storeRepository;
         this.userRepository = userRepository;
@@ -57,6 +81,7 @@ public class AdminDashboardService {
         this.returnRequestRepository = returnRequestRepository;
         this.categoryRepository = categoryRepository;
         this.productRepository = productRepository;
+        this.analyticsAggregationService = analyticsAggregationService;
     }
 
     @Transactional(readOnly = true)
@@ -90,6 +115,48 @@ public class AdminDashboardService {
                 .parentOrders(buildParentOrderQueue())
                 .topCategories(buildTopCategories())
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public AdminDashboardResponse getDashboard(AnalyticsRange range) {
+        AdminDashboardResponse response = getDashboard();
+        response.setAnalytics(buildRangeAnalytics(range));
+        return response;
+    }
+
+    private AnalyticsRangeResponse buildRangeAnalytics(AnalyticsRange range) {
+        AnalyticsRange previousRange = range.previous();
+        List<AnalyticsDailyValue> currentRows = orderRepository
+                .findPlatformDeliveredDailyRevenueBetween(range.fromDateTime(), range.toExclusiveDateTime())
+                .stream()
+                .map(row -> new AnalyticsDailyValue(
+                        LocalDate.parse(row.getDate()),
+                        safeAmount(row.getGmv()),
+                        BigDecimal.ZERO,
+                        safeAmount(row.getCommission()),
+                        row.getOrderCount() == null ? 0L : row.getOrderCount()))
+                .toList();
+        List<AnalyticsDailyValue> previousRows = orderRepository
+                .findPlatformDeliveredDailyRevenueBetween(previousRange.fromDateTime(), previousRange.toExclusiveDateTime())
+                .stream()
+                .map(row -> new AnalyticsDailyValue(
+                        LocalDate.parse(row.getDate()),
+                        safeAmount(row.getGmv()),
+                        BigDecimal.ZERO,
+                        safeAmount(row.getCommission()),
+                        row.getOrderCount() == null ? 0L : row.getOrderCount()))
+                .toList();
+
+        return analyticsAggregationService.aggregate(
+                range,
+                currentRows,
+                orderRepository.countDistinctPlatformCustomersBetween(
+                        range.fromDateTime(),
+                        range.toExclusiveDateTime()),
+                previousRows,
+                orderRepository.countDistinctPlatformCustomersBetween(
+                        previousRange.fromDateTime(),
+                        previousRange.toExclusiveDateTime()));
     }
 
     private List<AdminDashboardResponse.TrendPoint> buildTrend() {

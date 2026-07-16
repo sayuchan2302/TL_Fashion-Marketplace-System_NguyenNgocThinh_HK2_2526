@@ -421,12 +421,15 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
                 BigDecimal getGmv();
 
                 BigDecimal getCommission();
+
+                Long getOrderCount();
         }
 
         @Query("""
                         SELECT DATE(COALESCE(o.deliveredAt, o.createdAt)) AS date,
                                COALESCE(SUM(o.total), 0) AS gmv,
-                               COALESCE(SUM(o.commissionFee), 0) AS commission
+                               COALESCE(SUM(o.commissionFee), 0) AS commission,
+                               COUNT(o.id) AS orderCount
                         FROM Order o
                         WHERE o.parentOrder IS NULL
                           AND o.status = 'DELIVERED'
@@ -434,6 +437,35 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
                         ORDER BY date ASC
                         """)
         List<PlatformDailyRevenueProjection> findPlatformDeliveredDailyRevenue();
+
+        @Query("""
+                        SELECT DATE(COALESCE(o.deliveredAt, o.createdAt)) AS date,
+                               COALESCE(SUM(o.total), 0) AS gmv,
+                               COALESCE(SUM(o.commissionFee), 0) AS commission,
+                               COUNT(o.id) AS orderCount
+                        FROM Order o
+                        WHERE o.parentOrder IS NULL
+                          AND o.status = 'DELIVERED'
+                          AND COALESCE(o.deliveredAt, o.createdAt) >= :fromDate
+                          AND COALESCE(o.deliveredAt, o.createdAt) < :toDate
+                        GROUP BY DATE(COALESCE(o.deliveredAt, o.createdAt))
+                        ORDER BY date ASC
+                        """)
+        List<PlatformDailyRevenueProjection> findPlatformDeliveredDailyRevenueBetween(
+                        @Param("fromDate") LocalDateTime fromDate,
+                        @Param("toDate") LocalDateTime toDate);
+
+        @Query("""
+                        SELECT COUNT(DISTINCT o.user.id)
+                        FROM Order o
+                        WHERE o.parentOrder IS NULL
+                          AND o.status = 'DELIVERED'
+                          AND COALESCE(o.deliveredAt, o.createdAt) >= :fromDate
+                          AND COALESCE(o.deliveredAt, o.createdAt) < :toDate
+                        """)
+        long countDistinctPlatformCustomersBetween(
+                        @Param("fromDate") LocalDateTime fromDate,
+                        @Param("toDate") LocalDateTime toDate);
 
         @Query("""
                         SELECT DATE(COALESCE(o.deliveredAt, o.createdAt)) AS date,

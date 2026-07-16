@@ -18,6 +18,7 @@ import vn.edu.hcmuaf.fit.marketplace.entity.Order;
 import vn.edu.hcmuaf.fit.marketplace.security.AuthContext;
 import vn.edu.hcmuaf.fit.marketplace.security.AuthContext.UserContext;
 import vn.edu.hcmuaf.fit.marketplace.service.OrderService;
+import vn.edu.hcmuaf.fit.marketplace.service.AnalyticsRange;
 import vn.edu.hcmuaf.fit.marketplace.service.VendorAnalyticsService;
 
 import java.time.LocalDate;
@@ -278,10 +279,25 @@ public class OrderController {
     @PreAuthorize("hasAnyRole('VENDOR', 'SUPER_ADMIN')")
     public ResponseEntity<VendorAnalyticsResponse> getMyStoreAnalytics(
             @RequestHeader("Authorization") String authHeader,
-            @RequestParam(required = false) UUID storeId) {
+            @RequestParam(required = false) UUID storeId,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to,
+            @RequestParam(required = false) String bucket) {
         UserContext ctx = authContext.requireVendor(authHeader);
         UUID effectiveStoreId = authContext.resolveRequiredStoreId(ctx, storeId);
-        return ResponseEntity.ok(vendorAnalyticsService.getAnalytics(effectiveStoreId));
+        if (from == null && to == null && (bucket == null || bucket.isBlank())) {
+            return ResponseEntity.ok(vendorAnalyticsService.getAnalytics(effectiveStoreId));
+        }
+        if (from == null || to == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "from and to are required together");
+        }
+        try {
+            return ResponseEntity.ok(vendorAnalyticsService.getAnalytics(
+                    effectiveStoreId,
+                    AnalyticsRange.resolve(from, to, bucket)));
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
+        }
     }
 
     // ─── Admin Endpoints ───────────────────────────────────────────────────────
