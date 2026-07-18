@@ -76,9 +76,9 @@ const QUICK_ACTION_LABEL: Record<BotScenarioActionKey, string> = {
 };
 
 const BOT_ADMIN_TABS: Array<{ id: BotAdminTab; label: string; icon?: LucideIcon }> = [
+  { id: 'faq', label: 'FAQ / Knowledge' },
   { id: 'flows', label: 'Luồng hội thoại', icon: GitBranch },
   { id: 'test', label: 'Test Draft' },
-  { id: 'faq', label: 'FAQ / Knowledge' },
 ];
 
 const FLOW_GROUPS: ConversationFlow[] = [
@@ -289,9 +289,8 @@ const AdminBotAI = () => {
   const [savingDraft, setSavingDraft] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [savingFaq, setSavingFaq] = useState(false);
-  const [activeTab, setActiveTab] = useState<BotAdminTab>('flows');
+  const [activeTab, setActiveTab] = useState<BotAdminTab>('faq');
   const [faqSearch, setFaqSearch] = useState('');
-  const [faqTestQuery, setFaqTestQuery] = useState('');
   const [simulatorMessages, setSimulatorMessages] = useState<DraftSimulatorMessage[]>([]);
   const [simulatorInput, setSimulatorInput] = useState('');
   const [simulatorStep, setSimulatorStep] = useState<DraftSimulatorStep>('menu');
@@ -357,8 +356,6 @@ const AdminBotAI = () => {
       return haystack.includes(normalizedSearch);
     });
   }, [faqItems, faqSearch]);
-
-  const faqTestMatch = useMemo(() => findFaqMatch(faqTestQuery, faqItems), [faqItems, faqTestQuery]);
 
   const updateDraftField = <K extends keyof BotScenarioPayload>(field: K, value: BotScenarioPayload[K]) => {
     setDraft((current) => (current ? { ...current, [field]: value } : current));
@@ -931,24 +928,6 @@ const AdminBotAI = () => {
         </div>
 
         <div className="bot-ai-faq-side">
-          <div className="bot-ai-section">
-            <h3><Search size={16} /> Test keyword</h3>
-            <label>
-              Câu hỏi thử
-              <input
-                value={faqTestQuery}
-                onChange={(e) => setFaqTestQuery(e.target.value)}
-                placeholder="Ví dụ: giao hàng mất bao lâu?"
-              />
-            </label>
-            {faqTestQuery.trim() ? (
-              <div className={`bot-ai-faq-match ${faqTestMatch ? 'matched' : ''}`}>
-                <strong>{faqTestMatch ? `Match: ${faqTestMatch.title}` : 'Chưa match FAQ nào'}</strong>
-                {faqTestMatch ? <p>{faqTestMatch.body}</p> : <p>Thêm keyword hoặc chỉnh lại FAQ để bot nhận diện câu hỏi này.</p>}
-              </div>
-            ) : null}
-          </div>
-
           <div className="bot-ai-faq-editor">
             <h3>{faqForm.id ? 'Chỉnh sửa FAQ' : 'FAQ mới'}</h3>
             <label>

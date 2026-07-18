@@ -6171,27 +6171,6 @@ textarea:focus-visible {
   gap: 8px;
 }
 
-.bot-ai-faq-match {
-  border: 1px solid #fed7aa;
-  border-radius: 10px;
-  padding: 10px;
-  background: #fff7ed;
-  color: #9a3412;
-  display: grid;
-  gap: 6px;
-}
-
-.bot-ai-faq-match.matched {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.bot-ai-faq-match p {
-  margin: 0;
-  color: var(--co-gray-700);
-}
-
 .bot-ai-faq-editor {
   display: grid;
   gap: 10px;
@@ -6458,7 +6437,6 @@ textarea:focus-visible {
   .bot-ai-step-label,
   .bot-ai-message-actions button,
   .bot-ai-faq-card h4,
-  .bot-ai-faq-match,
   .moderation-error-text) {
   font-weight: var(--admin-font-control);
 }
@@ -6500,7 +6478,6 @@ textarea:focus-visible {
   .bot-ai-step-label,
   .bot-ai-message-actions button,
   .bot-ai-faq-card h4,
-  .bot-ai-faq-match,
   .moderation-error-text),
 .confirm-modal:not(.vendor-confirm-modal) :is(.admin-bold,
   .admin-primary-btn,

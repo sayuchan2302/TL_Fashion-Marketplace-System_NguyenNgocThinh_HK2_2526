@@ -366,7 +366,7 @@ public class AdminVisionService {
                 .skippedUnchanged(nullToZero(run.getSkippedUnchanged()))
                 .failedImages(nullToZero(run.getFailedImages()))
                 .deactivatedRows(nullToZero(run.getDeactivatedRows()))
-                .message(run.getMessage())
+                .message(normalizeSyncMessage(run.getMessage()))
                 .build();
     }
 
@@ -458,6 +458,19 @@ public class AdminVisionService {
 
     private String formatInstant(Instant value) {
         return value == null ? null : value.toString();
+    }
+
+    private String normalizeSyncMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return message;
+        }
+
+        return switch (message.trim()) {
+            case "Dong bo catalog hoan tat" -> "Đồng bộ catalog hoàn tất";
+            case "Dang dong bo catalog" -> "Đang đồng bộ catalog";
+            case "Chua chay sync catalog" -> "Chưa chạy đồng bộ catalog";
+            default -> message;
+        };
     }
 
     private String safeBaseUrl() {
